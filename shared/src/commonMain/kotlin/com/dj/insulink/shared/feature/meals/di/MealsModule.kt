@@ -1,0 +1,26 @@
+package com.dj.insulink.shared.feature.meals.di
+
+import com.dj.insulink.shared.feature.meals.data.local.MealsDatabase
+import com.dj.insulink.shared.feature.meals.data.local.MealsDatabaseFactory
+import com.dj.insulink.shared.feature.meals.data.local.buildMealsDatabase
+import com.dj.insulink.shared.feature.meals.data.remote.FoodApiRemoteDataSource
+import com.dj.insulink.shared.feature.meals.data.remote.KtorFoodApiRemoteDataSource
+import com.dj.insulink.shared.feature.meals.data.remote.createHttpClient
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import org.koin.core.module.Module
+import org.koin.dsl.module
+
+expect fun platformMealsModule(): Module
+
+fun mealsModule(usdaApiKey: String, spoonacularApiKey: String): Module = module {
+    includes(platformMealsModule())
+    single<MealsDatabase> { buildMealsDatabase(get<MealsDatabaseFactory>().create()) }
+    single { get<MealsDatabase>().mealDao() }
+    single { get<MealsDatabase>().ingredientDao() }
+    single { get<MealsDatabase>().mealIngredientDao() }
+    single { createHttpClient() }
+    single<FoodApiRemoteDataSource> {
+        KtorFoodApiRemoteDataSource(get(), usdaApiKey = usdaApiKey, spoonacularApiKey = spoonacularApiKey)
+    }
+    single { MealRepository(get(), get(), get(), get(), get()) }
+}

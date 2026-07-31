@@ -21,7 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.meals.domain.model.Meal
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,9 +83,10 @@ private fun MealItemContent(meal: Meal) {
 
             if (meal.calories != null || meal.protein != null || meal.carbs != null) {
                 Column(horizontalAlignment = Alignment.End) {
-                    if (meal.calories != null) {
+                    val calories = meal.calories
+                    if (calories != null) {
                         Text(
-                            text = stringResource(R.string.meals_screen_cal_value, meal.calories),
+                            text = stringResource(R.string.meals_screen_cal_value, calories),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface

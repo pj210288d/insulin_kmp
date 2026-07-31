@@ -2,11 +2,11 @@ package com.dj.insulink.feature.meals.ui.viewmodel
 
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.feature.meals.data.repository.MealRepository
-import com.dj.insulink.feature.meals.domain.model.DailyNutrition
-import com.dj.insulink.feature.meals.domain.model.Ingredient
-import com.dj.insulink.feature.meals.domain.model.Meal
-import com.dj.insulink.feature.meals.domain.model.MealIngredient
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
+import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 import com.dj.insulink.util.MainDispatcherRule
 import com.dj.insulink.util.awaitUntil
 import io.mockk.coEvery

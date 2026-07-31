@@ -53,8 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.meals.domain.model.Ingredient
-import com.dj.insulink.feature.meals.domain.model.MealIngredient
+import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
+import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 
 data class AddMealScreenParams(
     val mealName: State<String>,

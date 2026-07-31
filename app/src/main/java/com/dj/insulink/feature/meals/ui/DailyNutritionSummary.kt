@@ -15,7 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
 
 @Composable
 fun DailyNutritionSummary(nutrition: DailyNutrition) {

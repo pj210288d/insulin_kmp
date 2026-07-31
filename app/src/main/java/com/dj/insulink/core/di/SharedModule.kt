@@ -1,6 +1,7 @@
 package com.dj.insulink.core.di
 
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,6 +19,12 @@ object SharedModule {
     @Provides
     @Singleton
     fun provideGlucoseReadingRepository(): GlucoseReadingRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMealRepository(): MealRepository {
         return GlobalContext.get().get()
     }
 }

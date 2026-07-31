@@ -3,11 +3,11 @@ package com.dj.insulink.feature.meals.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.feature.meals.data.repository.MealRepository
-import com.dj.insulink.feature.meals.domain.model.DailyNutrition
-import com.dj.insulink.feature.meals.domain.model.Ingredient
-import com.dj.insulink.feature.meals.domain.model.Meal
-import com.dj.insulink.feature.meals.domain.model.MealIngredient
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
+import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
