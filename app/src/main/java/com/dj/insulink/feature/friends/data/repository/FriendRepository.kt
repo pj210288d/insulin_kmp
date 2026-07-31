@@ -5,7 +5,7 @@ import com.dj.insulink.feature.friends.data.room.dao.FriendDao
 import com.dj.insulink.feature.friends.domain.mappers.toDomain
 import com.dj.insulink.feature.friends.domain.mappers.toEntity
 import com.dj.insulink.feature.friends.domain.models.Friend
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue

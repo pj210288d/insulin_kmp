@@ -6,7 +6,7 @@ import com.dj.insulink.auth.domain.models.User
 import com.dj.insulink.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.feature.friends.data.repository.UserWithLatestReading
 import com.dj.insulink.feature.friends.domain.models.Friend
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.settings.data.SettingsPreferences
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule

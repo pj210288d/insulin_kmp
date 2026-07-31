@@ -38,7 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat

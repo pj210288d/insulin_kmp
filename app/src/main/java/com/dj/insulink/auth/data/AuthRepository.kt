@@ -9,7 +9,7 @@ import com.dj.insulink.auth.domain.models.UserRegistration
 import com.dj.insulink.core.utils.DeterministicCodeGenerator
 import com.dj.insulink.feature.fitness.domain.model.Exercise
 import com.dj.insulink.feature.friends.domain.models.Friend
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.dj.insulink.feature.reminders.domain.models.Reminder

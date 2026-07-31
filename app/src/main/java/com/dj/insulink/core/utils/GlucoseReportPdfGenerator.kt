@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.dj.insulink.R
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.colors.ColorConstants

@@ -6,8 +6,6 @@ import com.dj.insulink.feature.fitness.data.room.dao.ExerciseDao
 import com.dj.insulink.feature.fitness.data.room.entity.ExerciseEntity
 import com.dj.insulink.feature.friends.data.room.dao.FriendDao
 import com.dj.insulink.feature.friends.data.room.entity.FriendEntity
-import com.dj.insulink.feature.glucose.data.room.dao.GlucoseReadingDao
-import com.dj.insulink.feature.glucose.data.room.entity.GlucoseReadingEntity
 import com.dj.insulink.feature.meals.data.room.dao.IngredientDao
 import com.dj.insulink.feature.meals.data.room.dao.MealDao
 import com.dj.insulink.feature.meals.data.room.dao.MealIngredientDao
@@ -19,7 +17,6 @@ import com.dj.insulink.feature.reminders.data.room.entity.ReminderEntity
 
 @Database(
     entities = [
-        GlucoseReadingEntity::class,
         FriendEntity::class,
         ReminderEntity::class,
         MealEntity::class,
@@ -31,7 +28,6 @@ import com.dj.insulink.feature.reminders.data.room.entity.ReminderEntity
     exportSchema = false
 )
 abstract class InsulinkDatabase : RoomDatabase() {
-    abstract fun glucoseReadingDao(): GlucoseReadingDao
     abstract fun friendDao(): FriendDao
     abstract fun reminderDao(): ReminderDao
     abstract fun mealDao(): MealDao
