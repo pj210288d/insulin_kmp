@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.feature.dataREMOVE.pdf.GlucoseReportPdfGenerator
-import com.dj.insulink.feature.glucose.data.repository.GlucoseReadingRepository
-import com.dj.insulink.feature.glucose.domain.models.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
+import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.settings.data.SettingsPreferences
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
