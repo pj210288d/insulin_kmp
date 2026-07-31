@@ -140,7 +140,8 @@ dependencies {
     // Pdf
     implementation("com.itextpdf:itext7-core:9.3.0")
 
-    // Pdf
-    implementation("com.itextpdf:itext7-core:9.3.0")
+    // Shared KMP module
+    implementation(project(":shared"))
+    implementation(libs.koin.android)
 
 }
