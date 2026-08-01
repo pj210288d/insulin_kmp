@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.meals.domain.model.Ingredient
+import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 
 @Composable
 fun MyIngredientsDialog(

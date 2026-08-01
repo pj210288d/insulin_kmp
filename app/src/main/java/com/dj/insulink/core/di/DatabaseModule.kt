@@ -35,17 +35,5 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideMealDao(database: InsulinkDatabase) = database.mealDao()
-
-    @Provides
-    @Singleton
-    fun provideIngredientDao(database: InsulinkDatabase) = database.ingredientDao()
-
-    @Provides
-    @Singleton
-    fun provideMealIngredientDao(database: InsulinkDatabase) = database.mealIngredientDao()
-
-    @Provides
-    @Singleton
     fun provideExerciseDao(database: InsulinkDatabase) = database.exerciseDao()
 }
