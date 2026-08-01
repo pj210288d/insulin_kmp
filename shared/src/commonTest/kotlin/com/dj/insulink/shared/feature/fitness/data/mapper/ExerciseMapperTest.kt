@@ -1,9 +1,9 @@
-package com.dj.insulink.feature.fitness.domain.mappers
+package com.dj.insulink.shared.feature.fitness.data.mapper
 
-import com.dj.insulink.feature.fitness.data.room.entity.ExerciseEntity
-import com.dj.insulink.feature.fitness.domain.model.Exercise
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.dj.insulink.shared.feature.fitness.data.local.entity.ExerciseEntity
+import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class ExerciseMapperTest {
 
@@ -17,22 +17,22 @@ class ExerciseMapperTest {
     )
 
     @Test
-    fun `entity maps to domain`() {
+    fun entityMapsToDomain() {
         assertEquals(domain, entity.toDomain())
     }
 
     @Test
-    fun `domain maps to entity`() {
+    fun domainMapsToEntity() {
         assertEquals(entity, domain.toEntity())
     }
 
     @Test
-    fun `round trip preserves the exercise`() {
+    fun roundTripPreservesTheExercise() {
         assertEquals(domain, domain.toEntity().toDomain())
     }
 
     @Test
-    fun `list mappers map every element`() {
+    fun listMappersMapEveryElement() {
         val entities = listOf(entity, entity.copy(id = 4, sportName = "Cycling"))
         val domains = entities.toDomain()
         assertEquals(2, domains.size)

@@ -1,7 +1,7 @@
-package com.dj.insulink.feature.fitness.domain.mappers
+package com.dj.insulink.shared.feature.fitness.data.mapper
 
-import com.dj.insulink.feature.fitness.data.room.entity.ExerciseEntity
-import com.dj.insulink.feature.fitness.domain.model.Exercise
+import com.dj.insulink.shared.feature.fitness.data.local.entity.ExerciseEntity
+import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
 
 fun ExerciseEntity.toDomain(): Exercise {
     return Exercise(

@@ -1,4 +1,4 @@
-package com.dj.insulink.feature.fitness.data.room.entity
+package com.dj.insulink.shared.feature.fitness.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

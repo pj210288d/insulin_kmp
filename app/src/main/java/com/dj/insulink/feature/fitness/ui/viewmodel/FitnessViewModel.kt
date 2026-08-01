@@ -3,8 +3,8 @@ package com.dj.insulink.feature.fitness.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.feature.fitness.data.repository.ExerciseRepository
-import com.dj.insulink.feature.fitness.domain.model.Exercise
+import com.dj.insulink.shared.feature.fitness.data.repository.ExerciseRepository
+import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
 import com.dj.insulink.feature.fitness.domain.model.Sport
 import com.dj.insulink.feature.settings.data.SettingsPreferences
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
