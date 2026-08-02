@@ -58,8 +58,8 @@ import androidx.compose.ui.window.Dialog
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.core.utils.combineTimeWithDate
-import com.dj.insulink.feature.reminders.domain.models.Reminder
-import com.dj.insulink.feature.reminders.domain.models.ReminderType
+import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
+import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
 import com.dj.insulink.feature.glucose.ui.GlucoseDropdownMenu
 import java.text.SimpleDateFormat
 import java.util.Calendar

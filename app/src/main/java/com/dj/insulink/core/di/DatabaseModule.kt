@@ -28,8 +28,4 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideFriendDao(database: InsulinkDatabase) = database.friendDao()
-
-    @Provides
-    @Singleton
-    fun provideReminderDao(database: InsulinkDatabase) = database.reminderDao()
 }

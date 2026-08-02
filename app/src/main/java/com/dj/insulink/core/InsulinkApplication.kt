@@ -6,6 +6,7 @@ import com.dj.insulink.shared.core.di.firebaseModule
 import com.dj.insulink.shared.feature.fitness.di.fitnessModule
 import com.dj.insulink.shared.feature.glucose.di.glucoseModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
+import com.dj.insulink.shared.feature.reminders.di.remindersModule
 import dagger.hilt.android.HiltAndroidApp
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -23,7 +24,8 @@ class InsulinkApplication : Application() {
                     usdaApiKey = BuildConfig.USDA_API_KEY ?: "",
                     spoonacularApiKey = BuildConfig.SPOONACULAR_API_KEY ?: ""
                 ),
-                fitnessModule
+                fitnessModule,
+                remindersModule
             )
         }
     }

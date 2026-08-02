@@ -12,7 +12,7 @@ import com.dj.insulink.feature.friends.domain.models.Friend
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.dj.insulink.feature.reminders.domain.models.Reminder
+import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
