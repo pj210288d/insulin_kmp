@@ -1,7 +1,7 @@
-package com.dj.insulink.feature.friends.domain.mappers
+package com.dj.insulink.shared.feature.friends.data.mapper
 
-import com.dj.insulink.feature.friends.data.room.entity.FriendEntity
-import com.dj.insulink.feature.friends.domain.models.Friend
+import com.dj.insulink.shared.feature.friends.data.local.entity.FriendEntity
+import com.dj.insulink.shared.feature.friends.domain.model.Friend
 
 fun FriendEntity.toDomain(): Friend {
     return Friend(

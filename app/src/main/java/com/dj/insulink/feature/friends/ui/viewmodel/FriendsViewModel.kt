@@ -3,10 +3,10 @@ package com.dj.insulink.feature.friends.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.feature.friends.data.repository.FriendRepository
-import com.dj.insulink.feature.friends.domain.models.Friend
 import com.dj.insulink.feature.settings.data.SettingsPreferences
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
+import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -64,21 +64,21 @@ class FriendsViewModel @Inject constructor(
 
     fun onAddFriendClick(userId: String) {
         viewModelScope.launch {
-            val foundUser = friendRepository.findUserByFriendCode(_enteredCode.value)
-            foundUser?.let {
+            val candidate = friendRepository.findFriendCandidateByFriendCode(_enteredCode.value)
+            candidate?.let {
                 friendRepository.addFriend(
                     Friend(
                         id = 0,
                         userId = userId,
-                        friendId = foundUser.user.uid,
-                        friendName = "${foundUser.user.firstName} ${foundUser.user.lastName}",
-                        friendLastGlucoseReadingValue = foundUser.latestReading?.value,
-                        friendsLastGlucoseReadingTime = foundUser.latestReading?.timestamp
+                        friendId = candidate.uid,
+                        friendName = "${candidate.firstName} ${candidate.lastName}",
+                        friendLastGlucoseReadingValue = candidate.latestReading?.value,
+                        friendsLastGlucoseReadingTime = candidate.latestReading?.timestamp
                     )
                 )
 
-                friendRepository.pushFriendToFirestoreForUser(userId, foundUser.user.uid)
-                friendRepository.pushFriendToFirestoreForUser(foundUser.user.uid, userId)
+                friendRepository.pushFriendToFirestoreForUser(userId, candidate.uid)
+                friendRepository.pushFriendToFirestoreForUser(candidate.uid, userId)
             }
         }
         setShowAddNewFriendDialog(false)

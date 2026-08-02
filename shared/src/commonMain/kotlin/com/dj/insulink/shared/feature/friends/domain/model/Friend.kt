@@ -1,4 +1,4 @@
-package com.dj.insulink.feature.friends.domain.models
+package com.dj.insulink.shared.feature.friends.domain.model
 
 data class Friend(
     val id: Long,

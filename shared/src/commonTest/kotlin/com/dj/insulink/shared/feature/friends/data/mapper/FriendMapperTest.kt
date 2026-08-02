@@ -1,9 +1,9 @@
-package com.dj.insulink.feature.friends.domain.mappers
+package com.dj.insulink.shared.feature.friends.data.mapper
 
-import com.dj.insulink.feature.friends.data.room.entity.FriendEntity
-import com.dj.insulink.feature.friends.domain.models.Friend
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.dj.insulink.shared.feature.friends.data.local.entity.FriendEntity
+import com.dj.insulink.shared.feature.friends.domain.model.Friend
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class FriendMapperTest {
 
@@ -17,23 +17,23 @@ class FriendMapperTest {
     )
 
     @Test
-    fun `entity maps to domain`() {
+    fun entityMapsToDomain() {
         assertEquals(domain, entity.toDomain())
     }
 
     @Test
-    fun `domain maps to entity`() {
+    fun domainMapsToEntity() {
         assertEquals(entity, domain.toEntity())
     }
 
     @Test
-    fun `nullable reading fields are preserved`() {
+    fun nullableReadingFieldsArePreserved() {
         val noReading = domain.copy(friendLastGlucoseReadingValue = null, friendsLastGlucoseReadingTime = null)
         assertEquals(noReading, noReading.toEntity().toDomain())
     }
 
     @Test
-    fun `list mappers map every element`() {
+    fun listMappersMapEveryElement() {
         val entities = listOf(entity, entity.copy(id = 2, friendName = "John Roe"))
         val domains = entities.toDomain()
         assertEquals(2, domains.size)

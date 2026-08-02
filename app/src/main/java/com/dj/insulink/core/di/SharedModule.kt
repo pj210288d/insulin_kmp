@@ -1,6 +1,7 @@
 package com.dj.insulink.core.di
 
 import com.dj.insulink.shared.feature.fitness.data.repository.ExerciseRepository
+import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
 import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
@@ -39,6 +40,12 @@ object SharedModule {
     @Provides
     @Singleton
     fun provideReminderRepository(): ReminderRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendRepository(): FriendRepository {
         return GlobalContext.get().get()
     }
 }

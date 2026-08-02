@@ -1,4 +1,4 @@
-package com.dj.insulink.feature.friends.data.room.entity
+package com.dj.insulink.shared.feature.friends.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

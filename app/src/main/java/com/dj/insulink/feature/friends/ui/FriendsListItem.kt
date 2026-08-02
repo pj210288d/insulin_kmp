@@ -17,9 +17,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.friends.domain.models.Friend
 import com.dj.insulink.feature.glucose.ui.GlucoseLevelTag
 import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,14 +50,15 @@ fun FriendsListItem(
                 )
                 Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
             }
-            if (friend.friendsLastGlucoseReadingTime != null) {
+            val readingTime = friend.friendsLastGlucoseReadingTime
+            if (readingTime != null) {
                 Text(
                     text = stringResource(
                         R.string.friends_screen_reading_label,
                         SimpleDateFormat(
                             "d/M/yy H:mm",
                             Locale.getDefault()
-                        ).format(Date(friend.friendsLastGlucoseReadingTime))
+                        ).format(Date(readingTime))
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -75,18 +76,19 @@ fun FriendsListItem(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.End
         ) {
-            if (friend.friendLastGlucoseReadingValue != null) {
+            val glucoseValue = friend.friendLastGlucoseReadingValue
+            if (glucoseValue != null) {
                 Text(
                     text = stringResource(
                         R.string.glucose_screen_value_display_label,
-                        glucoseUnit.formatValue(friend.friendLastGlucoseReadingValue),
+                        glucoseUnit.formatValue(glucoseValue),
                         glucoseUnit.suffix
                     ),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
-                GlucoseLevelTag(glucoseLevel = friend.friendLastGlucoseReadingValue)
+                GlucoseLevelTag(glucoseLevel = glucoseValue)
             } else {
                 Text(
                     text = stringResource(R.string.friends_screen_dash_label),

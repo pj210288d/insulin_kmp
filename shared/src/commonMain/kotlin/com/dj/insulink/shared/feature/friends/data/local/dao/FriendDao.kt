@@ -1,10 +1,10 @@
-package com.dj.insulink.feature.friends.data.room.dao
+package com.dj.insulink.shared.feature.friends.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.dj.insulink.feature.friends.data.room.entity.FriendEntity
+import com.dj.insulink.shared.feature.friends.data.local.entity.FriendEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -20,11 +20,11 @@ interface FriendDao {
     suspend fun insert(friend: FriendEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
-    suspend fun insertAll(readings: List<FriendEntity>)
+    suspend fun insertAll(friends: List<FriendEntity>)
 
     @Query("""
-        UPDATE friends 
-        SET friendLastGlucoseReadingValue = :readingValue, 
+        UPDATE friends
+        SET friendLastGlucoseReadingValue = :readingValue,
             friendsLastGlucoseReadingTime = :timestamp
         WHERE friendId = :friendId AND userId = :userId
     """)
@@ -34,5 +34,4 @@ interface FriendDao {
         readingValue: Int,
         timestamp: Long
     )
-
 }
