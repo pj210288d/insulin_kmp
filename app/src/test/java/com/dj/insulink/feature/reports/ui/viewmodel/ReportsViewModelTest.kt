@@ -106,6 +106,24 @@ class ReportsViewModelTest {
     }
 
     @Test
+    fun `filterReadingsByCurrentDateRange uses the selected sub-range, not the full available range`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { repository.getDateRange("u1") } returns Pair(100L, 200L)
+        every { repository.getGlucoseReadingsByDateRange("u1", 100L, 200L) } returns
+            flowOf(listOf(GlucoseReading(1, "u1", 100L, 90, ""), GlucoseReading(2, "u1", 150L, 95, "")))
+        every { repository.getGlucoseReadingsByDateRange("u1", 120L, 150L) } returns
+            flowOf(listOf(GlucoseReading(2, "u1", 150L, 95, "")))
+        val vm = buildViewModel()
+        vm.initializeDateRange("u1")
+        advanceUntilIdle()
+
+        vm.updateDateRange(120L, 150L)
+        vm.filterReadingsByCurrentDateRange("u1")
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L), vm.filteredReadings.value.map { it.id })
+    }
+
+    @Test
     fun `resetDateRange reloads the range from the repository`() = runTest(mainDispatcherRule.dispatcher) {
         coEvery { repository.getDateRange("u1") } returns Pair(50L, 80L)
         every { repository.getGlucoseReadingsByDateRange("u1", 50L, 80L) } returns flowOf(emptyList())

@@ -71,8 +71,8 @@ class ReportsViewModel @Inject constructor(
     }
 
     fun filterReadingsByCurrentDateRange(userId: String) {
-        val currentMinDate = _minDate.value
-        val currentMaxDate = _maxDate.value
+        val currentMinDate = _selectedMinDate.value
+        val currentMaxDate = _selectedMaxDate.value
 
         if (currentMinDate != null && currentMaxDate != null) {
             filterReadingsByDateRange(userId, currentMinDate, currentMaxDate)
