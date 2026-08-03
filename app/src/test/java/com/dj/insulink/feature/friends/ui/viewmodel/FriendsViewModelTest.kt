@@ -2,8 +2,8 @@ package com.dj.insulink.feature.friends.ui.viewmodel
 
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate

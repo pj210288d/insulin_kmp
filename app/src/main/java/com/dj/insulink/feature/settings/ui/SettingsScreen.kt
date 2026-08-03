@@ -20,8 +20,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.settings.domain.model.AppLanguage
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
 @Composable
 fun SettingsScreen(

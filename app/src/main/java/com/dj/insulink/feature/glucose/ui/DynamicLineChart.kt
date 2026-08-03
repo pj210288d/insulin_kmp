@@ -10,7 +10,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.MaterialTheme
 import com.dj.insulink.R
 import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart

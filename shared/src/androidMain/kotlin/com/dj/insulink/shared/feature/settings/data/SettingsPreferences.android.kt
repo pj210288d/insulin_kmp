@@ -1,31 +1,25 @@
-package com.dj.insulink.feature.settings.data
+package com.dj.insulink.shared.feature.settings.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.dj.insulink.feature.settings.domain.model.AppLanguage
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
-@Singleton
-class SettingsPreferences @Inject constructor(
-    @ApplicationContext context: Context
-) {
+actual class SettingsPreferences(context: Context) {
     private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun getLanguage(): AppLanguage =
+    actual fun getLanguage(): AppLanguage =
         AppLanguage.fromKey(prefs.getString(KEY_LANGUAGE, AppLanguage.ENGLISH.key) ?: AppLanguage.ENGLISH.key)
 
-    fun setLanguage(language: AppLanguage) {
+    actual fun setLanguage(language: AppLanguage) {
         prefs.edit().putString(KEY_LANGUAGE, language.key).apply()
     }
 
-    fun getGlucoseUnit(): GlucoseUnit =
+    actual fun getGlucoseUnit(): GlucoseUnit =
         GlucoseUnit.fromKey(prefs.getString(KEY_GLUCOSE_UNIT, GlucoseUnit.MG_DL.key) ?: GlucoseUnit.MG_DL.key)
 
-    fun setGlucoseUnit(unit: GlucoseUnit) {
+    actual fun setGlucoseUnit(unit: GlucoseUnit) {
         prefs.edit().putString(KEY_GLUCOSE_UNIT, unit.key).apply()
     }
 

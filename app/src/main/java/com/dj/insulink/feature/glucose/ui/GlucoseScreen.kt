@@ -40,7 +40,7 @@ import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

@@ -1,63 +1,63 @@
-package com.dj.insulink.feature.settings.domain.model
+package com.dj.insulink.shared.feature.settings.domain.model
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class GlucoseUnitTest {
 
     @Test
-    fun `formatValue Int for MG_DL returns plain integer string`() {
+    fun formatValueIntForMgDlReturnsPlainIntegerString() {
         assertEquals("120", GlucoseUnit.MG_DL.formatValue(120))
     }
 
     @Test
-    fun `formatValue Int for MMOL_L converts and formats with one decimal`() {
+    fun formatValueIntForMmolLConvertsAndFormatsWithOneDecimal() {
         // 180 / 18.0182 = 9.9888 -> "10.0"
         assertEquals("10.0", GlucoseUnit.MMOL_L.formatValue(180))
     }
 
     @Test
-    fun `formatValue Double for MG_DL truncates to integer`() {
+    fun formatValueDoubleForMgDlTruncatesToInteger() {
         assertEquals("120", GlucoseUnit.MG_DL.formatValue(120.9))
     }
 
     @Test
-    fun `formatValue Double for MMOL_L converts and formats with one decimal`() {
+    fun formatValueDoubleForMmolLConvertsAndFormatsWithOneDecimal() {
         // 90.091 / 18.0182 = 5.0 -> "5.0"
         assertEquals("5.0", GlucoseUnit.MMOL_L.formatValue(90.091))
     }
 
     @Test
-    fun `fromKey returns matching unit for known keys`() {
+    fun fromKeyReturnsMatchingUnitForKnownKeys() {
         assertEquals(GlucoseUnit.MG_DL, GlucoseUnit.fromKey("mg_dl"))
         assertEquals(GlucoseUnit.MMOL_L, GlucoseUnit.fromKey("mmol_l"))
     }
 
     @Test
-    fun `fromKey falls back to MG_DL for unknown key`() {
+    fun fromKeyFallsBackToMgDlForUnknownKey() {
         assertEquals(GlucoseUnit.MG_DL, GlucoseUnit.fromKey("unknown"))
     }
 
     @Test
-    fun `convertMgDlToMmolL divides by the conversion factor`() {
+    fun convertMgDlToMmolLDividesByTheConversionFactor() {
         assertEquals(10.0, GlucoseUnit.convertMgDlToMmolL(180.182), 0.0001)
     }
 
     @Test
-    fun `convertMmolLToMgDl multiplies by the conversion factor`() {
+    fun convertMmolLToMgDlMultipliesByTheConversionFactor() {
         assertEquals(180.182, GlucoseUnit.convertMmolLToMgDl(10.0), 0.0001)
     }
 
     @Test
-    fun `conversion round trips back to the original value`() {
+    fun conversionRoundTripsBackToTheOriginalValue() {
         val original = 137.0
         val roundTripped = GlucoseUnit.convertMmolLToMgDl(GlucoseUnit.convertMgDlToMmolL(original))
         assertEquals(original, roundTripped, 0.0001)
     }
 
     @Test
-    fun `every unit has a non-blank key label and suffix`() {
+    fun everyUnitHasANonBlankKeyLabelAndSuffix() {
         GlucoseUnit.entries.forEach { unit ->
             assertTrue(unit.key.isNotBlank())
             assertTrue(unit.label.isNotBlank())

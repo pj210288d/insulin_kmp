@@ -10,16 +10,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import com.dj.insulink.core.navigation.AppNavigation
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.settings.data.SettingsPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    @Inject
-    lateinit var settingsPreferences: SettingsPreferences
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -5,10 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dj.insulink.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.feature.settings.ui.SettingsScreen
 import com.dj.insulink.feature.settings.ui.SettingsScreenParams
+import com.dj.insulink.feature.settings.ui.locale
 import com.dj.insulink.feature.settings.ui.viewmodel.SettingsViewModel
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import java.util.Locale
 
 @Composable

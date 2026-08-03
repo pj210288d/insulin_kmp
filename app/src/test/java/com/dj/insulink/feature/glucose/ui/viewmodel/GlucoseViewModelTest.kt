@@ -4,8 +4,8 @@ import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule
 import com.dj.insulink.util.awaitUntil
 import io.mockk.coVerify

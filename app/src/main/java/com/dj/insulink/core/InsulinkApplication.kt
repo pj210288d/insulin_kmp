@@ -8,6 +8,7 @@ import com.dj.insulink.shared.feature.friends.di.friendsModule
 import com.dj.insulink.shared.feature.glucose.di.glucoseModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
+import com.dj.insulink.shared.feature.settings.di.settingsModule
 import dagger.hilt.android.HiltAndroidApp
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -27,7 +28,8 @@ class InsulinkApplication : Application() {
                 ),
                 fitnessModule,
                 remindersModule,
-                friendsModule
+                friendsModule,
+                settingsModule
             )
         }
     }

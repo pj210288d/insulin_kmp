@@ -44,7 +44,7 @@ import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.R
 import com.dj.insulink.core.utils.combineDateAndTime
 import com.dj.insulink.core.utils.combineTimeWithDate
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
