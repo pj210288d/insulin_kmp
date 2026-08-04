@@ -11,9 +11,11 @@ import kotlinx.datetime.toInstant
 @OptIn(ExperimentalTime::class)
 class LibreLinkTimestampParserTest {
 
+    // FactoryTimestamp is UTC (see LibreLinkTimestampParser's doc comment), so the
+    // expected epoch must be computed against UTC, not the test runner's local zone.
     private fun epochMillisOf(year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int): Long {
         return LocalDateTime(year, month, day, hour, minute, second)
-            .toInstant(TimeZone.currentSystemDefault())
+            .toInstant(TimeZone.UTC)
             .toEpochMilliseconds()
     }
 

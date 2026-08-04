@@ -8,6 +8,13 @@ import kotlinx.datetime.toInstant
 // LibreLinkUp's FactoryTimestamp isn't ISO-8601 (e.g. "8/2/2025 3:45:00 PM"), so
 // kotlinx.datetime.LocalDateTime.parse can't read it directly. Parsed manually here
 // instead of using java.time, which isn't available in commonMain.
+//
+// FactoryTimestamp is always UTC (LibreLinkUp separately returns a "Timestamp" field
+// with the same wall-clock value shifted by the account's local UTC offset — e.g. an
+// account in Belgrade during CEST shows FactoryTimestamp 2h behind Timestamp). Parsing
+// it against the device's local zone instead of UTC double-applies that offset, making
+// every synced reading appear ~ the device's UTC-offset hours earlier than it actually
+// occurred (and land on the wrong calendar day near midnight).
 @OptIn(ExperimentalTime::class)
 fun parseLibreLinkTimestamp(raw: String): Long? {
     val parts = raw.trim().split(" ")
@@ -33,7 +40,7 @@ fun parseLibreLinkTimestamp(raw: String): Long? {
 
     return try {
         LocalDateTime(year, month, day, hour, minute, second)
-            .toInstant(TimeZone.currentSystemDefault())
+            .toInstant(TimeZone.UTC)
             .toEpochMilliseconds()
     } catch (e: IllegalArgumentException) {
         null
