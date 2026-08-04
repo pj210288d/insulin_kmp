@@ -6,9 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.material3.MaterialTheme
-import com.dj.insulink.R
+import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -18,13 +16,15 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.decoration.HorizontalBox
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,6 +72,19 @@ fun DynamicLineChart(
         }
     }
 
+    val targetRange = remember(glucoseUnit) {
+        if (glucoseUnit == GlucoseUnit.MMOL_L) {
+            GlucoseUnit.convertMgDlToMmolL(LOWER_GLUCOSE_THRESHOLD.toDouble())..
+                GlucoseUnit.convertMgDlToMmolL(HIGH_GLUCOSE_THRESHOLD.toDouble())
+        } else {
+            LOWER_GLUCOSE_THRESHOLD.toDouble()..HIGH_GLUCOSE_THRESHOLD.toDouble()
+        }
+    }
+    val targetRangeBox = rememberShapeComponent(fill = fill(InsulinkTheme.colors.glucoseNormal.copy(alpha = 0.15f)))
+    val decorations = remember(targetRange, targetRangeBox) {
+        listOf(HorizontalBox(y = { targetRange }, box = targetRangeBox))
+    }
+
     LaunchedEffect(xValues, convertedYValues, timespan) {
         if (xValues.isNotEmpty() && convertedYValues.isNotEmpty()) {
             modelProducer.runTransaction {
@@ -90,12 +103,7 @@ fun DynamicLineChart(
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(
-                title = stringResource(R.string.new_reading_text_field_label, glucoseUnit.suffix),
-                titleComponent = rememberTextComponent(
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            ),
+            startAxis = VerticalAxis.rememberStart(),
             bottomAxis = HorizontalAxis.rememberBottom(
                 valueFormatter = CartesianValueFormatter { context, x, _ ->
                     val index = x.toInt()
@@ -109,24 +117,13 @@ fun DynamicLineChart(
                             else -> "1 Jan"
                         }
                     }
-                },
-                title = getAxisTitle(timespan),
-                titleComponent = rememberTextComponent(
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
+                }
+            ),
+            decorations = decorations
         ),
         modelProducer = modelProducer,
         modifier = modifier,
         scrollState = scrollState,
         zoomState = rememberVicoZoomState(zoomEnabled = true)
     )
-}
-
-@Composable
-private fun getAxisTitle(timespan: GlucoseReadingTimespan): String {
-    return when (timespan) {
-        GlucoseReadingTimespan.LAST_DAY -> stringResource(R.string.chart_time_axis_title)
-        else -> stringResource(R.string.glucose_screen_date_axis_title)
-    }
 }
