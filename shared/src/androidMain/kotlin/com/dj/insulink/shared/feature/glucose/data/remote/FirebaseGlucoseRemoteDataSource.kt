@@ -56,6 +56,9 @@ class FirebaseGlucoseRemoteDataSource(
                 timestamp = (readingMap["timestamp"] as? Number)?.toLong() ?: 0,
                 comment = readingMap["comment"] as? String ?: "",
                 userId = readingMap["userId"] as? String ?: "",
+                insulinTypeId = (readingMap["insulinTypeId"] as? Number)?.toLong(),
+                insulinUnits = (readingMap["insulinUnits"] as? Number)?.toDouble(),
+                linkedMealId = (readingMap["linkedMealId"] as? Number)?.toLong(),
             )
         }
     }
