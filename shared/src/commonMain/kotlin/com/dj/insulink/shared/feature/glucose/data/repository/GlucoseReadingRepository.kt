@@ -57,6 +57,17 @@ class GlucoseReadingRepository(
         }
     }
 
+    suspend fun update(userId: String, reading: GlucoseReading) {
+        withContext(Dispatchers.IO) {
+            try {
+                glucoseReadingDao.update(reading.toEntity())
+                remoteDataSource.updateReading(userId, reading)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     suspend fun delete(userId: String, reading: GlucoseReading) {
         withContext(Dispatchers.IO) {
             try {

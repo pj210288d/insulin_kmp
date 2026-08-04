@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.dj.insulink.shared.feature.glucose.data.local.entity.GlucoseReadingEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +17,9 @@ interface GlucoseReadingDao {
 
     @Insert
     suspend fun insert(glucoseReadingEntity: GlucoseReadingEntity): Long
+
+    @Update
+    suspend fun update(glucoseReadingEntity: GlucoseReadingEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(readings: List<GlucoseReadingEntity>)

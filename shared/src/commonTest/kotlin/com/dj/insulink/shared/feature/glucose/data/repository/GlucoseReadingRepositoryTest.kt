@@ -64,6 +64,27 @@ class GlucoseReadingRepositoryTest {
     }
 
     @Test
+    fun update_updatesLocallyAndRemotely() = runTest {
+        val reading = GlucoseReading(
+            id = 7,
+            userId = "u1",
+            timestamp = 1000L,
+            value = 130,
+            comment = "",
+            insulinTypeId = 3,
+            insulinUnits = 4.0,
+            linkedMealId = 9
+        )
+
+        repository.update("u1", reading)
+
+        assertEquals(7L, dao.updatedEntities.single().id)
+        assertEquals(3L, dao.updatedEntities.single().insulinTypeId)
+        assertEquals("u1", remote.updated.single().first)
+        assertEquals(reading, remote.updated.single().second)
+    }
+
+    @Test
     fun delete_removesLocallyAndRemotely() = runTest {
         val reading = GlucoseReading(id = 7, userId = "u1", timestamp = 1000L, value = 120, comment = "")
 

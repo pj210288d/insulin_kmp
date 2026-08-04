@@ -17,6 +17,24 @@ class FirebaseGlucoseRemoteDataSource(
             .await()
     }
 
+    override suspend fun updateReading(userId: String, reading: GlucoseReading) {
+        try {
+            val userDocumentRef = firestore.collection(COLLECTION_NAME_USERS).document(userId)
+
+            val snapshot = userDocumentRef.get().await()
+            val readings =
+                snapshot.get(DOCUMENT_FIELD_READINGS) as? List<Map<String, Any>> ?: emptyList()
+
+            val updatedReadings = readings.map { readingMap ->
+                if ((readingMap["id"] as? Number)?.toLong() == reading.id) reading else readingMap
+            }
+
+            userDocumentRef.update(DOCUMENT_FIELD_READINGS, updatedReadings).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override suspend fun deleteReading(userId: String, reading: GlucoseReading) {
         try {
             val userDocumentRef = firestore.collection(COLLECTION_NAME_USERS).document(userId)

@@ -9,6 +9,9 @@ class NotImplementedGlucoseRemoteDataSource : GlucoseRemoteDataSource {
     override suspend fun pushReading(userId: String, reading: GlucoseReading): Unit =
         throw NotImplementedError("Firestore sync nije implementiran za iOS (faza 4)")
 
+    override suspend fun updateReading(userId: String, reading: GlucoseReading): Unit =
+        throw NotImplementedError("Firestore sync nije implementiran za iOS (faza 4)")
+
     override suspend fun deleteReading(userId: String, reading: GlucoseReading): Unit =
         throw NotImplementedError("Firestore sync nije implementiran za iOS (faza 4)")
 
