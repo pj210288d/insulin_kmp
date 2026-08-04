@@ -154,6 +154,18 @@
     <string name="settings_language_description">Choose the app language</string>
     <string name="settings_glucose_unit_title">Glucose Unit</string>
     <string name="settings_glucose_unit_description">Choose how glucose values are displayed</string>
+    <string name="settings_librelink_title">LibreLinkUp</string>
+    <string name="settings_librelink_description">Automatically sync glucose readings from your LibreLinkUp account</string>
+    <string name="librelink_email_label">LibreLinkUp email</string>
+    <string name="librelink_password_label">LibreLinkUp password</string>
+    <string name="librelink_connect_button">Connect</string>
+    <string name="librelink_disconnect_button">Disconnect</string>
+    <string name="librelink_connecting">Connecting…</string>
+    <string name="librelink_connected_as">Connected as %1$s</string>
+    <string name="librelink_last_synced">Last synced %1$s</string>
+    <string name="librelink_never_synced">Not synced yet</string>
+    <string name="librelink_sync_error">Last sync failed: %1$s</string>
+    <string name="librelink_connect_error">Could not connect: %1$s</string>
 
     <!-- Navigation titles -->
     <string name="nav_title_glucose">Glucose</string>

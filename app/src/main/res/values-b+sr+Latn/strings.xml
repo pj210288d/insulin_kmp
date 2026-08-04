@@ -52,6 +52,18 @@
     <string name="settings_language_description">Izaberite jezik aplikacije</string>
     <string name="settings_glucose_unit_title">Jedinica za glukozu</string>
     <string name="settings_glucose_unit_description">Izaberite kako se prikazuju vrednosti glukoze</string>
+    <string name="settings_librelink_title">LibreLinkUp</string>
+    <string name="settings_librelink_description">Automatski sinhronizuj očitavanja glukoze sa LibreLinkUp naloga</string>
+    <string name="librelink_email_label">LibreLinkUp e-mail</string>
+    <string name="librelink_password_label">LibreLinkUp lozinka</string>
+    <string name="librelink_connect_button">Poveži</string>
+    <string name="librelink_disconnect_button">Prekini vezu</string>
+    <string name="librelink_connecting">Povezivanje…</string>
+    <string name="librelink_connected_as">Povezan kao %1$s</string>
+    <string name="librelink_last_synced">Poslednja sinhronizacija: %1$s</string>
+    <string name="librelink_never_synced">Još nije sinhronizovano</string>
+    <string name="librelink_sync_error">Sinhronizacija nije uspela: %1$s</string>
+    <string name="librelink_connect_error">Povezivanje nije uspelo: %1$s</string>
 
     <!-- Glucose screen -->
     <string name="glucose_screen_latest_reading_label">Poslednje merenje</string>
