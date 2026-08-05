@@ -33,8 +33,12 @@ fun SettingsWrapper() {
     val libreLinkConnectState = libreLinkViewModel.connectState.collectAsStateWithLifecycle()
     val libreLinkEmail = libreLinkViewModel.email.collectAsStateWithLifecycle()
     val libreLinkPassword = libreLinkViewModel.password.collectAsStateWithLifecycle()
+    val libreLinkCurrentUserId = libreLinkViewModel.currentUserId.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    // Re-reads LibreLinkUp status whenever the signed-in Insulink user changes (not just on
+    // first composition) - otherwise a second Google account signed into the same app
+    // install would keep showing the first account's LibreLinkUp connection.
+    LaunchedEffect(libreLinkCurrentUserId.value) {
         libreLinkViewModel.refreshStatus()
     }
 

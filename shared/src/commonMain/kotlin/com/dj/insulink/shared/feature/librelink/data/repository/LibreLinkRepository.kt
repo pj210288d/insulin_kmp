@@ -14,13 +14,13 @@ class LibreLinkRepository(
     private val glucoseReadingRepository: GlucoseReadingRepository
 ) {
 
-    fun getSession(): LibreLinkSession? = sessionStorage.getSession()
+    fun getSession(userId: String): LibreLinkSession? = sessionStorage.getSession(userId)
 
-    fun getLastSyncedTimestamp(): Long? = sessionStorage.getLastSyncedTimestamp()
+    fun getLastSyncedTimestamp(userId: String): Long? = sessionStorage.getLastSyncedTimestamp(userId)
 
-    fun getLastSyncError(): String? = sessionStorage.getLastSyncError()
+    fun getLastSyncError(userId: String): String? = sessionStorage.getLastSyncError(userId)
 
-    suspend fun connect(email: String, password: String): Result<LibreLinkSession> {
+    suspend fun connect(userId: String, email: String, password: String): Result<LibreLinkSession> {
         return withContext(Dispatchers.IO) {
             runCatching {
                 val auth = apiClient.login(email, password).getOrThrow()
@@ -35,34 +35,34 @@ class LibreLinkRepository(
                     accountIdHash = auth.accountIdHash,
                     patientId = connection.patientId
                 )
-                sessionStorage.saveSession(session)
+                sessionStorage.saveSession(userId, session)
                 session
             }
         }
     }
 
-    fun disconnect() {
-        sessionStorage.clearSession()
+    fun disconnect(userId: String) {
+        sessionStorage.clearSession(userId)
     }
 
     suspend fun syncLatestReadings(userId: String): Result<Int> {
         return withContext(Dispatchers.IO) {
             runCatching {
-                val session = sessionStorage.getSession() ?: error("Not connected to LibreLinkUp")
+                val session = sessionStorage.getSession(userId) ?: error("Not connected to LibreLinkUp")
                 val readings = apiClient.fetchGlucoseReadings(session.auth, session.patientId).getOrThrow()
 
-                val lastSyncedTimestamp = sessionStorage.getLastSyncedTimestamp()
+                val lastSyncedTimestamp = sessionStorage.getLastSyncedTimestamp(userId)
                 val newReadings = readings.filter { lastSyncedTimestamp == null || it.timestamp > lastSyncedTimestamp }
 
                 newReadings.forEach { reading ->
                     glucoseReadingRepository.insert(userId, reading.toGlucoseReading(userId))
                 }
 
-                newReadings.maxOfOrNull { it.timestamp }?.let { sessionStorage.setLastSyncedTimestamp(it) }
-                sessionStorage.setLastSyncError(null)
+                newReadings.maxOfOrNull { it.timestamp }?.let { sessionStorage.setLastSyncedTimestamp(userId, it) }
+                sessionStorage.setLastSyncError(userId, null)
                 newReadings.size
             }.onFailure { throwable ->
-                sessionStorage.setLastSyncError(throwable.message ?: "Unknown error")
+                sessionStorage.setLastSyncError(userId, throwable.message ?: "Unknown error")
             }
         }
     }

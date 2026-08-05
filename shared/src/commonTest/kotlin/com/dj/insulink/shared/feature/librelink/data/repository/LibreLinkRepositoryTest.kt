@@ -30,7 +30,7 @@ class LibreLinkRepositoryTest {
             listOf(LibreLinkConnection("p1", "Jane Doe"), LibreLinkConnection("p2", "Other"))
         )
 
-        val result = repository.connect("a@b.com", "pw")
+        val result = repository.connect("u1", "a@b.com", "pw")
 
         assertTrue(result.isSuccess)
         val session = sessionStorage.storedSession
@@ -43,7 +43,7 @@ class LibreLinkRepositoryTest {
     fun connect_failsWhenLoginFails() = runTest {
         apiClient.loginResult = Result.failure(RuntimeException("bad credentials"))
 
-        val result = repository.connect("a@b.com", "wrong")
+        val result = repository.connect("u1", "a@b.com", "wrong")
 
         assertTrue(result.isFailure)
         assertNull(sessionStorage.storedSession)
@@ -54,7 +54,7 @@ class LibreLinkRepositoryTest {
         apiClient.loginResult = Result.success(LibreLinkAuth("tok", "https://api.libreview.io", "hash"))
         apiClient.connectionsResult = Result.success(emptyList())
 
-        val result = repository.connect("a@b.com", "pw")
+        val result = repository.connect("u1", "a@b.com", "pw")
 
         assertTrue(result.isFailure)
         assertNull(sessionStorage.storedSession)
@@ -64,9 +64,34 @@ class LibreLinkRepositoryTest {
     fun disconnect_clearsTheStoredSession() {
         sessionStorage.storedSession = LibreLinkSession("a@b.com", "tok", "https://api.libreview.io", "hash", "p1")
 
-        repository.disconnect()
+        repository.disconnect("u1")
 
         assertNull(sessionStorage.storedSession)
+    }
+
+    @Test
+    fun connect_doesNotAffectAnotherUsersStoredSession() = runTest {
+        sessionStorage.storedSessions["other-user"] =
+            LibreLinkSession("other@b.com", "other-tok", "https://api.libreview.io", "other-hash", "p9")
+        apiClient.loginResult = Result.success(LibreLinkAuth("tok", "https://api.libreview.io", "hash"))
+        apiClient.connectionsResult = Result.success(listOf(LibreLinkConnection("p1", "Jane Doe")))
+
+        repository.connect("u1", "a@b.com", "pw")
+
+        assertEquals("other@b.com", sessionStorage.storedSessions["other-user"]?.email)
+        assertEquals("a@b.com", sessionStorage.storedSessions["u1"]?.email)
+    }
+
+    @Test
+    fun disconnect_onlyClearsTheGivenUsersSession() {
+        sessionStorage.storedSessions["u1"] = LibreLinkSession("a@b.com", "tok", "https://api.libreview.io", "hash", "p1")
+        sessionStorage.storedSessions["other-user"] =
+            LibreLinkSession("other@b.com", "other-tok", "https://api.libreview.io", "other-hash", "p9")
+
+        repository.disconnect("u1")
+
+        assertNull(sessionStorage.storedSessions["u1"])
+        assertEquals("other@b.com", sessionStorage.storedSessions["other-user"]?.email)
     }
 
     @Test

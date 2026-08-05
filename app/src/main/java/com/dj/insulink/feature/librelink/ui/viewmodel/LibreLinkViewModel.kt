@@ -7,12 +7,14 @@ import com.dj.insulink.core.sync.LibreLinkSyncScheduler
 import com.dj.insulink.shared.feature.librelink.data.repository.LibreLinkRepository
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed class LibreLinkConnectState {
     data object Idle : LibreLinkConnectState()
@@ -27,13 +29,22 @@ class LibreLinkViewModel @Inject constructor(
     private val syncScheduler: LibreLinkSyncScheduler
 ) : ViewModel() {
 
-    private val _session = MutableStateFlow(libreLinkRepository.getSession())
+    // LibreLinkUp session/status are keyed by the currently signed-in Insulink user, not a
+    // single device-wide slot - so refreshStatus() must be re-invoked by the caller (see
+    // SettingsWrapper's LaunchedEffect(currentUser)) whenever the signed-in user changes,
+    // instead of ever showing one Insulink user's LibreLinkUp connection to another.
+    // Exposed so callers (see SettingsWrapper's LaunchedEffect) can key a refreshStatus()
+    // trigger off the signed-in user actually changing, not just the first composition.
+    val currentUserId: StateFlow<String?> = authRepository.getCurrentUserFlow()
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = null)
+
+    private val _session = MutableStateFlow<LibreLinkSession?>(null)
     val session: StateFlow<LibreLinkSession?> = _session.asStateFlow()
 
-    private val _lastSyncedTimestamp = MutableStateFlow(libreLinkRepository.getLastSyncedTimestamp())
+    private val _lastSyncedTimestamp = MutableStateFlow<Long?>(null)
     val lastSyncedTimestamp: StateFlow<Long?> = _lastSyncedTimestamp.asStateFlow()
 
-    private val _lastSyncError = MutableStateFlow(libreLinkRepository.getLastSyncError())
+    private val _lastSyncError = MutableStateFlow<String?>(null)
     val lastSyncError: StateFlow<String?> = _lastSyncError.asStateFlow()
 
     private val _connectState = MutableStateFlow<LibreLinkConnectState>(LibreLinkConnectState.Idle)
@@ -54,9 +65,18 @@ class LibreLinkViewModel @Inject constructor(
     }
 
     fun refreshStatus() {
-        _session.value = libreLinkRepository.getSession()
-        _lastSyncedTimestamp.value = libreLinkRepository.getLastSyncedTimestamp()
-        _lastSyncError.value = libreLinkRepository.getLastSyncError()
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserFlow().first()
+            if (userId != null) {
+                _session.value = libreLinkRepository.getSession(userId)
+                _lastSyncedTimestamp.value = libreLinkRepository.getLastSyncedTimestamp(userId)
+                _lastSyncError.value = libreLinkRepository.getLastSyncError(userId)
+            } else {
+                _session.value = null
+                _lastSyncedTimestamp.value = null
+                _lastSyncError.value = null
+            }
+        }
     }
 
     fun connect() {
@@ -65,19 +85,15 @@ class LibreLinkViewModel @Inject constructor(
         if (emailValue.isBlank() || passwordValue.isBlank()) return
 
         viewModelScope.launch {
+            val userId = authRepository.getCurrentUserFlow().first() ?: return@launch
             _connectState.value = LibreLinkConnectState.Connecting
 
-            libreLinkRepository.connect(emailValue, passwordValue).fold(
-                onSuccess = { session ->
-                    _session.value = session
+            libreLinkRepository.connect(userId, emailValue, passwordValue).fold(
+                onSuccess = {
                     _connectState.value = LibreLinkConnectState.Idle
                     _password.value = ""
                     syncScheduler.enqueue()
-
-                    val userId = authRepository.getCurrentUserFlow().first()
-                    if (userId != null) {
-                        libreLinkRepository.syncLatestReadings(userId)
-                    }
+                    libreLinkRepository.syncLatestReadings(userId)
                     refreshStatus()
                 },
                 onFailure = { error ->
@@ -88,9 +104,12 @@ class LibreLinkViewModel @Inject constructor(
     }
 
     fun disconnect() {
-        libreLinkRepository.disconnect()
-        syncScheduler.cancel()
-        _connectState.value = LibreLinkConnectState.Idle
-        refreshStatus()
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserFlow().first() ?: return@launch
+            libreLinkRepository.disconnect(userId)
+            syncScheduler.cancel()
+            _connectState.value = LibreLinkConnectState.Idle
+            refreshStatus()
+        }
     }
 }

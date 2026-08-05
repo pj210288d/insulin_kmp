@@ -8,12 +8,12 @@ import platform.Foundation.NSUserDefaults
 class IosLibreLinkSessionStorage : LibreLinkSessionStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
 
-    override fun getSession(): LibreLinkSession? {
-        val token = defaults.stringForKey(KEY_TOKEN) ?: return null
-        val email = defaults.stringForKey(KEY_EMAIL) ?: return null
-        val regionHost = defaults.stringForKey(KEY_REGION_HOST) ?: return null
-        val accountIdHash = defaults.stringForKey(KEY_ACCOUNT_ID_HASH) ?: return null
-        val patientId = defaults.stringForKey(KEY_PATIENT_ID) ?: return null
+    override fun getSession(userId: String): LibreLinkSession? {
+        val token = defaults.stringForKey(key(userId, KEY_TOKEN)) ?: return null
+        val email = defaults.stringForKey(key(userId, KEY_EMAIL)) ?: return null
+        val regionHost = defaults.stringForKey(key(userId, KEY_REGION_HOST)) ?: return null
+        val accountIdHash = defaults.stringForKey(key(userId, KEY_ACCOUNT_ID_HASH)) ?: return null
+        val patientId = defaults.stringForKey(key(userId, KEY_PATIENT_ID)) ?: return null
 
         return LibreLinkSession(
             email = email,
@@ -24,43 +24,47 @@ class IosLibreLinkSessionStorage : LibreLinkSessionStorage {
         )
     }
 
-    override fun saveSession(session: LibreLinkSession) {
-        defaults.setObject(session.token, KEY_TOKEN)
-        defaults.setObject(session.email, KEY_EMAIL)
-        defaults.setObject(session.regionHost, KEY_REGION_HOST)
-        defaults.setObject(session.accountIdHash, KEY_ACCOUNT_ID_HASH)
-        defaults.setObject(session.patientId, KEY_PATIENT_ID)
+    override fun saveSession(userId: String, session: LibreLinkSession) {
+        defaults.setObject(session.token, key(userId, KEY_TOKEN))
+        defaults.setObject(session.email, key(userId, KEY_EMAIL))
+        defaults.setObject(session.regionHost, key(userId, KEY_REGION_HOST))
+        defaults.setObject(session.accountIdHash, key(userId, KEY_ACCOUNT_ID_HASH))
+        defaults.setObject(session.patientId, key(userId, KEY_PATIENT_ID))
     }
 
-    override fun clearSession() {
+    override fun clearSession(userId: String) {
         // Deliberately keeps KEY_LAST_SYNCED_TIMESTAMP — see the Android actual's clearSession
         // for why: wiping it here caused reconnects to re-insert already-synced readings.
-        defaults.removeObjectForKey(KEY_TOKEN)
-        defaults.removeObjectForKey(KEY_EMAIL)
-        defaults.removeObjectForKey(KEY_REGION_HOST)
-        defaults.removeObjectForKey(KEY_ACCOUNT_ID_HASH)
-        defaults.removeObjectForKey(KEY_PATIENT_ID)
-        defaults.removeObjectForKey(KEY_LAST_SYNC_ERROR)
+        defaults.removeObjectForKey(key(userId, KEY_TOKEN))
+        defaults.removeObjectForKey(key(userId, KEY_EMAIL))
+        defaults.removeObjectForKey(key(userId, KEY_REGION_HOST))
+        defaults.removeObjectForKey(key(userId, KEY_ACCOUNT_ID_HASH))
+        defaults.removeObjectForKey(key(userId, KEY_PATIENT_ID))
+        defaults.removeObjectForKey(key(userId, KEY_LAST_SYNC_ERROR))
     }
 
-    override fun getLastSyncedTimestamp(): Long? {
-        if (defaults.objectForKey(KEY_LAST_SYNCED_TIMESTAMP) == null) return null
-        return defaults.integerForKey(KEY_LAST_SYNCED_TIMESTAMP)
+    override fun getLastSyncedTimestamp(userId: String): Long? {
+        if (defaults.objectForKey(key(userId, KEY_LAST_SYNCED_TIMESTAMP)) == null) return null
+        return defaults.integerForKey(key(userId, KEY_LAST_SYNCED_TIMESTAMP))
     }
 
-    override fun setLastSyncedTimestamp(timestamp: Long) {
-        defaults.setInteger(timestamp, KEY_LAST_SYNCED_TIMESTAMP)
+    override fun setLastSyncedTimestamp(userId: String, timestamp: Long) {
+        defaults.setInteger(timestamp, key(userId, KEY_LAST_SYNCED_TIMESTAMP))
     }
 
-    override fun getLastSyncError(): String? = defaults.stringForKey(KEY_LAST_SYNC_ERROR)
+    override fun getLastSyncError(userId: String): String? = defaults.stringForKey(key(userId, KEY_LAST_SYNC_ERROR))
 
-    override fun setLastSyncError(message: String?) {
+    override fun setLastSyncError(userId: String, message: String?) {
         if (message == null) {
-            defaults.removeObjectForKey(KEY_LAST_SYNC_ERROR)
+            defaults.removeObjectForKey(key(userId, KEY_LAST_SYNC_ERROR))
         } else {
-            defaults.setObject(message, KEY_LAST_SYNC_ERROR)
+            defaults.setObject(message, key(userId, KEY_LAST_SYNC_ERROR))
         }
     }
+
+    // Namespaces every key by the Insulink userId so multiple Google accounts signed into
+    // the same install never see each other's LibreLinkUp connection.
+    private fun key(userId: String, key: String) = "${userId}_$key"
 
     companion object {
         private const val KEY_TOKEN = "librelink_token"
