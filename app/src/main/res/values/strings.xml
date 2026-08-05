@@ -89,6 +89,13 @@
     <string name="reminders_screen_upcoming_label">Upcoming</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Add a new reminder</string>
     <string name="reminders_screen_add_new_reminder_title_label">Set title</string>
+
+    <!-- Insulin types screen -->
+    <string name="nav_title_insulin_types">Insulin Types</string>
+    <string name="side_drawer_insulin_types_title">Insulin Types</string>
+    <string name="side_drawer_insulin_types_subtitle">Manage the insulin types you use</string>
+    <string name="insulin_screen_add_new_insulin_type_dialog_title">Add a new insulin type</string>
+    <string name="insulin_screen_add_new_insulin_type_name_label">Name</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Select type</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Select time</string>
 

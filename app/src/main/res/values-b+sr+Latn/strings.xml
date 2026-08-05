@@ -111,6 +111,13 @@
     <string name="reminders_screen_upcoming_label">Predstojeci</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Dodaj novi podsetnik</string>
     <string name="reminders_screen_add_new_reminder_title_label">Postavite naslov</string>
+
+    <!-- Insulin types screen -->
+    <string name="nav_title_insulin_types">Insulini</string>
+    <string name="side_drawer_insulin_types_title">Insulini</string>
+    <string name="side_drawer_insulin_types_subtitle">Upravljaj tipovima insulina koje koristiš</string>
+    <string name="insulin_screen_add_new_insulin_type_dialog_title">Dodaj novi tip insulina</string>
+    <string name="insulin_screen_add_new_insulin_type_name_label">Naziv</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Izaberite tip</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Izaberite vreme</string>
 

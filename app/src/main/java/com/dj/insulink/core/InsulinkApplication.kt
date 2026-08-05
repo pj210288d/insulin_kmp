@@ -6,6 +6,7 @@ import com.dj.insulink.shared.core.di.firebaseModule
 import com.dj.insulink.shared.feature.fitness.di.fitnessModule
 import com.dj.insulink.shared.feature.friends.di.friendsModule
 import com.dj.insulink.shared.feature.glucose.di.glucoseModule
+import com.dj.insulink.shared.feature.insulin.di.insulinModule
 import com.dj.insulink.shared.feature.librelink.di.librelinkModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
@@ -31,7 +32,8 @@ class InsulinkApplication : Application() {
                 remindersModule,
                 friendsModule,
                 settingsModule,
-                librelinkModule
+                librelinkModule,
+                insulinModule
             )
         }
     }

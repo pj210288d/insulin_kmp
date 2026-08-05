@@ -43,6 +43,7 @@ import com.dj.insulink.feature.meals.ui.wrapper.MealsWrapper
 import com.dj.insulink.feature.fitness.ui.wrapper.FitnessWrapper
 import com.dj.insulink.feature.friends.ui.wrapper.FriendsWrapper
 import com.dj.insulink.feature.glucose.ui.wrapper.GlucoseWrapper
+import com.dj.insulink.feature.insulin.ui.wrapper.InsulinWrapper
 import com.dj.insulink.feature.reminders.ui.wrapper.RemindersWrapper
 import com.dj.insulink.feature.reports.ui.wrapper.ReportsWrapper
 import com.dj.insulink.feature.settings.ui.wrapper.SettingsWrapper
@@ -91,6 +92,10 @@ fun AppNavigation() {
                     },
                     navigateToSettings = {
                         navController.navigateTo(Screen.Settings.route)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    navigateToInsulinTypes = {
+                        navController.navigateTo(Screen.InsulinTypes.route)
                         coroutineScope.launch { drawerState.close() }
                     },
                     onSignOutClick = {
@@ -223,6 +228,9 @@ fun AppNavigation() {
                 }
                 composable(Screen.Settings.route) {
                     SettingsWrapper()
+                }
+                composable(Screen.InsulinTypes.route) {
+                    InsulinWrapper(currentUser = currentUser.value)
                 }
             }
         }
