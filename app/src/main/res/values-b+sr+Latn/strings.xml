@@ -74,6 +74,7 @@
 
     <!-- New reading modal -->
     <string name="new_reading_dialog_title">Novo merenje glukoze</string>
+    <string name="edit_reading_dialog_title">Izmeni merenje glukoze</string>
     <string name="new_reading_text_field_label">Glukoza (%1$s)</string>
     <string name="new_reading_comment_label">Komentar</string>
     <string name="new_reading_valid_number_error">Unesite validan broj</string>
@@ -81,6 +82,10 @@
     <string name="new_reading_save">Sačuvaj</string>
     <string name="new_reading_ok">OK</string>
     <string name="new_reading_select_time_label">Izaberite vreme</string>
+    <string name="new_reading_none_option">Ništa</string>
+    <string name="new_reading_insulin_type_label">Tip insulina</string>
+    <string name="new_reading_insulin_units_label">Jedinice</string>
+    <string name="new_reading_linked_meal_label">Poveži sa obrokom</string>
     <string name="select_date_label">Izaberite datum</string>
     <string name="select_time_label">Izaberite vreme</string>
     <string name="save">Sačuvaj</string>

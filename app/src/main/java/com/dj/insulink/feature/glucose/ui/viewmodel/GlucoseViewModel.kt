@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +29,9 @@ import javax.inject.Inject
 class GlucoseViewModel @Inject constructor(
     private val glucoseReadingRepository: GlucoseReadingRepository,
     private val authRepository: AuthRepository,
-    private val settingsPreferences: SettingsPreferences
+    private val settingsPreferences: SettingsPreferences,
+    private val insulinTypeRepository: InsulinTypeRepository,
+    private val mealRepository: MealRepository
 ) : ViewModel() {
 
     private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
@@ -50,6 +56,68 @@ class GlucoseViewModel @Inject constructor(
     private val _selectedTimespan = MutableStateFlow(GlucoseReadingTimespan.ALL_READINGS)
     val selectedTimespan = _selectedTimespan.asStateFlow()
 
+    private val _editingReadingId = MutableStateFlow<Long?>(null)
+    val editingReadingId = _editingReadingId.asStateFlow()
+
+    private val _newGlucoseReadingInsulinTypeId = MutableStateFlow<Long?>(null)
+    val newGlucoseReadingInsulinTypeId = _newGlucoseReadingInsulinTypeId.asStateFlow()
+
+    private val _newGlucoseReadingInsulinUnits = MutableStateFlow("")
+    val newGlucoseReadingInsulinUnits = _newGlucoseReadingInsulinUnits.asStateFlow()
+
+    private val _newGlucoseReadingLinkedMealId = MutableStateFlow<Long?>(null)
+    val newGlucoseReadingLinkedMealId = _newGlucoseReadingLinkedMealId.asStateFlow()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allInsulinTypesForUser: StateFlow<List<InsulinType>> = authRepository.getCurrentUserFlow()
+        .flatMapLatest { userId ->
+            if (userId != null) {
+                insulinTypeRepository.getAllInsulinTypesForUser(userId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // All of the user's meals, unfiltered by date - used to resolve a reading's linkedMealId
+    // to a display name in the list (unlike sameDayMealsForNewReading below, which is scoped
+    // to the dialog's currently selected date and only useful for the meal picker).
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allMealsForUser: StateFlow<List<Meal>> = authRepository.getCurrentUserFlow()
+        .flatMapLatest { userId ->
+            if (userId != null) {
+                mealRepository.getAllMealsForUser(userId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val sameDayMealsForNewReading: StateFlow<List<Meal>> = combine(
+        authRepository.getCurrentUserFlow(),
+        _newGlucoseReadingTimestamp
+    ) { userId, timestamp ->
+        userId to timestamp
+    }.flatMapLatest { (userId, timestamp) ->
+        if (userId != null) {
+            mealRepository.getMealsByDateForUser(userId, timestamp)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val allGlucoseReadings: StateFlow<List<GlucoseReading>> = combine(
@@ -95,19 +163,41 @@ class GlucoseViewModel @Inject constructor(
                 } else {
                     enteredValue.toInt()
                 }
-                glucoseReadingRepository.insert(
+                val reading = GlucoseReading(
+                    id = _editingReadingId.value ?: 0,
                     userId = userId,
-                    reading = GlucoseReading(
-                        id = 0,
-                        userId = userId,
-                        timestamp = newGlucoseReadingTimestamp.value,
-                        value = storedValue,
-                        comment = newGlucoseReadingComment.value
-                    )
+                    timestamp = newGlucoseReadingTimestamp.value,
+                    value = storedValue,
+                    comment = newGlucoseReadingComment.value,
+                    insulinTypeId = _newGlucoseReadingInsulinTypeId.value,
+                    insulinUnits = _newGlucoseReadingInsulinUnits.value.toDoubleOrNull(),
+                    linkedMealId = _newGlucoseReadingLinkedMealId.value
                 )
+
+                if (_editingReadingId.value == null) {
+                    glucoseReadingRepository.insert(userId = userId, reading = reading)
+                } else {
+                    glucoseReadingRepository.update(userId = userId, reading = reading)
+                }
                 resetNewReadingDialogFields()
             }
         }
+    }
+
+    fun startAddGlucoseReading() {
+        resetNewReadingDialogFields()
+        _showAddGlucoseReadingDialog.value = true
+    }
+
+    fun startEditingGlucoseReading(glucoseReading: GlucoseReading) {
+        _editingReadingId.value = glucoseReading.id
+        _newGlucoseReadingTimestamp.value = glucoseReading.timestamp
+        _newGlucoseReadingValue.value = _glucoseUnit.value.formatValue(glucoseReading.value)
+        _newGlucoseReadingComment.value = glucoseReading.comment
+        _newGlucoseReadingInsulinTypeId.value = glucoseReading.insulinTypeId
+        _newGlucoseReadingInsulinUnits.value = glucoseReading.insulinUnits?.toString() ?: ""
+        _newGlucoseReadingLinkedMealId.value = glucoseReading.linkedMealId
+        _showAddGlucoseReadingDialog.value = true
     }
 
     fun deleteGlucoseReading(userId: String?, glucoseReading: GlucoseReading) {
@@ -143,6 +233,18 @@ class GlucoseViewModel @Inject constructor(
         _selectedTimespan.value = newTimespan
     }
 
+    fun setNewGlucoseReadingInsulinTypeId(insulinTypeId: Long?) {
+        _newGlucoseReadingInsulinTypeId.value = insulinTypeId
+    }
+
+    fun setNewGlucoseReadingInsulinUnits(units: String) {
+        _newGlucoseReadingInsulinUnits.value = units.filter { it.isDigit() || it == '.' }
+    }
+
+    fun setNewGlucoseReadingLinkedMealId(mealId: Long?) {
+        _newGlucoseReadingLinkedMealId.value = mealId
+    }
+
     private fun filterGlucoseReadingsByTimespan(
         allGlucoseReadings: List<GlucoseReading>,
         timespan: GlucoseReadingTimespan
@@ -159,6 +261,10 @@ class GlucoseViewModel @Inject constructor(
         _newGlucoseReadingTimestamp.value = System.currentTimeMillis()
         _newGlucoseReadingValue.value = ""
         _newGlucoseReadingComment.value = ""
+        _newGlucoseReadingInsulinTypeId.value = null
+        _newGlucoseReadingInsulinUnits.value = ""
+        _newGlucoseReadingLinkedMealId.value = null
+        _editingReadingId.value = null
     }
 }
 

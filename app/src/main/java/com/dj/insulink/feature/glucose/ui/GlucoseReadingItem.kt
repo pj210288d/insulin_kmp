@@ -1,6 +1,7 @@
 package com.dj.insulink.feature.glucose.ui
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.dimens
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -35,7 +38,10 @@ import java.util.Locale
 fun GlucoseReadingItem(
     glucoseReading: GlucoseReading,
     glucoseUnit: GlucoseUnit,
-    onSwipeFromStartToEnd: () -> Unit
+    insulinTypesById: Map<Long, InsulinType>,
+    mealsById: Map<Long, Meal>,
+    onSwipeFromStartToEnd: () -> Unit,
+    onClick: () -> Unit
 ) {
     var hasBeenSwiped by remember { mutableStateOf(false) }
     val swipeToDismissBoxState = rememberSwipeToDismissBoxState(
@@ -59,23 +65,34 @@ fun GlucoseReadingItem(
             .padding(horizontal = MaterialTheme.dimens.commonPadding12),
         backgroundContent = {}
     ) {
-        GlucoseReadingItemContent(glucoseReading = glucoseReading, glucoseUnit = glucoseUnit)
+        GlucoseReadingItemContent(
+            glucoseReading = glucoseReading,
+            glucoseUnit = glucoseUnit,
+            insulinTypesById = insulinTypesById,
+            mealsById = mealsById,
+            onClick = onClick
+        )
     }
 }
 
 @Composable
 private fun GlucoseReadingItemContent(
     glucoseReading: GlucoseReading,
-    glucoseUnit: GlucoseUnit
+    glucoseUnit: GlucoseUnit,
+    insulinTypesById: Map<Long, InsulinType>,
+    mealsById: Map<Long, Meal>,
+    onClick: () -> Unit
 ) {
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.border(
-            width = MaterialTheme.dimens.commonButtonBorder1,
-            color = Color.LightGray,
-            shape = RoundedCornerShape(MaterialTheme.dimens.commonButtonRadius12)
-        )
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .border(
+                width = MaterialTheme.dimens.commonButtonBorder1,
+                color = Color.LightGray,
+                shape = RoundedCornerShape(MaterialTheme.dimens.commonButtonRadius12)
+            )
     ) {
         Spacer(Modifier.size(MaterialTheme.dimens.commonSpacing16))
         Column {
@@ -93,6 +110,25 @@ private fun GlucoseReadingItemContent(
                 GlucoseLevelTag(glucoseLevel = glucoseReading.value)
             }
             Text(glucoseReading.comment)
+            val insulinUnits = glucoseReading.insulinUnits
+            val insulinTypeId = glucoseReading.insulinTypeId
+            val linkedMealId = glucoseReading.linkedMealId
+            if (insulinUnits != null || linkedMealId != null) {
+                val insulinName = insulinTypeId?.let { insulinTypesById[it]?.name }
+                val mealName = linkedMealId?.let { mealsById[it]?.name }
+                val badgeParts = listOfNotNull(
+                    insulinUnits?.let { units ->
+                        if (insulinName != null) "$units IU · $insulinName" else "$units IU"
+                    },
+                    mealName
+                )
+                if (badgeParts.isNotEmpty()) {
+                    Text(
+                        text = badgeParts.joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
             Spacer(Modifier.size(MaterialTheme.dimens.commonSpacing8))
         }
         Spacer(Modifier.weight(1f))

@@ -36,10 +36,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -147,6 +150,12 @@ fun GlucoseScreen(
 
             Column {
                 if (params.allGlucoseReadings.value.isNotEmpty()) {
+                    val insulinTypesById = remember(params.allInsulinTypesForUser.value) {
+                        params.allInsulinTypesForUser.value.associateBy { it.id }
+                    }
+                    val mealsById = remember(params.allMealsForUser.value) {
+                        params.allMealsForUser.value.associateBy { it.id }
+                    }
                     LazyColumn(
                         modifier = Modifier.height(ALLOWED_READINGS_COLUMN_HEIGHT)
                     ) {
@@ -154,8 +163,13 @@ fun GlucoseScreen(
                             GlucoseReadingItem(
                                 glucoseReading = it,
                                 glucoseUnit = params.glucoseUnit.value,
+                                insulinTypesById = insulinTypesById,
+                                mealsById = mealsById,
                                 onSwipeFromStartToEnd = {
                                     params.deleteGlucoseReading(it)
+                                },
+                                onClick = {
+                                    params.startEditingGlucoseReading(it)
                                 }
                             )
                             Spacer(Modifier.size(InsulinkTheme.dimens.commonPadding8))
@@ -179,8 +193,7 @@ fun GlucoseScreen(
 
         FloatingActionButton(
             onClick = {
-                params.setNewGlucoseReadingTimestamp(System.currentTimeMillis())
-                params.setShowAddGlucoseReadingDialog(true)
+                params.startAddGlucoseReading()
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -203,6 +216,15 @@ fun GlucoseScreen(
             setNewGlucoseReadingValue = params.setNewGlucoseReadingValue,
             newGlucoseReadingComment = params.newGlucoseReadingComment,
             setNewGlucoseReadingComment = params.setNewGlucoseReadingComment,
+            insulinTypes = params.allInsulinTypesForUser.value,
+            selectedInsulinTypeId = params.newGlucoseReadingInsulinTypeId.value,
+            setSelectedInsulinTypeId = params.setNewGlucoseReadingInsulinTypeId,
+            insulinUnits = params.newGlucoseReadingInsulinUnits.value,
+            setInsulinUnits = params.setNewGlucoseReadingInsulinUnits,
+            sameDayMeals = params.sameDayMeals.value,
+            selectedMealId = params.newGlucoseReadingLinkedMealId.value,
+            setSelectedMealId = params.setNewGlucoseReadingLinkedMealId,
+            isEditMode = params.editingReadingId.value != null,
             glucoseUnit = params.glucoseUnit.value,
             onDismissRequest = {
                 params.setShowAddGlucoseReadingDialog(false)
@@ -229,7 +251,19 @@ data class GlucoseScreenParams(
     val setShowAddGlucoseReadingDialog: (Boolean) -> Unit,
     val submitNewGlucoseReading: () -> Unit,
     val deleteGlucoseReading: (GlucoseReading) -> Unit,
-    val glucoseUnit: State<GlucoseUnit>
+    val glucoseUnit: State<GlucoseUnit>,
+    val allInsulinTypesForUser: State<List<InsulinType>>,
+    val allMealsForUser: State<List<Meal>>,
+    val sameDayMeals: State<List<Meal>>,
+    val newGlucoseReadingInsulinTypeId: State<Long?>,
+    val setNewGlucoseReadingInsulinTypeId: (Long?) -> Unit,
+    val newGlucoseReadingInsulinUnits: State<String>,
+    val setNewGlucoseReadingInsulinUnits: (String) -> Unit,
+    val newGlucoseReadingLinkedMealId: State<Long?>,
+    val setNewGlucoseReadingLinkedMealId: (Long?) -> Unit,
+    val editingReadingId: State<Long?>,
+    val startAddGlucoseReading: () -> Unit,
+    val startEditingGlucoseReading: (GlucoseReading) -> Unit
 )
 
 private val ALLOWED_READINGS_COLUMN_HEIGHT = 400.dp
