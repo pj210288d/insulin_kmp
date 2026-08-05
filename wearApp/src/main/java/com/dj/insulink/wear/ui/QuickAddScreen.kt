@@ -21,18 +21,32 @@ import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.dj.insulink.wear.R
+import com.dj.insulink.wear.data.WearDataLayerContract
 
 // A plain +/- stepper rather than a rotary Picker: the Picker composable's API has shifted
 // across Wear Compose versions, while Text/Button/Chip have been stable for years - a safer
 // choice for something this simple. Tap-and-hold isn't wired up; short taps are enough for a
 // "quick add" flow.
+//
+// Steps/displays in whichever unit the phone is currently using (see WearSyncManager.KEY_UNIT),
+// so a mmol/L user isn't stuck entering raw mg/dL numbers. The value passed to onConfirm is
+// always mg/dL, matching GlucoseReading.value on the phone.
 @Composable
 fun QuickAddScreen(
     initialValueMgDl: Int,
+    unit: String,
     onConfirm: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var value by remember { mutableIntStateOf(initialValueMgDl.coerceIn(MIN_VALUE, MAX_VALUE)) }
+    val isMmol = unit == WearDataLayerContract.UNIT_MMOL_L
+    val min = if (isMmol) MIN_MMOL_TENTHS else MIN_MG_DL
+    val max = if (isMmol) MAX_MMOL_TENTHS else MAX_MG_DL
+    val step = if (isMmol) STEP_MMOL_TENTHS else STEP_MG_DL
+
+    var displayValue by remember {
+        val initial = if (isMmol) mgDlToMmolTenths(initialValueMgDl) else initialValueMgDl
+        mutableIntStateOf(initial.coerceIn(min, max))
+    }
 
     Column(
         modifier = modifier.fillMaxSize().padding(8.dp),
@@ -43,17 +57,26 @@ fun QuickAddScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { value = (value - STEP).coerceIn(MIN_VALUE, MAX_VALUE) }) {
+            Button(onClick = { displayValue = (displayValue - step).coerceIn(min, max) }) {
                 Text(text = "-")
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Text(text = value.toString(), style = MaterialTheme.typography.display3)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (isMmol) formatMmolTenths(displayValue) else displayValue.toString(),
+                    style = MaterialTheme.typography.display3
+                )
+                Text(
+                    text = if (isMmol) "mmol/L" else "mg/dL",
+                    style = MaterialTheme.typography.caption2
+                )
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Button(onClick = { value = (value + STEP).coerceIn(MIN_VALUE, MAX_VALUE) }) {
+            Button(onClick = { displayValue = (displayValue + step).coerceIn(min, max) }) {
                 Text(text = "+")
             }
         }
@@ -61,12 +84,33 @@ fun QuickAddScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Chip(
-            onClick = { onConfirm(value) },
+            onClick = {
+                val valueMgDl = if (isMmol) mmolTenthsToMgDl(displayValue) else displayValue
+                onConfirm(valueMgDl)
+            },
             label = { Text(text = stringResource(R.string.confirm_button)) }
         )
     }
 }
 
-private const val MIN_VALUE = 40
-private const val MAX_VALUE = 400
-private const val STEP = 5
+// Tenths of mmol/L, kept as an Int to avoid float drift (same reasoning as GlucoseUnit's own
+// formatOneDecimal on the phone). MG_DL_PER_MMOL_L must match GlucoseUnit.CONVERSION_FACTOR.
+private fun mgDlToMmolTenths(mgDl: Int): Int = Math.round(mgDl / MG_DL_PER_MMOL_L * 10).toInt()
+
+private fun mmolTenthsToMgDl(tenths: Int): Int = Math.round(tenths / 10.0 * MG_DL_PER_MMOL_L).toInt()
+
+private fun formatMmolTenths(tenths: Int): String {
+    val whole = tenths / 10
+    val fraction = tenths % 10
+    return "$whole.$fraction"
+}
+
+private const val MG_DL_PER_MMOL_L = 18.0182
+
+private const val MIN_MG_DL = 40
+private const val MAX_MG_DL = 400
+private const val STEP_MG_DL = 5
+
+private const val MIN_MMOL_TENTHS = 22 // 2.2 mmol/L
+private const val MAX_MMOL_TENTHS = 222 // 22.2 mmol/L
+private const val STEP_MMOL_TENTHS = 1 // 0.1 mmol/L per tap

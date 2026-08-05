@@ -11,6 +11,7 @@ fun DataItem.toLatestReadingOrNull(): LatestReading? {
         value = dataMap.getInt(WearDataLayerContract.KEY_VALUE),
         formattedValue = dataMap.getString(WearDataLayerContract.KEY_FORMATTED_VALUE).orEmpty(),
         rangeStatus = dataMap.getString(WearDataLayerContract.KEY_RANGE_STATUS).orEmpty(),
-        timestampMillis = dataMap.getLong(WearDataLayerContract.KEY_TIMESTAMP)
+        timestampMillis = dataMap.getLong(WearDataLayerContract.KEY_TIMESTAMP),
+        unit = dataMap.getString(WearDataLayerContract.KEY_UNIT) ?: WearDataLayerContract.UNIT_MG_DL
     )
 }

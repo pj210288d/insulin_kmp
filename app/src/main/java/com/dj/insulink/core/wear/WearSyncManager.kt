@@ -1,6 +1,7 @@
 package com.dj.insulink.core.wear
 
 import android.content.Context
+import android.util.Log
 import com.dj.insulink.feature.glucose.ui.HIGH_GLUCOSE_THRESHOLD
 import com.dj.insulink.feature.glucose.ui.LOWER_GLUCOSE_THRESHOLD
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
@@ -32,20 +33,29 @@ class WearSyncManager @Inject constructor(
 ) {
 
     suspend fun pushLatestReading(reading: GlucoseReading?, glucoseUnit: GlucoseUnit) {
-        val dataMapRequest = PutDataMapRequest.create(LATEST_READING_PATH)
-        dataMapRequest.dataMap.apply {
-            putBoolean(KEY_HAS_READING, reading != null)
-            putInt(KEY_VALUE, reading?.value ?: 0)
-            putString(
-                KEY_FORMATTED_VALUE,
-                reading?.let { "${glucoseUnit.formatValue(it.value)} ${glucoseUnit.suffix}" } ?: ""
-            )
-            putString(KEY_RANGE_STATUS, reading?.let { rangeStatusFor(it.value) } ?: "")
-            putLong(KEY_TIMESTAMP, reading?.timestamp ?: 0L)
-        }
+        try {
+            val nodes = Wearable.getNodeClient(context).connectedNodes.awaitResult()
+            Log.d(TAG, "Connected nodes: ${nodes.map { "${it.displayName} (${it.id}, nearby=${it.isNearby})" }}")
 
-        val putDataRequest = dataMapRequest.asPutDataRequest().setUrgent()
-        Wearable.getDataClient(context).putDataItem(putDataRequest).awaitResult()
+            val dataMapRequest = PutDataMapRequest.create(LATEST_READING_PATH)
+            dataMapRequest.dataMap.apply {
+                putBoolean(KEY_HAS_READING, reading != null)
+                putInt(KEY_VALUE, reading?.value ?: 0)
+                putString(
+                    KEY_FORMATTED_VALUE,
+                    reading?.let { "${glucoseUnit.formatValue(it.value)} ${glucoseUnit.suffix}" } ?: ""
+                )
+                putString(KEY_RANGE_STATUS, reading?.let { rangeStatusFor(it.value) } ?: "")
+                putLong(KEY_TIMESTAMP, reading?.timestamp ?: 0L)
+                putString(KEY_UNIT, glucoseUnit.key)
+            }
+
+            val putDataRequest = dataMapRequest.asPutDataRequest().setUrgent()
+            val result = Wearable.getDataClient(context).putDataItem(putDataRequest).awaitResult()
+            Log.d(TAG, "Pushed latest reading DataItem: ${result.uri}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to push latest reading to Wear OS watch", e)
+        }
     }
 
     private fun rangeStatusFor(value: Int): String = when {
@@ -61,9 +71,11 @@ class WearSyncManager @Inject constructor(
         const val KEY_FORMATTED_VALUE = "formatted_value"
         const val KEY_RANGE_STATUS = "range_status"
         const val KEY_TIMESTAMP = "timestamp"
+        const val KEY_UNIT = "unit"
         const val RANGE_LOW = "LOW"
         const val RANGE_NORMAL = "NORMAL"
         const val RANGE_HIGH = "HIGH"
+        private const val TAG = "WearSyncManager"
     }
 }
 

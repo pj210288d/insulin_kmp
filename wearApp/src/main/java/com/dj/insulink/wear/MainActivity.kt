@@ -12,6 +12,7 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.dj.insulink.wear.data.WearDataLayerContract
 import com.dj.insulink.wear.data.WearMessageSender
 import com.dj.insulink.wear.ui.LatestReadingScreen
 import com.dj.insulink.wear.ui.QuickAddScreen
@@ -45,6 +46,7 @@ fun InsulinkWearApp() {
             composable(Routes.QUICK_ADD) {
                 QuickAddScreen(
                     initialValueMgDl = latestReading?.value ?: DEFAULT_QUICK_ADD_VALUE,
+                    unit = latestReading?.unit ?: WearDataLayerContract.UNIT_MG_DL,
                     onConfirm = { value ->
                         coroutineScope.launch {
                             WearMessageSender(context).sendQuickAddGlucose(value)

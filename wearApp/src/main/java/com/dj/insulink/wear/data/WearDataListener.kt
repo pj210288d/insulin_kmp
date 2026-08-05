@@ -33,5 +33,6 @@ data class LatestReading(
     val value: Int,
     val formattedValue: String,
     val rangeStatus: String,
-    val timestampMillis: Long
+    val timestampMillis: Long,
+    val unit: String
 )

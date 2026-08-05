@@ -153,6 +153,7 @@ class GlucoseViewModel @Inject constructor(
         viewModelScope.launch {
             userId?.let {
                 glucoseReadingRepository.fetchAllGlucoseReadingsForUserAndUpdateDatabase(userId)
+                pushLatestReadingToWear(userId)
             }
         }
     }
@@ -211,6 +212,9 @@ class GlucoseViewModel @Inject constructor(
                     userId = userId,
                     reading = glucoseReading
                 )
+                // If the deleted reading was the latest one shown on the watch, this pushes
+                // whatever is now the true latest (or "no reading" if the list is empty).
+                pushLatestReadingToWear(userId)
             }
         }
     }

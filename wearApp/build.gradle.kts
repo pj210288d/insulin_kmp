@@ -8,12 +8,21 @@ plugins {
 // it talks only to the phone app over the Wearable Data Layer API (DataClient/MessageClient),
 // which already has an authenticated session and does all Room/Firestore work on its behalf.
 // See the "Wear OS companion app" plan for the full rationale.
+//
+// applicationId MUST match :app's (com.dj.insulink), NOT just be similarly-named - the Data
+// Layer API (DataClient/MessageClient) only syncs between a phone app and watch app that share
+// the same applicationId and signing certificate. This is unrelated to `namespace` below, which
+// only controls the Kotlin/R-class package and stays com.dj.insulink.wear so all of this
+// module's source files keep their own distinct package. Confirmed against Android's own
+// "Data Layer API" docs after this exact mismatch caused pushed DataItems to silently never
+// reach a real device in testing (connected node present, push "succeeded" locally, nothing
+// ever arrived on the watch).
 android {
     namespace = "com.dj.insulink.wear"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.dj.insulink.wear"
+        applicationId = "com.dj.insulink"
         minSdk = libs.versions.android.minSdkWear.get().toInt()
         targetSdk = libs.versions.android.compileSdk.get().toInt()
         versionCode = 1
