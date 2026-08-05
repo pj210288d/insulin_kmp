@@ -56,8 +56,14 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.compose.navigation)
 
-    // Wearable Data Layer API (DataClient/MessageClient) - added ahead of step 2, unused for now
+    // Wearable Data Layer API (DataClient/MessageClient)
     implementation(libs.play.services.wearable)
+
+    // Tile (step 6)
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
+    implementation(libs.wear.protolayout.material)
+    implementation(libs.kotlinx.coroutines.guava)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
