@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Insulink</string>
     <string name="no_reading_yet">No reading yet</string>
-    <string name="add_reading_button">Add</string>
+    <string name="add_reading_button">+</string>
     <string name="just_now">just now</string>
     <string name="minutes_ago_format">%1$d min ago</string>
     <string name="quick_add_title">Add glucose</string>
