@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 rootProject.name = "Insulink"
 include(":app")
 include(":shared")
+include(":wearApp")
