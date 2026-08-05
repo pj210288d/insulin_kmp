@@ -2,6 +2,7 @@ package com.dj.insulink.feature.glucose.ui.viewmodel
 
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
+import com.dj.insulink.core.wear.WearSyncManager
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
@@ -33,6 +34,7 @@ class GlucoseViewModelTest {
     private val settingsPreferences: SettingsPreferences = mockk()
     private val insulinTypeRepository: InsulinTypeRepository = mockk(relaxed = true)
     private val mealRepository: MealRepository = mockk(relaxed = true)
+    private val wearSyncManager: WearSyncManager = mockk(relaxed = true)
 
     private fun buildViewModel(
         unit: GlucoseUnit = GlucoseUnit.MG_DL,
@@ -42,7 +44,14 @@ class GlucoseViewModelTest {
         every { settingsPreferences.getGlucoseUnit() } returns unit
         every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
         every { repository.getAllGlucoseReadingsForUser(any()) } returns flowOf(readings)
-        return GlucoseViewModel(repository, authRepository, settingsPreferences, insulinTypeRepository, mealRepository)
+        return GlucoseViewModel(
+            repository,
+            authRepository,
+            settingsPreferences,
+            insulinTypeRepository,
+            mealRepository,
+            wearSyncManager
+        )
     }
 
     @Test

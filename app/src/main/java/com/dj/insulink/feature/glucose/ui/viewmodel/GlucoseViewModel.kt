@@ -3,6 +3,7 @@ package com.dj.insulink.feature.glucose.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
+import com.dj.insulink.core.wear.WearSyncManager
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -31,7 +33,8 @@ class GlucoseViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val settingsPreferences: SettingsPreferences,
     private val insulinTypeRepository: InsulinTypeRepository,
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val wearSyncManager: WearSyncManager
 ) : ViewModel() {
 
     private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
@@ -179,6 +182,7 @@ class GlucoseViewModel @Inject constructor(
                 } else {
                     glucoseReadingRepository.update(userId = userId, reading = reading)
                 }
+                pushLatestReadingToWear(userId)
                 resetNewReadingDialogFields()
             }
         }
@@ -255,6 +259,19 @@ class GlucoseViewModel @Inject constructor(
 
         val cutoffTime = System.currentTimeMillis() - timespan.milliseconds
         return allGlucoseReadings.filter { it.timestamp >= cutoffTime }
+    }
+
+    // Recomputes the true latest reading (unfiltered by the timespan selector - see
+    // allGlucoseReadings above) and pushes it to the paired Wear OS watch. Always recomputes
+    // rather than assuming the just-submitted reading is newest, since editing an older entry
+    // must not overwrite the watch's displayed value with stale data.
+    private fun pushLatestReadingToWear(userId: String) {
+        viewModelScope.launch {
+            val latest = glucoseReadingRepository.getAllGlucoseReadingsForUser(userId)
+                .first()
+                .maxByOrNull { it.timestamp }
+            wearSyncManager.pushLatestReading(latest, _glucoseUnit.value)
+        }
     }
 
     private fun resetNewReadingDialogFields() {
