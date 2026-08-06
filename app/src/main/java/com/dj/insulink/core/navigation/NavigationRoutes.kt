@@ -24,6 +24,7 @@ sealed class Screen(
     object Friends : Screen("friends", titleRes = R.string.nav_title_friends)
     object Report : Screen("report", titleRes = R.string.nav_title_report)
     object Settings : Screen("settings", titleRes = R.string.nav_title_settings)
+    object InsulinTypes : Screen("insulin_types", titleRes = R.string.nav_title_insulin_types)
 
     companion object {
         val allDestinations: List<Screen> = listOf(
@@ -37,7 +38,8 @@ sealed class Screen(
             Reminders,
             Friends,
             Report,
-            Settings
+            Settings,
+            InsulinTypes
         )
 
         val bottomBarDestinations: List<Screen> = listOf(
@@ -50,7 +52,8 @@ sealed class Screen(
             Reminders,
             Friends,
             Report,
-            Settings
+            Settings,
+            InsulinTypes
         )
 
         fun findDestinationByRoute(route: String?): Screen? {

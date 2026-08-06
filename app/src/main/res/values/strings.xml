@@ -52,6 +52,7 @@
 
     <!-- New reading modal -->
     <string name="new_reading_dialog_title">New glucose reading</string>
+    <string name="edit_reading_dialog_title">Edit glucose reading</string>
     <string name="new_reading_text_field_label">Glucose (%1$s)</string>
     <string name="new_reading_comment_label">Comment</string>
     <string name="new_reading_valid_number_error">Enter a valid number</string>
@@ -59,6 +60,10 @@
     <string name="new_reading_save">Save</string>
     <string name="new_reading_ok">OK</string>
     <string name="new_reading_select_time_label">Select time</string>
+    <string name="new_reading_none_option">None</string>
+    <string name="new_reading_insulin_type_label">Insulin type</string>
+    <string name="new_reading_insulin_units_label">Units</string>
+    <string name="new_reading_linked_meal_label">Link a meal</string>
     <string name="select_date_label">Select date</string>
     <string name="select_time_label">Select time</string>
     <string name="save">Save</string>
@@ -89,6 +94,13 @@
     <string name="reminders_screen_upcoming_label">Upcoming</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Add a new reminder</string>
     <string name="reminders_screen_add_new_reminder_title_label">Set title</string>
+
+    <!-- Insulin types screen -->
+    <string name="nav_title_insulin_types">Insulin Types</string>
+    <string name="side_drawer_insulin_types_title">Insulin Types</string>
+    <string name="side_drawer_insulin_types_subtitle">Manage the insulin types you use</string>
+    <string name="insulin_screen_add_new_insulin_type_dialog_title">Add a new insulin type</string>
+    <string name="insulin_screen_add_new_insulin_type_name_label">Name</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Select type</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Select time</string>
 
@@ -154,6 +166,18 @@
     <string name="settings_language_description">Choose the app language</string>
     <string name="settings_glucose_unit_title">Glucose Unit</string>
     <string name="settings_glucose_unit_description">Choose how glucose values are displayed</string>
+    <string name="settings_librelink_title">LibreLinkUp</string>
+    <string name="settings_librelink_description">Automatically sync glucose readings from your LibreLinkUp account</string>
+    <string name="librelink_email_label">LibreLinkUp email</string>
+    <string name="librelink_password_label">LibreLinkUp password</string>
+    <string name="librelink_connect_button">Connect</string>
+    <string name="librelink_disconnect_button">Disconnect</string>
+    <string name="librelink_connecting">Connecting…</string>
+    <string name="librelink_connected_as">Connected as %1$s</string>
+    <string name="librelink_last_synced">Last synced %1$s</string>
+    <string name="librelink_never_synced">Not synced yet</string>
+    <string name="librelink_sync_error">Last sync failed: %1$s</string>
+    <string name="librelink_connect_error">Could not connect: %1$s</string>
 
     <!-- Navigation titles -->
     <string name="nav_title_glucose">Glucose</string>

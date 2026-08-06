@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Insulink</string>
+    <string name="no_reading_yet">Još nema merenja</string>
+    <string name="add_reading_button">Dodaj</string>
+    <string name="just_now">upravo sada</string>
+    <string name="minutes_ago_format">pre %1$d min</string>
+    <string name="quick_add_title">Dodaj glukozu</string>
+    <string name="confirm_button">Potvrdi</string>
+    <string name="decrease_value">Smanji</string>
+    <string name="increase_value">Povećaj</string>
+</resources>

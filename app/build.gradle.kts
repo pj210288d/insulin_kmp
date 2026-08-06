@@ -112,6 +112,9 @@ dependencies {
     // Google sign in
     implementation(libs.google.play.services.auth)
 
+    // Wearable Data Layer API - syncs the latest reading to the Wear OS companion app
+    implementation(libs.play.services.wearable)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

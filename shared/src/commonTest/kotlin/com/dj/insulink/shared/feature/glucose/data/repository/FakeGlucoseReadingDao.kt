@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flowOf
 
 class FakeGlucoseReadingDao : GlucoseReadingDao {
     val insertedEntities = mutableListOf<GlucoseReadingEntity>()
+    val updatedEntities = mutableListOf<GlucoseReadingEntity>()
     val deletedEntities = mutableListOf<GlucoseReadingEntity>()
     var insertAllCalledWith: List<GlucoseReadingEntity>? = null
     var deleteAllForUserCalledWith: String? = null
@@ -21,6 +22,10 @@ class FakeGlucoseReadingDao : GlucoseReadingDao {
     override suspend fun insert(glucoseReadingEntity: GlucoseReadingEntity): Long {
         insertedEntities += glucoseReadingEntity
         return glucoseReadingEntity.id
+    }
+
+    override suspend fun update(glucoseReadingEntity: GlucoseReadingEntity) {
+        updatedEntities += glucoseReadingEntity
     }
 
     override suspend fun insertAll(readings: List<GlucoseReadingEntity>) {

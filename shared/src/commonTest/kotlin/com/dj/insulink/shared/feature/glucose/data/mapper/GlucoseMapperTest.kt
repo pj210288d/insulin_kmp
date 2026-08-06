@@ -32,4 +32,13 @@ class GlucoseMapperTest {
         assertEquals(2, domains.size)
         assertEquals(entities, domains.toEntity())
     }
+
+    @Test
+    fun insulinAndMealLinkFieldsRoundTrip() {
+        val domainWithLinks = domain.copy(insulinTypeId = 3, insulinUnits = 4.5, linkedMealId = 9)
+        val entityWithLinks = entity.copy(insulinTypeId = 3, insulinUnits = 4.5, linkedMealId = 9)
+
+        assertEquals(domainWithLinks, entityWithLinks.toDomain())
+        assertEquals(entityWithLinks, domainWithLinks.toEntity())
+    }
 }

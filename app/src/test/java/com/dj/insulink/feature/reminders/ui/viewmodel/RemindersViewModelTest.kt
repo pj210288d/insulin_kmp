@@ -3,9 +3,9 @@ package com.dj.insulink.feature.reminders.ui.viewmodel
 import android.content.Context
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.core.notification.ReminderScheduler
-import com.dj.insulink.feature.reminders.data.repository.ReminderRepository
-import com.dj.insulink.feature.reminders.domain.models.Reminder
-import com.dj.insulink.feature.reminders.domain.models.ReminderType
+import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
+import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
+import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
 import com.dj.insulink.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify

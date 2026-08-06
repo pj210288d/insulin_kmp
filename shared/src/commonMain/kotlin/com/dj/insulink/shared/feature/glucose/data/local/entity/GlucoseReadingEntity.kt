@@ -10,5 +10,8 @@ data class GlucoseReadingEntity(
     val userId: String,
     val timestamp: Long,
     val value: Int,
-    val comment: String
+    val comment: String,
+    val insulinTypeId: Long? = null,
+    val insulinUnits: Double? = null,
+    val linkedMealId: Long? = null
 )

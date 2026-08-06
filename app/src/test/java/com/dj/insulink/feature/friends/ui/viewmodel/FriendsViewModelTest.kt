@@ -2,13 +2,12 @@ package com.dj.insulink.feature.friends.ui.viewmodel
 
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.auth.domain.models.User
-import com.dj.insulink.feature.friends.data.repository.FriendRepository
-import com.dj.insulink.feature.friends.data.repository.UserWithLatestReading
-import com.dj.insulink.feature.friends.domain.models.Friend
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
+import com.dj.insulink.shared.feature.friends.domain.model.Friend
+import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -72,11 +71,13 @@ class FriendsViewModelTest {
     fun `onAddFriendClick adds the found user and pushes to firestore both ways`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
         vm.setEnteredCode("ABC123")
-        val foundUser = UserWithLatestReading(
-            user = User(uid = "f1", firstName = "Jane", lastName = "Doe", email = "j@d.com", friendCode = "ABC123"),
+        val candidate = FriendCandidate(
+            uid = "f1",
+            firstName = "Jane",
+            lastName = "Doe",
             latestReading = GlucoseReading(id = 9, userId = "f1", timestamp = 5L, value = 99, comment = "")
         )
-        coEvery { friendRepository.findUserByFriendCode("ABC123") } returns foundUser
+        coEvery { friendRepository.findFriendCandidateByFriendCode("ABC123") } returns candidate
 
         vm.onAddFriendClick("u1")
         advanceUntilIdle()
@@ -98,7 +99,7 @@ class FriendsViewModelTest {
     fun `onAddFriendClick with no matching user does not add a friend`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
         vm.setEnteredCode("NOPE")
-        coEvery { friendRepository.findUserByFriendCode("NOPE") } returns null
+        coEvery { friendRepository.findFriendCandidateByFriendCode("NOPE") } returns null
 
         vm.onAddFriendClick("u1")
         advanceUntilIdle()

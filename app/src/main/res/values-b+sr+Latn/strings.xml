@@ -52,6 +52,18 @@
     <string name="settings_language_description">Izaberite jezik aplikacije</string>
     <string name="settings_glucose_unit_title">Jedinica za glukozu</string>
     <string name="settings_glucose_unit_description">Izaberite kako se prikazuju vrednosti glukoze</string>
+    <string name="settings_librelink_title">LibreLinkUp</string>
+    <string name="settings_librelink_description">Automatski sinhronizuj očitavanja glukoze sa LibreLinkUp naloga</string>
+    <string name="librelink_email_label">LibreLinkUp e-mail</string>
+    <string name="librelink_password_label">LibreLinkUp lozinka</string>
+    <string name="librelink_connect_button">Poveži</string>
+    <string name="librelink_disconnect_button">Prekini vezu</string>
+    <string name="librelink_connecting">Povezivanje…</string>
+    <string name="librelink_connected_as">Povezan kao %1$s</string>
+    <string name="librelink_last_synced">Poslednja sinhronizacija: %1$s</string>
+    <string name="librelink_never_synced">Još nije sinhronizovano</string>
+    <string name="librelink_sync_error">Sinhronizacija nije uspela: %1$s</string>
+    <string name="librelink_connect_error">Povezivanje nije uspelo: %1$s</string>
 
     <!-- Glucose screen -->
     <string name="glucose_screen_latest_reading_label">Poslednje merenje</string>
@@ -62,6 +74,7 @@
 
     <!-- New reading modal -->
     <string name="new_reading_dialog_title">Novo merenje glukoze</string>
+    <string name="edit_reading_dialog_title">Izmeni merenje glukoze</string>
     <string name="new_reading_text_field_label">Glukoza (%1$s)</string>
     <string name="new_reading_comment_label">Komentar</string>
     <string name="new_reading_valid_number_error">Unesite validan broj</string>
@@ -69,6 +82,10 @@
     <string name="new_reading_save">Sačuvaj</string>
     <string name="new_reading_ok">OK</string>
     <string name="new_reading_select_time_label">Izaberite vreme</string>
+    <string name="new_reading_none_option">Ništa</string>
+    <string name="new_reading_insulin_type_label">Tip insulina</string>
+    <string name="new_reading_insulin_units_label">Jedinice</string>
+    <string name="new_reading_linked_meal_label">Poveži sa obrokom</string>
     <string name="select_date_label">Izaberite datum</string>
     <string name="select_time_label">Izaberite vreme</string>
     <string name="save">Sačuvaj</string>
@@ -99,6 +116,13 @@
     <string name="reminders_screen_upcoming_label">Predstojeci</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Dodaj novi podsetnik</string>
     <string name="reminders_screen_add_new_reminder_title_label">Postavite naslov</string>
+
+    <!-- Insulin types screen -->
+    <string name="nav_title_insulin_types">Insulini</string>
+    <string name="side_drawer_insulin_types_title">Insulini</string>
+    <string name="side_drawer_insulin_types_subtitle">Upravljaj tipovima insulina koje koristiš</string>
+    <string name="insulin_screen_add_new_insulin_type_dialog_title">Dodaj novi tip insulina</string>
+    <string name="insulin_screen_add_new_insulin_type_name_label">Naziv</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Izaberite tip</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Izaberite vreme</string>
 

@@ -2,10 +2,13 @@ package com.dj.insulink.feature.glucose.ui.viewmodel
 
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
+import com.dj.insulink.core.wear.WearSyncManager
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule
 import com.dj.insulink.util.awaitUntil
 import io.mockk.coVerify
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,6 +32,9 @@ class GlucoseViewModelTest {
     private val repository: GlucoseReadingRepository = mockk(relaxed = true)
     private val authRepository: AuthRepository = mockk()
     private val settingsPreferences: SettingsPreferences = mockk()
+    private val insulinTypeRepository: InsulinTypeRepository = mockk(relaxed = true)
+    private val mealRepository: MealRepository = mockk(relaxed = true)
+    private val wearSyncManager: WearSyncManager = mockk(relaxed = true)
 
     private fun buildViewModel(
         unit: GlucoseUnit = GlucoseUnit.MG_DL,
@@ -37,7 +44,14 @@ class GlucoseViewModelTest {
         every { settingsPreferences.getGlucoseUnit() } returns unit
         every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
         every { repository.getAllGlucoseReadingsForUser(any()) } returns flowOf(readings)
-        return GlucoseViewModel(repository, authRepository, settingsPreferences)
+        return GlucoseViewModel(
+            repository,
+            authRepository,
+            settingsPreferences,
+            insulinTypeRepository,
+            mealRepository,
+            wearSyncManager
+        )
     }
 
     @Test
@@ -196,6 +210,92 @@ class GlucoseViewModelTest {
             val item = awaitUntil { it != null }
             assertEquals(1L, item!!.id)
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `startEditingGlucoseReading pre-fills fields including insulin and meal link`() {
+        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
+        val reading = GlucoseReading(
+            id = 7,
+            userId = "u1",
+            timestamp = 5000L,
+            value = 130,
+            comment = "after lunch",
+            insulinTypeId = 3,
+            insulinUnits = 4.5,
+            linkedMealId = 9
+        )
+
+        vm.startEditingGlucoseReading(reading)
+
+        assertEquals(7L, vm.editingReadingId.value)
+        assertEquals(5000L, vm.newGlucoseReadingTimestamp.value)
+        assertEquals("130", vm.newGlucoseReadingValue.value)
+        assertEquals("after lunch", vm.newGlucoseReadingComment.value)
+        assertEquals(3L, vm.newGlucoseReadingInsulinTypeId.value)
+        assertEquals("4.5", vm.newGlucoseReadingInsulinUnits.value)
+        assertEquals(9L, vm.newGlucoseReadingLinkedMealId.value)
+        assertEquals(true, vm.showAddGlucoseReadingDialog.value)
+    }
+
+    @Test
+    fun `startAddGlucoseReading resets fields and clears edit mode`() {
+        val vm = buildViewModel()
+        vm.startEditingGlucoseReading(GlucoseReading(7, "u1", 5000L, 130, "x", 3, 4.5, 9))
+
+        vm.startAddGlucoseReading()
+
+        assertNull(vm.editingReadingId.value)
+        assertEquals("", vm.newGlucoseReadingValue.value)
+        assertEquals("", vm.newGlucoseReadingComment.value)
+        assertNull(vm.newGlucoseReadingInsulinTypeId.value)
+        assertEquals("", vm.newGlucoseReadingInsulinUnits.value)
+        assertNull(vm.newGlucoseReadingLinkedMealId.value)
+        assertEquals(true, vm.showAddGlucoseReadingDialog.value)
+    }
+
+    @Test
+    fun `submitNewGlucoseReading in edit mode updates instead of inserting`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
+        vm.startEditingGlucoseReading(GlucoseReading(7, "u1", 5000L, 100, ""))
+        vm.setNewGlucoseReadingValue("140")
+        vm.setNewGlucoseReadingInsulinTypeId(3)
+        vm.setNewGlucoseReadingInsulinUnits("5")
+        vm.setNewGlucoseReadingLinkedMealId(9)
+
+        vm.submitNewGlucoseReading("u1")
+        advanceUntilIdle()
+
+        coVerify {
+            repository.update(
+                "u1",
+                match {
+                    it.id == 7L && it.value == 140 && it.insulinTypeId == 3L &&
+                        it.insulinUnits == 5.0 && it.linkedMealId == 9L
+                }
+            )
+        }
+        coVerify(exactly = 0) { repository.insert(any(), any()) }
+        assertNull(vm.editingReadingId.value)
+    }
+
+    @Test
+    fun `submitNewGlucoseReading in add mode includes insulin and meal fields`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
+        vm.setNewGlucoseReadingValue("120")
+        vm.setNewGlucoseReadingInsulinTypeId(3)
+        vm.setNewGlucoseReadingInsulinUnits("5")
+        vm.setNewGlucoseReadingLinkedMealId(9)
+
+        vm.submitNewGlucoseReading("u1")
+        advanceUntilIdle()
+
+        coVerify {
+            repository.insert(
+                "u1",
+                match { it.insulinTypeId == 3L && it.insulinUnits == 5.0 && it.linkedMealId == 9L }
+            )
         }
     }
 }

@@ -10,7 +10,10 @@ fun GlucoseReadingEntity.toDomain(): GlucoseReading {
         userId = userId,
         timestamp = timestamp,
         value = value,
-        comment = comment
+        comment = comment,
+        insulinTypeId = insulinTypeId,
+        insulinUnits = insulinUnits,
+        linkedMealId = linkedMealId
     )
 }
 
@@ -21,7 +24,10 @@ fun GlucoseReading.toEntity(): GlucoseReadingEntity {
         userId = userId,
         timestamp = timestamp,
         value = value,
-        comment = comment
+        comment = comment,
+        insulinTypeId = insulinTypeId,
+        insulinUnits = insulinUnits,
+        linkedMealId = linkedMealId
     )
 }
 

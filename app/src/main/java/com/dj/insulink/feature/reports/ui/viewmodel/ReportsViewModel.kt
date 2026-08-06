@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.dj.insulink.feature.dataREMOVE.pdf.GlucoseReportPdfGenerator
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.dj.insulink.R
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -71,8 +71,8 @@ class ReportsViewModel @Inject constructor(
     }
 
     fun filterReadingsByCurrentDateRange(userId: String) {
-        val currentMinDate = _minDate.value
-        val currentMaxDate = _maxDate.value
+        val currentMinDate = _selectedMinDate.value
+        val currentMaxDate = _selectedMaxDate.value
 
         if (currentMinDate != null && currentMaxDate != null) {
             filterReadingsByDateRange(userId, currentMinDate, currentMaxDate)

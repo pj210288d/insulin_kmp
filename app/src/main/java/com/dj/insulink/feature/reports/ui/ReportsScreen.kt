@@ -1,5 +1,6 @@
 package com.dj.insulink.feature.reports.ui
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -208,6 +209,23 @@ fun ReportsScreen(
             pdfGenerationState = params.pdfGenerationState,
             onGenerate = params.generatePdfReport
         )
+        val errorMessage = (params.pdfGenerationState as? PdfGenerationState.Error)?.message
+        AnimatedVisibility(
+            visible = errorMessage != null,
+            enter = fadeIn() + expandVertically()
+        ) {
+            Text(
+                text = errorMessage ?: "",
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = InsulinkTheme.dimens.commonPadding12,
+                        vertical = InsulinkTheme.dimens.commonSpacing8
+                    )
+            )
+        }
         AnimatedVisibility(
             visible = isReportReady,
             enter = fadeIn() + expandVertically()
@@ -282,9 +300,11 @@ private fun ReportDatePickerDialog(
                 onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         if (isSelectingStartDate) {
-                            params.updateDateRange(millis, params.selectedMaxDate!!)
+                            val endDate = params.selectedMaxDate ?: params.maxDate ?: millis
+                            params.updateDateRange(millis, endDate)
                         } else {
-                            params.updateDateRange(params.selectedMinDate!!, millis)
+                            val startDate = params.selectedMinDate ?: params.minDate ?: millis
+                            params.updateDateRange(startDate, millis)
                         }
                     }
                     params.filterReadingsByCurrentDateRange()
@@ -455,7 +475,9 @@ private fun openPdfFile(context: Context, file: File) {
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/pdf")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+            clipData = ClipData.newRawUri("", uri)
         }
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.report_open_pdf)))
     } catch (e: Exception) {
@@ -479,6 +501,8 @@ private fun sharePdfFile(
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.report_glucose_report))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            clipData = ClipData.newRawUri("", uri)
         }
         launcher.launch(Intent.createChooser(shareIntent, context.getString(R.string.report_share_pdf)))
     } catch (e: Exception) {

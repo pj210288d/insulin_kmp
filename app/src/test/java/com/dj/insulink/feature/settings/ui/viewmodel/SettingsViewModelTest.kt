@@ -1,8 +1,8 @@
 package com.dj.insulink.feature.settings.ui.viewmodel
 
-import com.dj.insulink.feature.settings.data.SettingsPreferences
-import com.dj.insulink.feature.settings.domain.model.AppLanguage
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

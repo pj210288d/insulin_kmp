@@ -44,7 +44,9 @@ import com.dj.insulink.core.ui.theme.InsulinkTheme
 import com.dj.insulink.R
 import com.dj.insulink.core.utils.combineDateAndTime
 import com.dj.insulink.core.utils.combineTimeWithDate
-import com.dj.insulink.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
+import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -59,6 +61,15 @@ fun AddGlucoseReadingDialog(
     setNewGlucoseReadingValue: (String) -> Unit,
     newGlucoseReadingComment: State<String>,
     setNewGlucoseReadingComment: (String) -> Unit,
+    insulinTypes: List<InsulinType>,
+    selectedInsulinTypeId: Long?,
+    setSelectedInsulinTypeId: (Long?) -> Unit,
+    insulinUnits: String,
+    setInsulinUnits: (String) -> Unit,
+    sameDayMeals: List<Meal>,
+    selectedMealId: Long?,
+    setSelectedMealId: (Long?) -> Unit,
+    isEditMode: Boolean,
     glucoseUnit: GlucoseUnit,
     onDismissRequest: () -> Unit,
     onSaveClicked: () -> Unit
@@ -197,7 +208,9 @@ fun AddGlucoseReadingDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = stringResource(R.string.new_reading_dialog_title),
+                    text = stringResource(
+                        if (isEditMode) R.string.edit_reading_dialog_title else R.string.new_reading_dialog_title
+                    ),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -324,6 +337,59 @@ fun AddGlucoseReadingDialog(
                         disabledPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         errorPlaceholderColor = MaterialTheme.colorScheme.error
                     )
+                )
+                Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+                Text(text = stringResource(R.string.new_reading_insulin_type_label))
+                Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing4))
+                val noneOptionLabel = stringResource(R.string.new_reading_none_option)
+                val insulinTypeLabels = listOf(noneOptionLabel) + insulinTypes.map { it.name }
+                val selectedInsulinTypeLabel = insulinTypes.find { it.id == selectedInsulinTypeId }?.name
+                    ?: noneOptionLabel
+                GlucoseDropdownMenu(
+                    items = insulinTypeLabels,
+                    selectedItem = selectedInsulinTypeLabel,
+                    onItemSelected = { selected ->
+                        if (selected == noneOptionLabel) {
+                            setSelectedInsulinTypeId(null)
+                        } else {
+                            insulinTypes.find { it.name == selected }?.let { setSelectedInsulinTypeId(it.id) }
+                        }
+                    }
+                )
+                Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing12))
+                OutlinedTextField(
+                    value = insulinUnits,
+                    onValueChange = { newValue -> setInsulinUnits(newValue) },
+                    label = { Text(stringResource(R.string.new_reading_insulin_units_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    )
+                )
+                Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+                Text(text = stringResource(R.string.new_reading_linked_meal_label))
+                Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing4))
+                val sameDayMealLabels = listOf(noneOptionLabel) + sameDayMeals.map { it.name }
+                val selectedMealLabel = sameDayMeals.find { it.id == selectedMealId }?.name
+                    ?: noneOptionLabel
+                GlucoseDropdownMenu(
+                    items = sameDayMealLabels,
+                    selectedItem = selectedMealLabel,
+                    onItemSelected = { selected ->
+                        if (selected == noneOptionLabel) {
+                            setSelectedMealId(null)
+                        } else {
+                            sameDayMeals.find { it.name == selected }?.let { setSelectedMealId(it.id) }
+                        }
+                    }
                 )
                 Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing24))
                 Row(

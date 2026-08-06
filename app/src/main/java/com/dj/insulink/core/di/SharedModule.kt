@@ -1,7 +1,13 @@
 package com.dj.insulink.core.di
 
+import com.dj.insulink.shared.feature.fitness.data.repository.ExerciseRepository
+import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
+import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
+import com.dj.insulink.shared.feature.librelink.data.repository.LibreLinkRepository
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,6 +31,42 @@ object SharedModule {
     @Provides
     @Singleton
     fun provideMealRepository(): MealRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideExerciseRepository(): ExerciseRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideReminderRepository(): ReminderRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendRepository(): FriendRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSettingsPreferences(): SettingsPreferences {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideLibreLinkRepository(): LibreLinkRepository {
+        return GlobalContext.get().get()
+    }
+
+    @Provides
+    @Singleton
+    fun provideInsulinTypeRepository(): InsulinTypeRepository {
         return GlobalContext.get().get()
     }
 }

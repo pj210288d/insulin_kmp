@@ -23,6 +23,13 @@ fun GlucoseWrapper(
     val showAddGlucoseReadingDialog = viewModel.showAddGlucoseReadingDialog.collectAsStateWithLifecycle()
     val selectedTimespan = viewModel.selectedTimespan.collectAsStateWithLifecycle()
     val glucoseUnit = viewModel.glucoseUnit.collectAsStateWithLifecycle()
+    val allInsulinTypesForUser = viewModel.allInsulinTypesForUser.collectAsStateWithLifecycle()
+    val allMealsForUser = viewModel.allMealsForUser.collectAsStateWithLifecycle()
+    val sameDayMealsForNewReading = viewModel.sameDayMealsForNewReading.collectAsStateWithLifecycle()
+    val newGlucoseReadingInsulinTypeId = viewModel.newGlucoseReadingInsulinTypeId.collectAsStateWithLifecycle()
+    val newGlucoseReadingInsulinUnits = viewModel.newGlucoseReadingInsulinUnits.collectAsStateWithLifecycle()
+    val newGlucoseReadingLinkedMealId = viewModel.newGlucoseReadingLinkedMealId.collectAsStateWithLifecycle()
+    val editingReadingId = viewModel.editingReadingId.collectAsStateWithLifecycle()
 
     LaunchedEffect(currentUser) {
         viewModel.fetchAllGlucoseReadingsForUserAndUpdateDatabase(currentUser?.uid)
@@ -52,7 +59,19 @@ fun GlucoseWrapper(
             deleteGlucoseReading = {
                 viewModel.deleteGlucoseReading(currentUser?.uid, it)
             },
-            glucoseUnit = glucoseUnit
+            glucoseUnit = glucoseUnit,
+            allInsulinTypesForUser = allInsulinTypesForUser,
+            allMealsForUser = allMealsForUser,
+            sameDayMeals = sameDayMealsForNewReading,
+            newGlucoseReadingInsulinTypeId = newGlucoseReadingInsulinTypeId,
+            setNewGlucoseReadingInsulinTypeId = viewModel::setNewGlucoseReadingInsulinTypeId,
+            newGlucoseReadingInsulinUnits = newGlucoseReadingInsulinUnits,
+            setNewGlucoseReadingInsulinUnits = viewModel::setNewGlucoseReadingInsulinUnits,
+            newGlucoseReadingLinkedMealId = newGlucoseReadingLinkedMealId,
+            setNewGlucoseReadingLinkedMealId = viewModel::setNewGlucoseReadingLinkedMealId,
+            editingReadingId = editingReadingId,
+            startAddGlucoseReading = viewModel::startAddGlucoseReading,
+            startEditingGlucoseReading = viewModel::startEditingGlucoseReading
         )
     )
 }
