@@ -14,6 +14,11 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE userId = :userId")
     fun getAllRemindersForUser(userId: String): Flow<List<ReminderEntity>>
 
+    // One-shot (not observed) snapshot across ALL local users - used to re-arm every reminder's
+    // AlarmManager alarm after a device reboot, where we don't have a "current user" context yet.
+    @Query("SELECT * FROM reminders")
+    suspend fun getAllReminders(): List<ReminderEntity>
+
     @Insert
     suspend fun insert(reminderEntity: ReminderEntity): Long
 

@@ -60,6 +60,18 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun getAllReminders_mapsEveryLocalReminderAcrossUsers() = runTest {
+        dao.allReminders = listOf(
+            ReminderEntity(1, "u1", "Lunch", ReminderType.MEAL_REMINDER, false, 1000L),
+            ReminderEntity(2, "u2", "Insulin", ReminderType.INSULIN_REMINDER, false, 2000L)
+        )
+
+        val result = repository.getAllReminders()
+
+        assertEquals(listOf("u1", "u2"), result.map { it.userId })
+    }
+
+    @Test
     fun fetchAllRemindersForUserAndUpdateDatabase_replacesLocalCache() = runTest {
         remote.fetchAllResult = listOf(Reminder(1, "u1", "Lunch", ReminderType.MEAL_REMINDER, false, 1000L))
 
