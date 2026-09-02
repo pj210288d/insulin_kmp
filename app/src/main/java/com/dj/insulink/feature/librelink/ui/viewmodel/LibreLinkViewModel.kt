@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.core.sync.LibreLinkSyncScheduler
 import com.dj.insulink.shared.feature.librelink.data.repository.LibreLinkRepository
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkLoginResult
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -19,6 +21,9 @@ import kotlinx.coroutines.launch
 sealed class LibreLinkConnectState {
     data object Idle : LibreLinkConnectState()
     data object Connecting : LibreLinkConnectState()
+    // A LibreLinkUp account can follow more than one patient (e.g. also a family member's
+    // sensor) - the user picks which one Insulink should sync before we persist a session.
+    data class ChoosingConnection(val connections: List<LibreLinkConnection>) : LibreLinkConnectState()
     data class Error(val message: String) : LibreLinkConnectState()
 }
 
@@ -50,11 +55,18 @@ class LibreLinkViewModel @Inject constructor(
     private val _connectState = MutableStateFlow<LibreLinkConnectState>(LibreLinkConnectState.Idle)
     val connectState: StateFlow<LibreLinkConnectState> = _connectState.asStateFlow()
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email.asStateFlow()
 
     private val _password = MutableStateFlow("")
     val password: StateFlow<String> = _password.asStateFlow()
+
+    // Held in memory only (never persisted) between login() returning multiple connections and
+    // the user picking one via selectConnection().
+    private var pendingLogin: LibreLinkLoginResult? = null
 
     fun setEmail(value: String) {
         _email.value = value
@@ -85,21 +97,61 @@ class LibreLinkViewModel @Inject constructor(
         if (emailValue.isBlank() || passwordValue.isBlank()) return
 
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUserFlow().first() ?: return@launch
             _connectState.value = LibreLinkConnectState.Connecting
 
-            libreLinkRepository.connect(userId, emailValue, passwordValue).fold(
-                onSuccess = {
-                    _connectState.value = LibreLinkConnectState.Idle
-                    _password.value = ""
-                    syncScheduler.enqueue()
-                    libreLinkRepository.syncLatestReadings(userId)
-                    refreshStatus()
+            libreLinkRepository.login(emailValue, passwordValue).fold(
+                onSuccess = { loginResult ->
+                    if (loginResult.connections.size == 1) {
+                        finalizeConnect(loginResult, loginResult.connections.single())
+                    } else {
+                        pendingLogin = loginResult
+                        _connectState.value = LibreLinkConnectState.ChoosingConnection(loginResult.connections)
+                    }
                 },
                 onFailure = { error ->
                     _connectState.value = LibreLinkConnectState.Error(error.message ?: "Unknown error")
                 }
             )
+        }
+    }
+
+    fun selectConnection(connection: LibreLinkConnection) {
+        val loginResult = pendingLogin ?: return
+        viewModelScope.launch {
+            _connectState.value = LibreLinkConnectState.Connecting
+            finalizeConnect(loginResult, connection)
+        }
+    }
+
+    fun cancelSelectingConnection() {
+        pendingLogin = null
+        _connectState.value = LibreLinkConnectState.Idle
+    }
+
+    private suspend fun finalizeConnect(loginResult: LibreLinkLoginResult, connection: LibreLinkConnection) {
+        val userId = authRepository.getCurrentUserFlow().first() ?: return
+        libreLinkRepository.connect(userId, loginResult.email, loginResult.auth, connection).fold(
+            onSuccess = {
+                pendingLogin = null
+                _connectState.value = LibreLinkConnectState.Idle
+                _password.value = ""
+                syncScheduler.enqueue()
+                libreLinkRepository.syncLatestReadings(userId)
+                refreshStatus()
+            },
+            onFailure = { error ->
+                _connectState.value = LibreLinkConnectState.Error(error.message ?: "Unknown error")
+            }
+        )
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserFlow().first() ?: return@launch
+            _isSyncing.value = true
+            libreLinkRepository.syncLatestReadings(userId)
+            refreshStatus()
+            _isSyncing.value = false
         }
     }
 

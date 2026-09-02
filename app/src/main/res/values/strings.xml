@@ -180,6 +180,9 @@
     <string name="librelink_password_label">LibreLinkUp password</string>
     <string name="librelink_connect_button">Connect</string>
     <string name="librelink_disconnect_button">Disconnect</string>
+    <string name="librelink_sync_now_button">Sync Now</string>
+    <string name="librelink_choose_connection_title">Multiple people are connected to this LibreLinkUp account — which one is you?</string>
+    <string name="librelink_choose_connection_cancel">Cancel</string>
     <string name="librelink_connecting">Connecting…</string>
     <string name="librelink_connected_as">Connected as %1$s</string>
     <string name="librelink_last_synced">Last synced %1$s</string>

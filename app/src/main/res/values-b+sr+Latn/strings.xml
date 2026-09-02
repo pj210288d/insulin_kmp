@@ -58,6 +58,9 @@
     <string name="librelink_password_label">LibreLinkUp lozinka</string>
     <string name="librelink_connect_button">Poveži</string>
     <string name="librelink_disconnect_button">Prekini vezu</string>
+    <string name="librelink_sync_now_button">Sinhronizuj sada</string>
+    <string name="librelink_choose_connection_title">Više osoba je povezano sa ovim LibreLinkUp nalogom — koja ste vi?</string>
+    <string name="librelink_choose_connection_cancel">Otkaži</string>
     <string name="librelink_connecting">Povezivanje…</string>
     <string name="librelink_connected_as">Povezan kao %1$s</string>
     <string name="librelink_last_synced">Poslednja sinhronizacija: %1$s</string>

@@ -4,6 +4,9 @@ import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepo
 import com.dj.insulink.shared.feature.librelink.data.local.LibreLinkSessionStorage
 import com.dj.insulink.shared.feature.librelink.data.mapper.toGlucoseReading
 import com.dj.insulink.shared.feature.librelink.data.remote.LibreLinkApiClient
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkAuth
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkLoginResult
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,14 +23,28 @@ class LibreLinkRepository(
 
     fun getLastSyncError(userId: String): String? = sessionStorage.getLastSyncError(userId)
 
-    suspend fun connect(userId: String, email: String, password: String): Result<LibreLinkSession> {
+    // Step 1 of connecting: authenticates and returns every connection (patient) this
+    // LibreLinkUp account can see. Does NOT persist a session yet - a LibreLinkUp account isn't
+    // guaranteed to follow only the signed-in user's own sensor (it may also/instead follow a
+    // family member's, for example), so the caller must let the user pick before we commit to a
+    // patientId. See connect() below for step 2.
+    suspend fun login(email: String, password: String): Result<LibreLinkLoginResult> {
         return withContext(Dispatchers.IO) {
             runCatching {
                 val auth = apiClient.login(email, password).getOrThrow()
                 val connections = apiClient.fetchConnections(auth).getOrThrow()
-                val connection = connections.firstOrNull()
-                    ?: error("No LibreLinkUp connections found for this account")
+                if (connections.isEmpty()) {
+                    error("No LibreLinkUp connections found for this account")
+                }
+                LibreLinkLoginResult(email = email, auth = auth, connections = connections)
+            }
+        }
+    }
 
+    // Step 2: persists a session for the chosen connection, using the auth obtained in login().
+    suspend fun connect(userId: String, email: String, auth: LibreLinkAuth, connection: LibreLinkConnection): Result<LibreLinkSession> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
                 val session = LibreLinkSession(
                     email = email,
                     token = auth.token,

@@ -3,6 +3,9 @@ package com.dj.insulink.feature.librelink.ui.viewmodel
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.core.sync.LibreLinkSyncScheduler
 import com.dj.insulink.shared.feature.librelink.data.repository.LibreLinkRepository
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkAuth
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
+import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkLoginResult
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
 import com.dj.insulink.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -29,6 +32,8 @@ class LibreLinkViewModelTest {
     private val libreLinkRepository: LibreLinkRepository = mockk(relaxed = true)
     private val authRepository: AuthRepository = mockk()
     private val syncScheduler: LibreLinkSyncScheduler = mockk(relaxed = true)
+
+    private val auth = LibreLinkAuth("tok", "https://api.libreview.io", "hash")
 
     @Before
     fun setUp() {
@@ -59,17 +64,18 @@ class LibreLinkViewModelTest {
         vm.connect()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { libreLinkRepository.connect(any(), any(), any()) }
+        coVerify(exactly = 0) { libreLinkRepository.login(any(), any()) }
     }
 
     @Test
-    fun `connect success updates session, clears password, triggers a sync, and schedules periodic work`() =
+    fun `connect with a single connection skips the picker and finalizes immediately`() =
         runTest(mainDispatcherRule.dispatcher) {
+            val connection = LibreLinkConnection("p1", "Jane Doe")
             val session = LibreLinkSession("a@b.com", "tok", "https://api.libreview.io", "hash", "p1")
-            coEvery { libreLinkRepository.connect("u1", "a@b.com", "secret") } returns Result.success(session)
+            coEvery { libreLinkRepository.login("a@b.com", "secret") } returns
+                Result.success(LibreLinkLoginResult("a@b.com", auth, listOf(connection)))
+            coEvery { libreLinkRepository.connect("u1", "a@b.com", auth, connection) } returns Result.success(session)
             coEvery { libreLinkRepository.syncLatestReadings("u1") } returns Result.success(2)
-            // refreshStatus() re-reads from the repository after connecting, so the mock needs
-            // to reflect the post-connect state rather than the default (null) from setUp().
             every { libreLinkRepository.getSession("u1") } returns session
 
             val vm = buildViewModel()
@@ -87,8 +93,71 @@ class LibreLinkViewModelTest {
         }
 
     @Test
+    fun `connect with multiple connections surfaces a picker instead of guessing`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val connections = listOf(LibreLinkConnection("p1", "Jane Doe"), LibreLinkConnection("p2", "Other"))
+            coEvery { libreLinkRepository.login("a@b.com", "secret") } returns
+                Result.success(LibreLinkLoginResult("a@b.com", auth, connections))
+
+            val vm = buildViewModel()
+            vm.setEmail("a@b.com")
+            vm.setPassword("secret")
+
+            vm.connect()
+            advanceUntilIdle()
+
+            val state = vm.connectState.value
+            assertTrue(state is LibreLinkConnectState.ChoosingConnection)
+            assertEquals(connections, (state as LibreLinkConnectState.ChoosingConnection).connections)
+            coVerify(exactly = 0) { libreLinkRepository.connect(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `selectConnection finalizes the connect flow with the chosen connection`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val connections = listOf(LibreLinkConnection("p1", "Jane Doe"), LibreLinkConnection("p2", "Other"))
+            val session = LibreLinkSession("a@b.com", "tok", "https://api.libreview.io", "hash", "p2")
+            coEvery { libreLinkRepository.login("a@b.com", "secret") } returns
+                Result.success(LibreLinkLoginResult("a@b.com", auth, connections))
+            coEvery { libreLinkRepository.connect("u1", "a@b.com", auth, connections[1]) } returns Result.success(session)
+            coEvery { libreLinkRepository.syncLatestReadings("u1") } returns Result.success(0)
+            every { libreLinkRepository.getSession("u1") } returns session
+
+            val vm = buildViewModel()
+            vm.setEmail("a@b.com")
+            vm.setPassword("secret")
+            vm.connect()
+            advanceUntilIdle()
+
+            vm.selectConnection(connections[1])
+            advanceUntilIdle()
+
+            assertEquals(session, vm.session.value)
+            assertEquals(LibreLinkConnectState.Idle, vm.connectState.value)
+        }
+
+    @Test
+    fun `cancelSelectingConnection returns to idle without connecting`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val connections = listOf(LibreLinkConnection("p1", "Jane Doe"), LibreLinkConnection("p2", "Other"))
+            coEvery { libreLinkRepository.login("a@b.com", "secret") } returns
+                Result.success(LibreLinkLoginResult("a@b.com", auth, connections))
+
+            val vm = buildViewModel()
+            vm.setEmail("a@b.com")
+            vm.setPassword("secret")
+            vm.connect()
+            advanceUntilIdle()
+
+            vm.cancelSelectingConnection()
+
+            assertEquals(LibreLinkConnectState.Idle, vm.connectState.value)
+            coVerify(exactly = 0) { libreLinkRepository.connect(any(), any(), any(), any()) }
+        }
+
+    @Test
     fun `connect failure surfaces an error state`() = runTest(mainDispatcherRule.dispatcher) {
-        coEvery { libreLinkRepository.connect("u1", "a@b.com", "wrong") } returns Result.failure(RuntimeException("bad creds"))
+        coEvery { libreLinkRepository.login("a@b.com", "wrong") } returns Result.failure(RuntimeException("bad creds"))
 
         val vm = buildViewModel()
         vm.setEmail("a@b.com")
@@ -117,9 +186,12 @@ class LibreLinkViewModelTest {
     @Test
     fun `connect scopes the session to the currently signed-in user, not a previous one`() =
         runTest(mainDispatcherRule.dispatcher) {
+            val connection = LibreLinkConnection("p2", "Jane Doe")
             val sessionForUser2 = LibreLinkSession("second@b.com", "tok2", "https://api.libreview.io", "hash2", "p2")
             every { authRepository.getCurrentUserFlow() } returns flowOf("u2")
-            coEvery { libreLinkRepository.connect("u2", "second@b.com", "secret") } returns Result.success(sessionForUser2)
+            coEvery { libreLinkRepository.login("second@b.com", "secret") } returns
+                Result.success(LibreLinkLoginResult("second@b.com", auth, listOf(connection)))
+            coEvery { libreLinkRepository.connect("u2", "second@b.com", auth, connection) } returns Result.success(sessionForUser2)
             coEvery { libreLinkRepository.syncLatestReadings("u2") } returns Result.success(0)
             every { libreLinkRepository.getSession("u2") } returns sessionForUser2
             // A different (first) user's session must never leak into this one's state.
@@ -134,6 +206,6 @@ class LibreLinkViewModelTest {
             advanceUntilIdle()
 
             assertEquals(sessionForUser2, vm.session.value)
-            coVerify(exactly = 0) { libreLinkRepository.connect("u1", any(), any()) }
+            coVerify(exactly = 0) { libreLinkRepository.connect("u1", any(), any(), any()) }
         }
 }

@@ -31,6 +31,7 @@ fun SettingsWrapper() {
     val libreLinkLastSynced = libreLinkViewModel.lastSyncedTimestamp.collectAsStateWithLifecycle()
     val libreLinkLastSyncError = libreLinkViewModel.lastSyncError.collectAsStateWithLifecycle()
     val libreLinkConnectState = libreLinkViewModel.connectState.collectAsStateWithLifecycle()
+    val libreLinkIsSyncing = libreLinkViewModel.isSyncing.collectAsStateWithLifecycle()
     val libreLinkEmail = libreLinkViewModel.email.collectAsStateWithLifecycle()
     val libreLinkPassword = libreLinkViewModel.password.collectAsStateWithLifecycle()
     val libreLinkCurrentUserId = libreLinkViewModel.currentUserId.collectAsStateWithLifecycle()
@@ -58,12 +59,16 @@ fun SettingsWrapper() {
                 lastSyncedLabel = formatLastSynced(context, libreLinkLastSynced.value),
                 lastSyncError = libreLinkLastSyncError.value,
                 connectState = libreLinkConnectState.value,
+                isSyncing = libreLinkIsSyncing.value,
                 email = libreLinkEmail.value,
                 password = libreLinkPassword.value,
                 onEmailChanged = libreLinkViewModel::setEmail,
                 onPasswordChanged = libreLinkViewModel::setPassword,
                 onConnect = libreLinkViewModel::connect,
-                onDisconnect = libreLinkViewModel::disconnect
+                onDisconnect = libreLinkViewModel::disconnect,
+                onSyncNow = libreLinkViewModel::syncNow,
+                onSelectConnection = libreLinkViewModel::selectConnection,
+                onCancelSelectingConnection = libreLinkViewModel::cancelSelectingConnection
             )
         )
     )

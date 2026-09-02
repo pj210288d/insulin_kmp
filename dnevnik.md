@@ -1140,3 +1140,84 @@ otkrila je DVA odvojena, nezavisna problema.
   korisnik mora sam da zna da to uradi kroz Android Settings).
 - Isto što i pre za preostale faze/FZ (FZ-10 svesno preskočen po korisnikovoj odluci, FZ-12,
   faza 3 Compose Multiplatform UI, faza 4 iOS, faza 7 Web, faza 8 testiranje/pisanje rada).
+
+---
+
+## 2026-09-03 — Popravka: LibreLinkUp je povlačio tuđe podatke, ne korisnikove
+
+### Kontekst
+Korisnik je prijavio da se LibreLinkUp vrednosti u Insulink-u ne poklapaju sa zvaničnom
+aplikacijom za isti trenutak (van ranije rešenog timezone buga — vidi 2026-08-05 stavku). Uz
+prijavu je nalepio Claude-ov predlog "alternativa" (neslužbeni LibreLinkUp API preko biblioteka
+kao `pylibrelinkup`) — ispostavilo se da je to TAČNO ono što aplikacija već koristi, pa je pravi
+uzrok tražen dalje u postojećem kodu, ne u zameni API-ja.
+
+### Dijagnostika (dokazima, ne nagađanjem)
+- Umesto da se traže LibreLinkUp email/lozinka (osetljiv medicinski nalog, ne treba da prolazi
+  kroz chat), dodato je PRIVREMENO logovanje sirovog JSON odgovora direktno u
+  `KtorLibreLinkApiClient.fetchGlucoseReadings` (uređaj već ima aktivnu sesiju, ne treba ponovna
+  prijava). Novo "Sync Now" dugme dodato u LibreLink sekciju Settings ekrana (nije postojao
+  nijedan način da se sync ručno okine pre ovoga — samo pri `connect()` ili čekanjem ~15 min
+  periodičnog posla).
+- Sirov odgovor je otkrio: `connection.firstName/lastName` = **"Kristina Milicic"**, ne korisnik
+  (JWT token prijave potvrđuje da je LibreLinkUp nalog prijavljen kao "Jovan Pavlovic"). Takođe
+  `activeSensors: []` i `graphData: []` za tu vezu — očitavanje od 114 mg/dL bilo je zastarelo
+  ~3 nedelje (senzor te osobe trenutno nije aktivan).
+- **Pravi uzrok**: `LibreLinkRepository.connect()` je radio `connections.firstOrNull()` — slepo
+  uzimao PRVU vezu koju LibreLinkUp API vrati, bez ikakve provere da li je to korisnikov
+  sopstveni senzor ili neko drugi koga prati preko istog naloga. Korisnik je objasnio da koristi
+  DVA odvojena Abbott app-a: **LibreLink** (uparen direktno sa njegovim senzorom, nema API) i
+  **LibreLinkUp** (app za pratioce, JEDINI kanal sa API-jem, ali vidi samo osobe koje su
+  EKSPLICITNO podelile podatke sa njim). Njegov sopstveni senzor prvobitno NIJE bio podeljen sa
+  LibreLinkUp nalogom — jedina veza je bila Kristina (koju prati kao pratilac). Ovo nije bug u
+  smislu "loš kod čita loše podatke" nego "kod je čitao JEDINU dostupnu vezu, koja slučajno nije
+  bila korisnikova". Korisnik je sam, van aplikacije, podelio svoj LibreLink senzor sa istim
+  LibreLinkUp nalogom (standardni Abbott "invite a follower" tok) — posle toga je nalog imao DVE
+  veze, i `firstOrNull()` je postao stvaran problem (nedeterministički/nepouzdan izbor između dve
+  validne veze).
+- Privremeni debug log uklonjen odmah posle dijagnoze (nije ostao u kodu).
+
+### Šta smo dodali
+- **`LibreLinkRepository.connect()` razdvojen u dva koraka**:
+  - `login(email, password): Result<LibreLinkLoginResult>` — autentifikuje i vraća SVE
+    konekcije koje nalog vidi, NE upisuje sesiju (nova `LibreLinkLoginResult(email, auth,
+    connections)` domen klasa u `:shared`).
+  - `connect(userId, email, auth, connection): Result<LibreLinkSession>` — upisuje sesiju za
+    IZABRANU konekciju (auth se prenosi iz prvog koraka, nema drugog login poziva).
+- **`LibreLinkViewModel`**: novo `LibreLinkConnectState.ChoosingConnection(connections)` stanje.
+  `connect()` sad poziva `login()`; ako ima tačno 1 konekcija, odmah finalizuje (isto ponašanje
+  kao pre za uobičajen slučaj); ako ima više, prelazi u `ChoosingConnection` i čeka
+  `selectConnection(connection)` poziv iz UI-ja. `pendingLogin` (auth + email) drži se SAMO u
+  memoriji ViewModel-a (nikad ne persistuje) između koraka. Novo `cancelSelectingConnection()`.
+- **UI**: `LibreLinkSection.kt` dobija `LibreLinkChooseConnectionContent` — lista svih konekcija
+  kao klikabilne kartice (ime + radio dugme), sa Cancel dugmetom da se vrati na formu za unos.
+- **"Sync Now" dugme** (trajno zadržano, ne samo za debug): korisno samo po sebi — ranije nije
+  postojao način da se ručno okine sync bez disconnect/reconnect ciklusa.
+- Testovi: `LibreLinkRepositoryTest` prepisan za `login()`/`connect()` dvostepeni API (uključujući
+  test da `login()` sam po sebi ne upisuje sesiju), `LibreLinkViewModelTest` prepisan sa novim
+  scenarijima (jedna konekcija → auto-finalizuj, više konekcija → picker, `selectConnection`,
+  `cancelSelectingConnection`).
+
+### Odluke
+- **Auth se ne traži ponovo pri biranju konekcije**: `LibreLinkAuth` (token) dobijen u `login()`
+  koraku se prenosi kroz `pendingLogin` i ponovo koristi u `connect()` — nema potrebe za drugim
+  network pozivom ka Abbott-u samo zato što korisnik bira IZMEĐU već poznatih konekcija.
+- **Auto-finalizacija za tačno 1 konekciju**: većina korisnika (koji ne prate nikog drugog) neće
+  ni primetiti promenu — ponašanje ostaje identično kao pre (odmah connect, bez ekstra klika).
+  Picker se pojavljuje SAMO kad je stvarno dvosmisleno (2+ konekcije).
+- **Nema automatskog "pogodi koja si ti" pokušaja** (npr. poklapanje imena sa Insulink nalogom)
+  — eksplicitan korisnički izbor je pouzdaniji i jednostavniji od heuristike koja bi mogla
+  pogrešno da pogodi (ime u LibreLinkUp profilu ne mora da se poklapa sa Insulink nalogom).
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`,
+  `:app:testDebugUnitTest`, `:app:assembleDebug` — svi BUILD SUCCESSFUL.
+- Korisnik je uživo podelio svoj LibreLink senzor sa LibreLinkUp nalogom (van aplikacije,
+  standardni Abbott tok), zatim disconnect→reconnect u Insulink-u — pojavio se picker sa dve
+  konekcije, izabrao sebe, **potvrdio da se vrednosti sada tačno poklapaju sa zvaničnom
+  aplikacijom**.
+
+### Šta je ostalo
+- Ako korisnik ikad prestane da prati Kristinu ili doda još neku vezu, picker će se ponovo
+  pojaviti pri sledećem punom re-connect-u (očekivano ponašanje, ne bug).
+- Isto što i pre za preostale faze/FZ.
