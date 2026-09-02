@@ -154,6 +154,14 @@
     <string name="meals_screen_meal_name_placeholder">Unesite naziv obroka</string>
     <string name="meals_screen_add_ingredients_label">Dodaj sastojke</string>
     <string name="meals_screen_search_ingredients_placeholder">Pretraži sastojke…</string>
+    <string name="meals_screen_analyze_photo_content_description">Analiziraj sliku obroka</string>
+    <string name="meals_screen_analyze_photo_error">Analiza slike nije uspela: %1$s</string>
+    <string name="meals_screen_photo_analysis_title">Analiza slike</string>
+    <string name="meals_screen_photo_analysis_edit_hint">Prepoznate namirnice — ispravite ono što ne izgleda tačno:</string>
+    <string name="meals_screen_photo_analysis_remove_item">Ukloni stavku</string>
+    <string name="meals_screen_photo_analysis_disclaimer">Procenjene vrednosti sa slike — proverite pre dodavanja i po potrebi prilagodite količinu.</string>
+    <string name="meals_screen_photo_analysis_discard">Odbaci</string>
+    <string name="meals_screen_photo_analysis_add">Dodaj u obrok</string>
     <string name="meals_screen_added_ingredients_title">Dodati sastojci</string>
     <string name="meals_screen_no_ingredients_title">Još nema dodatih sastojaka</string>
     <string name="meals_screen_no_ingredients_subtitle">Pretražite i dodajte sastojke iznad</string>

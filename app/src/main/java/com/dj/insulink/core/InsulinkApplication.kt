@@ -26,7 +26,8 @@ class InsulinkApplication : Application() {
                 glucoseModule,
                 mealsModule(
                     usdaApiKey = BuildConfig.USDA_API_KEY ?: "",
-                    spoonacularApiKey = BuildConfig.SPOONACULAR_API_KEY ?: ""
+                    spoonacularApiKey = BuildConfig.SPOONACULAR_API_KEY ?: "",
+                    logMealApiKey = BuildConfig.LOGMEAL_API_KEY ?: ""
                 ),
                 fitnessModule,
                 remindersModule,

@@ -132,6 +132,14 @@
     <string name="meals_screen_meal_name_placeholder">Enter meal name</string>
     <string name="meals_screen_add_ingredients_label">Add Ingredients</string>
     <string name="meals_screen_search_ingredients_placeholder">Search ingredients…</string>
+    <string name="meals_screen_analyze_photo_content_description">Analyze meal photo</string>
+    <string name="meals_screen_analyze_photo_error">Couldn\'t analyze photo: %1$s</string>
+    <string name="meals_screen_photo_analysis_title">Photo Analysis</string>
+    <string name="meals_screen_photo_analysis_edit_hint">Detected items — edit any that don\'t look right:</string>
+    <string name="meals_screen_photo_analysis_remove_item">Remove item</string>
+    <string name="meals_screen_photo_analysis_disclaimer">Estimated values from the photo — review before adding, and adjust the quantity if needed.</string>
+    <string name="meals_screen_photo_analysis_discard">Discard</string>
+    <string name="meals_screen_photo_analysis_add">Add to Meal</string>
     <string name="meals_screen_added_ingredients_title">Added Ingredients</string>
     <string name="meals_screen_no_ingredients_title">No ingredients added yet</string>
     <string name="meals_screen_no_ingredients_subtitle">Search and add ingredients above</string>

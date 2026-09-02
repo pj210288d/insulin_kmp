@@ -13,8 +13,11 @@ class FakeReminderDao : ReminderDao {
     var insertReturns: Long = 0L
 
     var allRemindersFlow: Flow<List<ReminderEntity>> = flowOf(emptyList())
+    var allReminders: List<ReminderEntity> = emptyList()
 
     override fun getAllRemindersForUser(userId: String): Flow<List<ReminderEntity>> = allRemindersFlow
+
+    override suspend fun getAllReminders(): List<ReminderEntity> = allReminders
 
     override suspend fun insert(reminderEntity: ReminderEntity): Long {
         insertedReminders += reminderEntity

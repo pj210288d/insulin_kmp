@@ -4,7 +4,9 @@ import com.dj.insulink.shared.feature.meals.data.local.MealsDatabase
 import com.dj.insulink.shared.feature.meals.data.local.MealsDatabaseFactory
 import com.dj.insulink.shared.feature.meals.data.local.buildMealsDatabase
 import com.dj.insulink.shared.feature.meals.data.remote.FoodApiRemoteDataSource
+import com.dj.insulink.shared.feature.meals.data.remote.FoodImageAnalysisRemoteDataSource
 import com.dj.insulink.shared.feature.meals.data.remote.KtorFoodApiRemoteDataSource
+import com.dj.insulink.shared.feature.meals.data.remote.LogMealFoodImageAnalysisRemoteDataSource
 import com.dj.insulink.shared.feature.meals.data.remote.createHttpClient
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
 import org.koin.core.module.Module
@@ -12,7 +14,7 @@ import org.koin.dsl.module
 
 expect fun platformMealsModule(): Module
 
-fun mealsModule(usdaApiKey: String, spoonacularApiKey: String): Module = module {
+fun mealsModule(usdaApiKey: String, spoonacularApiKey: String, logMealApiKey: String): Module = module {
     includes(platformMealsModule())
     single<MealsDatabase> { buildMealsDatabase(get<MealsDatabaseFactory>().create()) }
     single { get<MealsDatabase>().mealDao() }
@@ -22,5 +24,8 @@ fun mealsModule(usdaApiKey: String, spoonacularApiKey: String): Module = module 
     single<FoodApiRemoteDataSource> {
         KtorFoodApiRemoteDataSource(get(), usdaApiKey = usdaApiKey, spoonacularApiKey = spoonacularApiKey)
     }
-    single { MealRepository(get(), get(), get(), get(), get()) }
+    single<FoodImageAnalysisRemoteDataSource> {
+        LogMealFoodImageAnalysisRemoteDataSource(get(), apiKey = logMealApiKey)
+    }
+    single { MealRepository(get(), get(), get(), get(), get(), get()) }
 }

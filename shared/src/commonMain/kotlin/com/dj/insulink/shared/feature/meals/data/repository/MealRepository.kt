@@ -7,8 +7,10 @@ import com.dj.insulink.shared.feature.meals.data.local.dao.MealIngredientDao
 import com.dj.insulink.shared.feature.meals.data.mapper.toDomain
 import com.dj.insulink.shared.feature.meals.data.mapper.toEntity
 import com.dj.insulink.shared.feature.meals.data.remote.FoodApiRemoteDataSource
+import com.dj.insulink.shared.feature.meals.data.remote.FoodImageAnalysisRemoteDataSource
 import com.dj.insulink.shared.feature.meals.data.remote.MealRemoteDataSource
 import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.FoodImageAnalysis
 import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
@@ -22,7 +24,8 @@ class MealRepository(
     private val mealIngredientDao: MealIngredientDao,
     private val ingredientDao: IngredientDao,
     private val mealRemoteDataSource: MealRemoteDataSource,
-    private val foodApiRemoteDataSource: FoodApiRemoteDataSource
+    private val foodApiRemoteDataSource: FoodApiRemoteDataSource,
+    private val foodImageAnalysisRemoteDataSource: FoodImageAnalysisRemoteDataSource
 ) {
 
     fun getAllMealsForUser(userId: String): Flow<List<Meal>> {
@@ -177,6 +180,12 @@ class MealRepository(
 
     suspend fun deleteIngredient(ingredient: Ingredient) {
         ingredientDao.deleteIngredient(ingredient.toEntity())
+    }
+
+    suspend fun analyzeFoodImage(imageBytes: ByteArray): FoodImageAnalysis {
+        return withContext(Dispatchers.IO) {
+            foodImageAnalysisRemoteDataSource.analyzeFoodImage(imageBytes)
+        }
     }
 
     private suspend fun getMealIngredients(mealId: Long): List<MealIngredient> {

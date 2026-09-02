@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,19 +28,23 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,8 +56,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
+import com.dj.insulink.shared.feature.meals.domain.model.FoodImageAnalysis
 import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 
@@ -79,7 +86,13 @@ data class AddMealScreenParams(
     val onSave: () -> Unit,
     val onNavigateBack: () -> Unit,
     val createCustomIngredient: (Ingredient) -> Unit,
-    val deleteCustomIngredient: (Ingredient) -> Unit
+    val deleteCustomIngredient: (Ingredient) -> Unit,
+    val onTakeMealPhoto: () -> Unit,
+    val isAnalyzingMealPhoto: State<Boolean>,
+    val mealPhotoAnalysis: State<FoodImageAnalysis?>,
+    val mealPhotoAnalysisError: State<String?>,
+    val onAcceptMealPhotoAnalysis: (List<String>) -> Unit,
+    val onDismissMealPhotoAnalysis: () -> Unit
 )
 
 @Composable
@@ -141,6 +154,22 @@ fun AddMealScreen(params: AddMealScreenParams) {
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "") },
                 trailingIcon = {
                     Row {
+                        IconButton(
+                            onClick = params.onTakeMealPhoto,
+                            enabled = !params.isAnalyzingMealPhoto.value
+                        ) {
+                            if (params.isAnalyzingMealPhoto.value) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(InsulinkTheme.dimens.textFieldIconSize),
+                                    strokeWidth = InsulinkTheme.dimens.commonButtonBorder1
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.PhotoCamera,
+                                    contentDescription = stringResource(R.string.meals_screen_analyze_photo_content_description)
+                                )
+                            }
+                        }
                         IconButton(onClick = { params.setShowCreateIngredientDialog(true) }) {
                             Icon(Icons.Default.Add, contentDescription = "")
                         }
@@ -152,6 +181,18 @@ fun AddMealScreen(params: AddMealScreenParams) {
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+
+            if (params.mealPhotoAnalysisError.value != null) {
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding4))
+                Text(
+                    text = stringResource(
+                        R.string.meals_screen_analyze_photo_error,
+                        params.mealPhotoAnalysisError.value.orEmpty()
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
 
             Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding8))
 
@@ -325,6 +366,150 @@ fun AddMealScreen(params: AddMealScreenParams) {
             onDeleteIngredient = params.deleteCustomIngredient,
             isLoading = params.isLoading.value
         )
+    }
+
+    val mealPhotoAnalysis = params.mealPhotoAnalysis.value
+    if (mealPhotoAnalysis != null) {
+        MealPhotoAnalysisDialog(
+            analysis = mealPhotoAnalysis,
+            onAccept = params.onAcceptMealPhotoAnalysis,
+            onDismiss = params.onDismissMealPhotoAnalysis
+        )
+    }
+}
+
+@Composable
+private fun MealPhotoAnalysisDialog(
+    analysis: FoodImageAnalysis,
+    onAccept: (List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val editedNames = remember(analysis) {
+        mutableStateListOf(*analysis.recognizedFoodNames.toTypedArray())
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(InsulinkTheme.dimens.commonButtonRadius12),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(InsulinkTheme.dimens.commonPadding16)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.meals_screen_photo_analysis_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding8))
+
+                Text(
+                    text = stringResource(R.string.meals_screen_photo_analysis_edit_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding8))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = InsulinkTheme.dimens.ingredientsListHeight)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    editedNames.forEachIndexed { index, name ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = InsulinkTheme.dimens.commonPadding4),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { editedNames[index] = it },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            IconButton(onClick = { editedNames.removeAt(index) }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.meals_screen_photo_analysis_remove_item),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding12))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(InsulinkTheme.dimens.commonSpacing8)
+                ) {
+                    val ingredient = analysis.estimatedIngredient
+                    NutritionCard(
+                        stringResource(R.string.meals_screen_calories_label),
+                        ingredient.caloriesPer100g.toInt().toString(),
+                        InsulinkTheme.colors.insulinkBlue,
+                        Modifier.weight(1f)
+                    )
+                    NutritionCard(
+                        stringResource(R.string.meals_screen_carb_label),
+                        stringResource(R.string.meals_screen_grams_value, String.format("%.1f", ingredient.carbsPer100g)),
+                        InsulinkTheme.colors.glucoseLow,
+                        Modifier.weight(1f)
+                    )
+                    NutritionCard(
+                        stringResource(R.string.meals_screen_protein_label),
+                        stringResource(R.string.meals_screen_grams_value, String.format("%.1f", ingredient.proteinPer100g)),
+                        InsulinkTheme.colors.glucoseNormal,
+                        Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding8))
+
+                Text(
+                    text = stringResource(R.string.meals_screen_photo_analysis_disclaimer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(InsulinkTheme.dimens.commonPadding16))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(InsulinkTheme.dimens.commonSpacing8)
+                ) {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.meals_screen_photo_analysis_discard))
+                    }
+                    Button(
+                        onClick = { onAccept(editedNames.toList()) },
+                        modifier = Modifier.weight(1f),
+                        enabled = editedNames.any { it.isNotBlank() },
+                        colors = ButtonDefaults.buttonColors()
+                    ) {
+                        Text(stringResource(R.string.meals_screen_photo_analysis_add))
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -25,7 +25,11 @@ class ReminderScheduler @Inject constructor(
             action = "com.dj.insulink.REMINDER_ACTION"
             putExtra("title", title)
             putExtra("message", message)
-            putExtra("notificationId", reminderId)
+            putExtra("notificationId", reminderId.toInt())
+            // Carried along so the receiver can re-arm tomorrow's occurrence itself without a
+            // DB round-trip - setExactAndAllowWhileIdle only ever fires once.
+            putExtra("hour", hour)
+            putExtra("minute", minute)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(

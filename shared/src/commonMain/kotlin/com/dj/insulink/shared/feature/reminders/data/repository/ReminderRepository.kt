@@ -23,6 +23,12 @@ class ReminderRepository(
         }
     }
 
+    suspend fun getAllReminders(): List<Reminder> {
+        return withContext(Dispatchers.IO) {
+            reminderDao.getAllReminders().toDomain()
+        }
+    }
+
     suspend fun insert(userId: String, reminder: Reminder): Long {
         val reminderWithUniqueId = if (reminder.id == DEFAULT_REMINDER_ID) {
             reminder.copy(id = currentTimeMillis())

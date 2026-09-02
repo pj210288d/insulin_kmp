@@ -32,6 +32,7 @@ android {
 
         buildConfigField("String", "SPOONACULAR_API_KEY", "\"${localProperties.getProperty("SPOONACULAR_API_KEY", "")}\"")
         buildConfigField("String", "USDA_API_KEY", "\"${localProperties.getProperty("USDA_API_KEY", "")}\"")
+        buildConfigField("String", "LOGMEAL_API_KEY", "\"${localProperties.getProperty("LOGMEAL_API_KEY", "")}\"")
     }
 
     buildTypes {
