@@ -1221,3 +1221,73 @@ uzrok tražen dalje u postojećem kodu, ne u zameni API-ja.
 - Ako korisnik ikad prestane da prati Kristinu ili doda još neku vezu, picker će se ponovo
   pojaviti pri sledećem punom re-connect-u (očekivano ponašanje, ne bug).
 - Isto što i pre za preostale faze/FZ.
+
+---
+
+## 2026-09-03 — FZ-12: statistika + Glucose ekran prerađen u dnevni prikaz (van redosleda faza)
+
+### Kontekst i tok
+Korisnik je tražio FZ-12 (statistika): dnevni prosek, prosek za 7/15/30/90 dana, min/max po
+izabranom opsegu, i korelaciju insulin/obrok ↔ šećer (koristeći polja koja `GlucoseReading` već
+ima: `insulinTypeId`/`insulinUnits`/`linkedMealId`, popunjavaju se opciono pri unosu očitavanja).
+Implementacija je prošla kroz nekoliko iteracija na osnovu korisnikovog fidbeka:
+1. Prva verzija: range chip-ovi (Today/7/15/30/90) + statistika + korelacija (Pearson r, scatter
+   grafik preko `Canvas`, pošto Vico 2.2.0 nema prirodnu podršku za scatter prikaz).
+2. Korisnik: ukloni korelaciju sa insulinom/obrocima, i umesto range chip-ova neka GLAVNI EKRAN
+   (ne Statistics — pravi **Glucose** ekran) prikazuje samo TRENUTNI DAN sa swipe navigacijom.
+   Implementirano tako (Statistics privremeno postao dnevni prikaz).
+3. Korisnik: pogrešno sam protumačio — Statistics treba da OSTANE range-based (chip-ovi), samo
+   bez korelacije; dnevni prikaz sa swipe-om ide na pravi Glucose ekran. Vraćeno.
+
+### Šta smo dodali (finalno stanje)
+- **`:shared/commonMain`**: `StatisticsCalculator` (čiste funkcije — prosek/min/max/std.
+  devijacija/broj očitavanja/Time-in-Range, reuse postojećih pragova 70–126 mg/dL),
+  `StatisticsRange` enum (`TODAY`/`LAST_7_DAYS`/`LAST_15_DAYS`/`LAST_30_DAYS`/`LAST_90_DAYS`) sa
+  `startMillis()` ekstenzijom. `LocalTimeOfDay.kt` dobija `startOfDayMillis(epochMillis)`,
+  `shiftedDayStartMillis(epochMillis, days)` (DST-bezbedna aritmetika preko kotlinx-datetime
+  `LocalDate`, ne sirovi millis) i `daysAgoMillis(days)` — koriste ih i Statistics i Glucose.
+- **Statistics ekran** (nov, `side_drawer` unos, sopstvena ikonica `ic_statistics.xml`): chip-ovi
+  perioda, kartice (prosek/min/max/std.dev./broj očitavanja), Time-in-Range traka. Bez ijedne
+  zavisnosti od meals/insulin feature-a — insulin/meal korelacija koda je u potpunosti obrisana
+  (uključujući `CorrelationResult`/`CorrelationPoint` domen modele i scatter chart, koji su
+  postojali kratko pre nego što je korisnik tražio da se uklone).
+- **Glucose ekran** (prerađen): `GlucoseReadingTimespan` enum (All/Last day/3 days/week/month —
+  rolling prozor od "sada") potpuno uklonjen, zamenjen jednim kalendarskim danom (podrazumevano
+  danas). Navigacija: ◀/▶ dugmad + horizontalni swipe gest, ograničen da ne ide u budućnost.
+  `GlucoseViewModel.glucoseReadingsForSelectedDay` sad koristi
+  `getGlucoseReadingsByDateRange(userId, dayStart, dayEnd)` umesto filtriranja cele istorije u
+  memoriji. `latestGlucoseReading` (statusna kartica na vrhu) namerno OSTAJE nezavisna od dana
+  koji se pregleda — uvek prikazuje pravi najnoviji unos (preko `getAllGlucoseReadingsForUser`),
+  da korisnik uvek vidi trenutno stanje čak i dok gleda unazad u istoriju. `DynamicLineChart`-ov
+  x-osa format je sad uvek `HH:mm` (uvek prikazuje tačno jedan dan, `timespan` parametar uklonjen).
+- **Otkriven i izbegnut gest konflikt**: lista očitavanja (`GlucoseReadingItem`) već koristi
+  horizontalni `SwipeToDismissBox` za brisanje. Swipe-za-promenu-dana je namerno OGRANIČEN samo na
+  gornji deo ekrana (statusna kartica + day header + grafik), NE na celu skrolabilnu kolonu — u
+  suprotnom bi dva horizontalna gesta na istom dodiru konkurisala jedno drugom.
+- Testovi: `StatisticsCalculatorTest` (14), `LocalTimeOfDayTest` (5, novo — pokriva DST-bezbednu
+  aritmetiku dana), `GlucoseViewModelTest` prepisan za date-range upit i navigaciju po danu
+  (`goToPreviousDay`/`goToNextDay`/`canGoToNextDay`), ukupno 20 testova u tom fajlu.
+
+### Odluke
+- **Scatter grafik odbačen zajedno sa korelacijom** — nije bilo vredno zadržati mrtav kod
+  (`Canvas`-baziran scatter chart, Pearson koeficijent) kad ga korisnik nije tražio; obrisano u
+  potpunosti umesto ostavljeno "za svaki slučaj", isti princip kao ranije (`NetworkModule.kt`,
+  `InsulinkDatabase.kt` presedani).
+- **`latestGlucoseReading` odvojen od `glucoseReadingsForSelectedDay`**: statusna kartica na vrhu
+  Glucose ekrana namerno ne prati izabrani dan — ovo je svesna UX odluka (prikazuje TRENUTNO
+  stanje korisnika nezavisno od toga koji dan istorije pregleda), ne previd.
+- **Dan-aritmetika preko `kotlinx.datetime.LocalDate`, ne sirovi millis**: `shiftedDayStartMillis`
+  ide kroz `LocalDate.plus(DatePeriod(days = ...))` da ostane tačna preko DST prelaza, gde dan
+  nije uvek tačno 24h. Pokriveno testovima (`LocalTimeOfDayTest`).
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`,
+  `:app:testDebugUnitTest` (uključujući 20/20 u `GlucoseViewModelTest`), `:app:assembleDebug` —
+  svi BUILD SUCCESSFUL, posle svake od tri iteracije.
+- Korisnik potvrdio uživo na fizičkom uređaju: Statistics chip-ovi + statistika rade, Glucose
+  dnevni prikaz + swipe navigacija rade, bez konflikta sa swipe-to-delete na listi.
+
+### Šta je ostalo
+- Isto što i pre za preostale faze/FZ (faza 3 Compose Multiplatform UI, faza 4 iOS, faza 7 Web,
+  faza 8 testiranje/pisanje rada; Health Connect integracija za Samsung Health istražena ali
+  odložena po korisnikovoj odluci — vidi prethodnu sesiju).
