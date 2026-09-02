@@ -49,6 +49,10 @@
     <string name="glucose_screen_empty_display_label">- %1$s</string>
     <string name="glucose_screen_date_axis_title">Date &amp; Time</string>
     <string name="glucose_screen_no_readings_title">The list is empty!\nAdd some glucose readings</string>
+    <string name="glucose_screen_today">Today</string>
+    <string name="glucose_screen_yesterday">Yesterday</string>
+    <string name="glucose_screen_previous_day_description">Previous day</string>
+    <string name="glucose_screen_next_day_description">Next day</string>
 
     <!-- New reading modal -->
     <string name="new_reading_dialog_title">New glucose reading</string>
@@ -102,6 +106,26 @@
     <string name="insulin_screen_add_new_insulin_type_dialog_title">Add a new insulin type</string>
     <string name="insulin_screen_add_new_insulin_type_name_label">Name</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Select type</string>
+
+    <!-- Statistics screen -->
+    <string name="nav_title_statistics">Statistics</string>
+    <string name="side_drawer_statistics_title">Statistics</string>
+    <string name="side_drawer_statistics_subtitle">Averages and ranges</string>
+    <string name="statistics_range_today">Today</string>
+    <string name="statistics_range_7_days">7 Days</string>
+    <string name="statistics_range_15_days">15 Days</string>
+    <string name="statistics_range_30_days">30 Days</string>
+    <string name="statistics_range_90_days">90 Days</string>
+    <string name="statistics_average_label">Average</string>
+    <string name="statistics_min_label">Min</string>
+    <string name="statistics_max_label">Max</string>
+    <string name="statistics_std_dev_label">Std. Dev.</string>
+    <string name="statistics_reading_count_label">Readings</string>
+    <string name="statistics_time_in_range_title">Time in Range</string>
+    <string name="statistics_below_label">Below %1$s</string>
+    <string name="statistics_in_range_label">In range %1$s</string>
+    <string name="statistics_above_label">Above %1$s</string>
+    <string name="statistics_no_data">No glucose readings in this period</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Select time</string>
 
     <!-- Meals screen -->
@@ -209,12 +233,6 @@
     <string name="glucose_in_target">In target range</string>
     <string name="glucose_above_target">Above target range</string>
 
-    <!-- Glucose reading timespan -->
-    <string name="timespan_all_readings">All readings</string>
-    <string name="timespan_last_24_hours">Last 24 hours</string>
-    <string name="timespan_last_3_days">Last 3 days</string>
-    <string name="timespan_last_week">Last week</string>
-    <string name="timespan_last_month">Last month</string>
 
     <!-- Reminder types -->
     <string name="reminder_type_meal">Meal reminder</string>

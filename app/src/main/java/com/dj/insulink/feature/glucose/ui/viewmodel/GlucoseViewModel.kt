@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.core.wear.WearSyncManager
+import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.time.shiftedDayStartMillis
+import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
@@ -56,8 +59,27 @@ class GlucoseViewModel @Inject constructor(
     private val _showAddGlucoseReadingDialog = MutableStateFlow(false)
     val showAddGlucoseReadingDialog = _showAddGlucoseReadingDialog.asStateFlow()
 
-    private val _selectedTimespan = MutableStateFlow(GlucoseReadingTimespan.ALL_READINGS)
-    val selectedTimespan = _selectedTimespan.asStateFlow()
+    // The day currently shown on the main screen (defaults to today). Navigated via
+    // goToPreviousDay()/goToNextDay(), including in response to a horizontal swipe on the
+    // screen - see GlucoseScreen.
+    private val _selectedDayStartMillis = MutableStateFlow(startOfDayMillis(currentTimeMillis()))
+    val selectedDayStartMillis: StateFlow<Long> = _selectedDayStartMillis.asStateFlow()
+
+    // Disabled once the selected day IS today - there's no data to show for a future day.
+    val canGoToNextDay: StateFlow<Boolean> = _selectedDayStartMillis
+        .map { it < startOfDayMillis(currentTimeMillis()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun goToPreviousDay() {
+        _selectedDayStartMillis.value = shiftedDayStartMillis(_selectedDayStartMillis.value, -1)
+    }
+
+    fun goToNextDay() {
+        val next = shiftedDayStartMillis(_selectedDayStartMillis.value, 1)
+        if (next <= startOfDayMillis(currentTimeMillis())) {
+            _selectedDayStartMillis.value = next
+        }
+    }
 
     private val _editingReadingId = MutableStateFlow<Long?>(null)
     val editingReadingId = _editingReadingId.asStateFlow()
@@ -122,16 +144,18 @@ class GlucoseViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    // Readings for the day currently selected via goToPreviousDay()/goToNextDay() (see
+    // selectedDayStartMillis above) - this is what's shown in the chart and the list below it.
     @OptIn(ExperimentalCoroutinesApi::class)
-    val allGlucoseReadings: StateFlow<List<GlucoseReading>> = combine(
+    val glucoseReadingsForSelectedDay: StateFlow<List<GlucoseReading>> = combine(
         authRepository.getCurrentUserFlow(),
-        _selectedTimespan
-    ) { userId, timespan ->
-        userId to timespan
-    }.flatMapLatest { (userId, timespan) ->
+        _selectedDayStartMillis
+    ) { userId, dayStart ->
+        userId to dayStart
+    }.flatMapLatest { (userId, dayStart) ->
         if (userId != null) {
-            glucoseReadingRepository.getAllGlucoseReadingsForUser(userId)
-                .map { readings -> filterGlucoseReadingsByTimespan(readings, timespan) }
+            val dayEnd = shiftedDayStartMillis(dayStart, 1) - 1
+            glucoseReadingRepository.getGlucoseReadingsByDateRange(userId, dayStart, dayEnd)
         } else {
             flowOf(emptyList())
         }
@@ -141,8 +165,19 @@ class GlucoseViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val latestGlucoseReading: StateFlow<GlucoseReading?> = allGlucoseReadings
-        .map { it.firstOrNull() }
+    // The true latest reading ever recorded - deliberately independent of the day being browsed
+    // above, so the status card at the top of the screen always reflects the user's current
+    // glucose even while they're looking back at an earlier day's history.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val latestGlucoseReading: StateFlow<GlucoseReading?> = authRepository.getCurrentUserFlow()
+        .flatMapLatest { userId ->
+            if (userId != null) {
+                glucoseReadingRepository.getAllGlucoseReadingsForUser(userId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .map { it.firstOrNull() } // DAO already orders by timestamp DESC
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -237,10 +272,6 @@ class GlucoseViewModel @Inject constructor(
         _showAddGlucoseReadingDialog.value = isVisible
     }
 
-    fun setSelectedTimespan(newTimespan: GlucoseReadingTimespan) {
-        _selectedTimespan.value = newTimespan
-    }
-
     fun setNewGlucoseReadingInsulinTypeId(insulinTypeId: Long?) {
         _newGlucoseReadingInsulinTypeId.value = insulinTypeId
     }
@@ -253,22 +284,9 @@ class GlucoseViewModel @Inject constructor(
         _newGlucoseReadingLinkedMealId.value = mealId
     }
 
-    private fun filterGlucoseReadingsByTimespan(
-        allGlucoseReadings: List<GlucoseReading>,
-        timespan: GlucoseReadingTimespan
-    ): List<GlucoseReading> {
-        if (timespan == GlucoseReadingTimespan.ALL_READINGS) {
-            return allGlucoseReadings
-        }
-
-        val cutoffTime = System.currentTimeMillis() - timespan.milliseconds
-        return allGlucoseReadings.filter { it.timestamp >= cutoffTime }
-    }
-
-    // Recomputes the true latest reading (unfiltered by the timespan selector - see
-    // allGlucoseReadings above) and pushes it to the paired Wear OS watch. Always recomputes
-    // rather than assuming the just-submitted reading is newest, since editing an older entry
-    // must not overwrite the watch's displayed value with stale data.
+    // Recomputes the true latest reading and pushes it to the paired Wear OS watch. Always
+    // recomputes rather than assuming the just-submitted reading is newest, since editing an
+    // older entry must not overwrite the watch's displayed value with stale data.
     private fun pushLatestReadingToWear(userId: String) {
         viewModelScope.launch {
             val latest = glucoseReadingRepository.getAllGlucoseReadingsForUser(userId)
@@ -287,14 +305,6 @@ class GlucoseViewModel @Inject constructor(
         _newGlucoseReadingLinkedMealId.value = null
         _editingReadingId.value = null
     }
-}
-
-enum class GlucoseReadingTimespan(val displayNameRes: Int, val milliseconds: Long) {
-    ALL_READINGS(com.dj.insulink.R.string.timespan_all_readings, Long.MAX_VALUE),
-    LAST_DAY(com.dj.insulink.R.string.timespan_last_24_hours, 24 * 60 * 60 * 1000L),
-    LAST_3_DAYS(com.dj.insulink.R.string.timespan_last_3_days, 72 * 60 * 60 * 1000L),
-    LAST_WEEK(com.dj.insulink.R.string.timespan_last_week, 7 * 24 * 60 * 60 * 1000L),
-    LAST_MONTH(com.dj.insulink.R.string.timespan_last_month, 30 * 24 * 60 * 60 * 1000L);
 }
 
 private const val COMMENT_MAXIMUM_LENGTH = 20

@@ -3,6 +3,7 @@ package com.dj.insulink.feature.glucose.ui
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,8 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
+import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.time.shiftedDayStartMillis
+import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
 import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
 import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
@@ -63,6 +70,28 @@ fun GlucoseScreen(
                 .verticalScroll(rememberScrollState())
                 .fillMaxSize()
         ) {
+          // Swipe-to-change-day is scoped to this header+chart section only (not the whole
+          // screen) - the reading list below uses its own horizontal swipe-to-delete per item
+          // (see GlucoseReadingItem's SwipeToDismissBox), and the two gestures would otherwise
+          // compete for the same horizontal drag.
+          Column(
+            modifier = Modifier.pointerInput(Unit) {
+                var dragTotal = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { dragTotal = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        dragTotal += dragAmount
+                    },
+                    onDragEnd = {
+                        when {
+                            dragTotal <= -SWIPE_THRESHOLD_PX -> params.onNextDay()
+                            dragTotal >= SWIPE_THRESHOLD_PX -> params.onPreviousDay()
+                        }
+                    }
+                )
+            }
+          ) {
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = Color.Transparent
@@ -119,37 +148,32 @@ fun GlucoseScreen(
                 }
             }
 
-            val timespanLabels = GlucoseReadingTimespan.entries.map { stringResource(it.displayNameRes) }
-            GlucoseDropdownMenu(
-                items = timespanLabels,
-                selectedItem = stringResource(params.selectedTimespan.value.displayNameRes),
-                onItemSelected = { selected ->
-                    val index = timespanLabels.indexOf(selected)
-                    if (index >= 0) {
-                        params.setSelectedTimespan(GlucoseReadingTimespan.entries[index])
-                    }
-                },
+            DayHeader(
+                selectedDayStartMillis = params.selectedDayStartMillis.value,
+                canGoToNextDay = params.canGoToNextDay.value,
+                onPreviousDay = params.onPreviousDay,
+                onNextDay = params.onNextDay,
                 modifier = Modifier.padding(horizontal = InsulinkTheme.dimens.commonPadding12)
             )
 
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing12))
 
-            if (params.allGlucoseReadings.value.isNotEmpty()) {
+            if (params.glucoseReadingsForSelectedDay.value.isNotEmpty()) {
                 DynamicLineChart(
-                    xValues = params.allGlucoseReadings.value.map { it.timestamp }.reversed(),
-                    yValues = params.allGlucoseReadings.value.map { it.value }.reversed(),
+                    xValues = params.glucoseReadingsForSelectedDay.value.map { it.timestamp }.reversed(),
+                    yValues = params.glucoseReadingsForSelectedDay.value.map { it.value }.reversed(),
                     modifier = Modifier
                         .padding(horizontal = InsulinkTheme.dimens.commonPadding12)
                         .height(289.dp),
-                    timespan = params.selectedTimespan.value,
                     glucoseUnit = params.glucoseUnit.value
                 )
             }
+          }
 
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing12))
 
             Column {
-                if (params.allGlucoseReadings.value.isNotEmpty()) {
+                if (params.glucoseReadingsForSelectedDay.value.isNotEmpty()) {
                     val insulinTypesById = remember(params.allInsulinTypesForUser.value) {
                         params.allInsulinTypesForUser.value.associateBy { it.id }
                     }
@@ -159,7 +183,7 @@ fun GlucoseScreen(
                     LazyColumn(
                         modifier = Modifier.height(ALLOWED_READINGS_COLUMN_HEIGHT)
                     ) {
-                        items(items = params.allGlucoseReadings.value, key = { item -> item.id }) {
+                        items(items = params.glucoseReadingsForSelectedDay.value, key = { item -> item.id }) {
                             GlucoseReadingItem(
                                 glucoseReading = it,
                                 glucoseUnit = params.glucoseUnit.value,
@@ -236,11 +260,62 @@ fun GlucoseScreen(
     }
 }
 
+@Composable
+private fun DayHeader(
+    selectedDayStartMillis: Long,
+    canGoToNextDay: Boolean,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPreviousDay) {
+            Icon(
+                Icons.Filled.ChevronLeft,
+                contentDescription = stringResource(R.string.glucose_screen_previous_day_description)
+            )
+        }
+        Text(
+            text = dayLabel(selectedDayStartMillis),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        IconButton(onClick = onNextDay, enabled = canGoToNextDay) {
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = stringResource(R.string.glucose_screen_next_day_description),
+                tint = if (canGoToNextDay) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISABLED_ALPHA)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun dayLabel(dayStartMillis: Long): String {
+    val today = startOfDayMillis(currentTimeMillis())
+    return when (dayStartMillis) {
+        today -> stringResource(R.string.glucose_screen_today)
+        shiftedDayStartMillis(today, -1) -> stringResource(R.string.glucose_screen_yesterday)
+        else -> SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(dayStartMillis))
+    }
+}
+
 data class GlucoseScreenParams(
-    val allGlucoseReadings: State<List<GlucoseReading>>,
+    val glucoseReadingsForSelectedDay: State<List<GlucoseReading>>,
     val latestGlucoseReading: State<GlucoseReading?>,
-    val selectedTimespan: State<GlucoseReadingTimespan>,
-    val setSelectedTimespan: (GlucoseReadingTimespan) -> Unit,
+    val selectedDayStartMillis: State<Long>,
+    val canGoToNextDay: State<Boolean>,
+    val onPreviousDay: () -> Unit,
+    val onNextDay: () -> Unit,
     val newGlucoseReadingTimestamp: State<Long>,
     val setNewGlucoseReadingTimestamp: (Long) -> Unit,
     val newGlucoseReadingValue: State<String>,
@@ -267,3 +342,5 @@ data class GlucoseScreenParams(
 )
 
 private val ALLOWED_READINGS_COLUMN_HEIGHT = 400.dp
+private const val DISABLED_ALPHA = 0.4f
+private const val SWIPE_THRESHOLD_PX = 120f

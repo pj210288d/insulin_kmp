@@ -74,6 +74,10 @@
     <string name="glucose_screen_empty_display_label">- %1$s</string>
     <string name="glucose_screen_date_axis_title">Datum i vreme</string>
     <string name="glucose_screen_no_readings_title">Lista je prazna!\nDodajte merenja glukoze</string>
+    <string name="glucose_screen_today">Danas</string>
+    <string name="glucose_screen_yesterday">Juče</string>
+    <string name="glucose_screen_previous_day_description">Prethodni dan</string>
+    <string name="glucose_screen_next_day_description">Sledeći dan</string>
 
     <!-- New reading modal -->
     <string name="new_reading_dialog_title">Novo merenje glukoze</string>
@@ -127,6 +131,26 @@
     <string name="insulin_screen_add_new_insulin_type_dialog_title">Dodaj novi tip insulina</string>
     <string name="insulin_screen_add_new_insulin_type_name_label">Naziv</string>
     <string name="reminders_screen_add_new_reminder_select_type_label">Izaberite tip</string>
+
+    <!-- Statistics screen -->
+    <string name="nav_title_statistics">Statistika</string>
+    <string name="side_drawer_statistics_title">Statistika</string>
+    <string name="side_drawer_statistics_subtitle">Proseci i opsezi</string>
+    <string name="statistics_range_today">Danas</string>
+    <string name="statistics_range_7_days">7 dana</string>
+    <string name="statistics_range_15_days">15 dana</string>
+    <string name="statistics_range_30_days">30 dana</string>
+    <string name="statistics_range_90_days">90 dana</string>
+    <string name="statistics_average_label">Prosek</string>
+    <string name="statistics_min_label">Min</string>
+    <string name="statistics_max_label">Max</string>
+    <string name="statistics_std_dev_label">Std. dev.</string>
+    <string name="statistics_reading_count_label">Očitavanja</string>
+    <string name="statistics_time_in_range_title">Vreme u opsegu</string>
+    <string name="statistics_below_label">Ispod %1$s</string>
+    <string name="statistics_in_range_label">U opsegu %1$s</string>
+    <string name="statistics_above_label">Iznad %1$s</string>
+    <string name="statistics_no_data">Nema očitavanja glukoze u ovom periodu</string>
     <string name="reminders_screen_add_new_reminder_select_time_label">Izaberite vreme</string>
 
     <!-- Meals screen -->
@@ -209,12 +233,6 @@
     <string name="glucose_in_target">U ciljnom opsegu</string>
     <string name="glucose_above_target">Iznad ciljnog opsega</string>
 
-    <!-- Glucose reading timespan -->
-    <string name="timespan_all_readings">Sva merenja</string>
-    <string name="timespan_last_24_hours">Poslednjih 24 sata</string>
-    <string name="timespan_last_3_days">Poslednja 3 dana</string>
-    <string name="timespan_last_week">Prošla nedelja</string>
-    <string name="timespan_last_month">Prošli mesec</string>
 
     <!-- Reminder types -->
     <string name="reminder_type_meal">Podsetnik za obrok</string>

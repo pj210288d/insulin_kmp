@@ -7,7 +7,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.glucose.ui.viewmodel.GlucoseReadingTimespan
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
@@ -29,12 +28,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// The chart always shows a single calendar day's worth of readings (see GlucoseViewModel's
+// selectedDayStartMillis) - the x-axis is always formatted as a time of day, never a date.
+private const val DAY_VIEW_TIME_FORMAT = "HH:mm"
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DynamicLineChart(
     xValues: List<Long>,
     yValues: List<Int>,
-    timespan: GlucoseReadingTimespan,
     modifier: Modifier,
     glucoseUnit: GlucoseUnit = GlucoseUnit.MG_DL
 ) {
@@ -42,27 +44,6 @@ fun DynamicLineChart(
     val scrollState = rememberVicoScrollState(
         initialScroll = Scroll.Absolute.End
     )
-
-    val dateFormat = remember(timespan) {
-        when (timespan) {
-            GlucoseReadingTimespan.LAST_DAY -> "HH:mm"
-            GlucoseReadingTimespan.LAST_3_DAYS -> "d MMM HH:mm"
-            GlucoseReadingTimespan.LAST_WEEK -> "d MMM"
-            GlucoseReadingTimespan.LAST_MONTH -> "d MMM"
-            GlucoseReadingTimespan.ALL_READINGS -> {
-                if (xValues.isNotEmpty()) {
-                    val timeRange = (xValues.maxOrNull() ?: 0L) - (xValues.minOrNull() ?: 0L)
-                    when {
-                        timeRange <= 7 * 24 * 60 * 60 * 1000L -> "d MMM"
-                        timeRange <= 365 * 24 * 60 * 60 * 1000L -> "d MMM"
-                        else -> "MMM yyyy"
-                    }
-                } else {
-                    "d MMM"
-                }
-            }
-        }
-    }
 
     val convertedYValues = remember(yValues, glucoseUnit) {
         if (glucoseUnit == GlucoseUnit.MMOL_L) {
@@ -85,7 +66,7 @@ fun DynamicLineChart(
         listOf(HorizontalBox(y = { targetRange }, box = targetRangeBox))
     }
 
-    LaunchedEffect(xValues, convertedYValues, timespan) {
+    LaunchedEffect(xValues, convertedYValues) {
         if (xValues.isNotEmpty() && convertedYValues.isNotEmpty()) {
             modelProducer.runTransaction {
                 lineSeries {
@@ -109,13 +90,9 @@ fun DynamicLineChart(
                     val index = x.toInt()
                     if (xValues.isNotEmpty() && index >= 0 && index < xValues.size) {
                         val timestamp = xValues[index]
-                        SimpleDateFormat(dateFormat, Locale.getDefault()).format(Date(timestamp))
+                        SimpleDateFormat(DAY_VIEW_TIME_FORMAT, Locale.getDefault()).format(Date(timestamp))
                     } else {
-                        when (timespan) {
-                            GlucoseReadingTimespan.LAST_DAY -> "00:00"
-                            GlucoseReadingTimespan.LAST_3_DAYS -> "1 Jan 00:00"
-                            else -> "1 Jan"
-                        }
+                        "00:00"
                     }
                 }
             ),

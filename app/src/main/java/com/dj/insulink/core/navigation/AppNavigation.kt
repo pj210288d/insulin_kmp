@@ -47,6 +47,7 @@ import com.dj.insulink.feature.insulin.ui.wrapper.InsulinWrapper
 import com.dj.insulink.feature.reminders.ui.wrapper.RemindersWrapper
 import com.dj.insulink.feature.reports.ui.wrapper.ReportsWrapper
 import com.dj.insulink.feature.settings.ui.wrapper.SettingsWrapper
+import com.dj.insulink.feature.statistics.ui.wrapper.StatisticsWrapper
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -96,6 +97,10 @@ fun AppNavigation() {
                     },
                     navigateToInsulinTypes = {
                         navController.navigateTo(Screen.InsulinTypes.route)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    navigateToStatistics = {
+                        navController.navigateTo(Screen.Statistics.route)
                         coroutineScope.launch { drawerState.close() }
                     },
                     onSignOutClick = {
@@ -231,6 +236,9 @@ fun AppNavigation() {
                 }
                 composable(Screen.InsulinTypes.route) {
                     InsulinWrapper(currentUser = currentUser.value)
+                }
+                composable(Screen.Statistics.route) {
+                    StatisticsWrapper()
                 }
             }
         }
