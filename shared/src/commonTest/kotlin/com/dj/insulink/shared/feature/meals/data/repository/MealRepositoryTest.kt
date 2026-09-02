@@ -19,7 +19,10 @@ class MealRepositoryTest {
     private val ingredientDao = FakeIngredientDao()
     private val mealRemoteDataSource = FakeMealRemoteDataSource()
     private val foodApiRemoteDataSource = FakeFoodApiRemoteDataSource()
-    private val repository = MealRepository(mealDao, mealIngredientDao, ingredientDao, mealRemoteDataSource, foodApiRemoteDataSource)
+    private val foodImageAnalysisRemoteDataSource = FakeFoodImageAnalysisRemoteDataSource()
+    private val repository = MealRepository(
+        mealDao, mealIngredientDao, ingredientDao, mealRemoteDataSource, foodApiRemoteDataSource, foodImageAnalysisRemoteDataSource
+    )
 
     private fun ingredientEntity(id: Long, name: String) = IngredientEntity(
         id = id, name = name, caloriesPer100g = 100.0, proteinPer100g = 10.0,
@@ -133,6 +136,16 @@ class MealRepositoryTest {
         val inserted = mealDao.insertedMeals.single()
         assertEquals("Lunch", inserted.name)
         assertEquals(true, inserted.id != 0L)
+    }
+
+    @Test
+    fun analyzeFoodImage_delegatesToTheImageAnalysisRemoteDataSource() = runTest {
+        val imageBytes = byteArrayOf(1, 2, 3)
+
+        val result = repository.analyzeFoodImage(imageBytes)
+
+        assertEquals(listOf(imageBytes), foodImageAnalysisRemoteDataSource.analyzedImages)
+        assertEquals(foodImageAnalysisRemoteDataSource.analysisResult, result)
     }
 
     @Test

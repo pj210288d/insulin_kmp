@@ -1,10 +1,12 @@
 package com.dj.insulink.feature.meals.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
 import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.FoodImageAnalysis
 import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
@@ -116,6 +118,15 @@ class MealsViewModel @Inject constructor(
     private val _showMyIngredientsDialog = MutableStateFlow(false)
     val showMyIngredientsDialog = _showMyIngredientsDialog.asStateFlow()
 
+    private val _isAnalyzingMealPhoto = MutableStateFlow(false)
+    val isAnalyzingMealPhoto = _isAnalyzingMealPhoto.asStateFlow()
+
+    private val _mealPhotoAnalysis = MutableStateFlow<FoodImageAnalysis?>(null)
+    val mealPhotoAnalysis = _mealPhotoAnalysis.asStateFlow()
+
+    private val _mealPhotoAnalysisError = MutableStateFlow<String?>(null)
+    val mealPhotoAnalysisError = _mealPhotoAnalysisError.asStateFlow()
+
     fun fetchAllMealsForUserAndUpdateDatabase(userId: String?) {
         viewModelScope.launch {
             userId?.let {
@@ -184,6 +195,47 @@ class MealsViewModel @Inject constructor(
 
     fun setShowMyIngredientsDialog(show: Boolean) {
         _showMyIngredientsDialog.value = show
+    }
+
+    fun analyzeMealPhoto(imageBytes: ByteArray) {
+        Log.d(TAG, "analyzeMealPhoto: starting, ${imageBytes.size} bytes")
+        viewModelScope.launch {
+            _isAnalyzingMealPhoto.value = true
+            _mealPhotoAnalysisError.value = null
+            _mealPhotoAnalysis.value = null
+            try {
+                val result = mealRepository.analyzeFoodImage(imageBytes)
+                Log.d(TAG, "analyzeMealPhoto: success, recognized=${result.recognizedFoodNames}")
+                _mealPhotoAnalysis.value = result
+            } catch (e: Exception) {
+                Log.e(TAG, "analyzeMealPhoto: failed", e)
+                _mealPhotoAnalysisError.value = e.message ?: e.toString()
+            } finally {
+                _isAnalyzingMealPhoto.value = false
+            }
+        }
+    }
+
+    fun reportMealPhotoReadError() {
+        Log.e(TAG, "reportMealPhotoReadError: camera did not return a usable photo")
+        _mealPhotoAnalysisError.value = "Could not read the photo from the camera"
+    }
+
+    fun acceptMealPhotoAnalysis(editedFoodNames: List<String>) {
+        _mealPhotoAnalysis.value?.let { analysis ->
+            val correctedName = editedFoodNames
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .joinToString(", ")
+                .ifEmpty { analysis.estimatedIngredient.name }
+            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0)
+        }
+        dismissMealPhotoAnalysis()
+    }
+
+    fun dismissMealPhotoAnalysis() {
+        _mealPhotoAnalysis.value = null
+        _mealPhotoAnalysisError.value = null
     }
 
     fun submitNewMeal(userId: String?, onSuccess: () -> Unit) {
@@ -273,5 +325,10 @@ class MealsViewModel @Inject constructor(
         _newMealComment.value = ""
         _searchQuery.value = ""
         _selectedIngredients.value = emptyList()
+        dismissMealPhotoAnalysis()
+    }
+
+    private companion object {
+        const val TAG = "MealsViewModel"
     }
 }
