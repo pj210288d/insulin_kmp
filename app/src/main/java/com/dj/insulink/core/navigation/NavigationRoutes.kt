@@ -26,6 +26,7 @@ sealed class Screen(
     object Settings : Screen("settings", titleRes = R.string.nav_title_settings)
     object InsulinTypes : Screen("insulin_types", titleRes = R.string.nav_title_insulin_types)
     object Statistics : Screen("statistics", titleRes = R.string.nav_title_statistics)
+    object SharedGlucoseDemo : Screen("shared_glucose_demo", titleRes = R.string.nav_title_shared_glucose_demo)
 
     companion object {
         val allDestinations: List<Screen> = listOf(
@@ -41,7 +42,8 @@ sealed class Screen(
             Report,
             Settings,
             InsulinTypes,
-            Statistics
+            Statistics,
+            SharedGlucoseDemo
         )
 
         val bottomBarDestinations: List<Screen> = listOf(
@@ -56,7 +58,8 @@ sealed class Screen(
             Report,
             Settings,
             InsulinTypes,
-            Statistics
+            Statistics,
+            SharedGlucoseDemo
         )
 
         fun findDestinationByRoute(route: String?): Screen? {

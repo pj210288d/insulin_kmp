@@ -7,7 +7,7 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.dj.insulink.shared.feature.fitness.data.local.dao.ExerciseDao
 import com.dj.insulink.shared.feature.fitness.data.local.entity.ExerciseEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val EXERCISE_DATABASE_FILE_NAME = "exercises.db"
 
@@ -26,6 +26,6 @@ expect object ExerciseDatabaseConstructor : RoomDatabaseConstructor<ExerciseData
 fun buildExerciseDatabase(builder: RoomDatabase.Builder<ExerciseDatabase>): ExerciseDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .build()
 }

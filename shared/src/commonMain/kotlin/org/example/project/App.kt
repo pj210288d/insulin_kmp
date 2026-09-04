@@ -1,49 +1,35 @@
 package org.example.project
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
+import com.dj.insulink.shared.feature.glucose.ui.GlucoseScreen
+import com.dj.insulink.shared.feature.glucose.ui.viewmodel.GlucoseViewModel
+import org.koin.mp.KoinPlatform
 
-import insulink.shared.generated.resources.Res
-import insulink.shared.generated.resources.compose_multiplatform
-
+// Root ekran deljen preko Compose Multiplatform-a - koristi ga i iOS (MainViewController.ios.kt
+// poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseWrapper u
+// :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Trenutno prikazuje samo deljeni
+// Glucose ekran (bez navigacije/prijave - vidi GlucoseViewModel za obim ove MVP verzije).
+// GlucoseViewModel je Koin single (vidi glucoseModule), zato se ovde uzima direktno preko
+// KoinPlatform-a (multiplatform-bezbedan način da se dođe do trenutne Koin instance - obično
+// GlobalContext, dostupan samo na JVM/Android strani) umesto Compose-Koin integracije - isti
+// obrazac kao postojeći SharedModule.kt most (Hilt -> Koin) na Android strani, samo u
+// suprotnom smeru.
 @Composable
-@Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
-        }
+    MaterialTheme(colorScheme = insulinkColorScheme()) {
+        val viewModel = remember { KoinPlatform.getKoin().get<GlucoseViewModel>() }
+        GlucoseScreen(viewModel = viewModel)
     }
 }
+
+@Composable
+private fun insulinkColorScheme() = lightColorScheme(
+    primary = Color(0xFF4A7BF6),
+    secondary = Color(0xFF8A5CF5),
+    background = Color(0xFFF7F8FC),
+    surface = Color.White
+)

@@ -6,7 +6,7 @@ import com.dj.insulink.shared.feature.fitness.data.mapper.toDomain
 import com.dj.insulink.shared.feature.fitness.data.mapper.toEntity
 import com.dj.insulink.shared.feature.fitness.data.remote.ExerciseRemoteDataSource
 import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -23,7 +23,7 @@ class ExerciseRepository(
     }
 
     suspend fun insert(userId: String, exercise: Exercise) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val exerciseWithUniqueId = if (exercise.id == 0L) {
                     exercise.copy(id = currentTimeMillis())
@@ -40,7 +40,7 @@ class ExerciseRepository(
     }
 
     suspend fun fetchAllExercisesForUserAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val fetchedExercises = remoteDataSource.fetchAllExercises(userId)
             exerciseDao.deleteAllForUser(userId)
             exerciseDao.insertAll(fetchedExercises.map { it.toEntity() })

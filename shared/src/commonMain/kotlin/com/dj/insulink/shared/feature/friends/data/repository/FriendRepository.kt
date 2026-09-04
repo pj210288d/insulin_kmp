@@ -6,7 +6,7 @@ import com.dj.insulink.shared.feature.friends.data.mapper.toEntity
 import com.dj.insulink.shared.feature.friends.data.remote.FriendRemoteDataSource
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -27,19 +27,19 @@ class FriendRepository(
     }
 
     suspend fun addFriend(friend: Friend) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             friendDao.insert(friend.toEntity())
         }
     }
 
     suspend fun pushFriendToFirestoreForUser(userId: String, friendId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             remoteDataSource.pushFriendToFirestoreForUser(userId, friendId)
         }
     }
 
     suspend fun fetchFriendDataAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val friendsList = friendDao.getAllFriendsForUserOnce(userId)
             val friendCandidates = remoteDataSource.fetchFriendCandidates(userId)
 

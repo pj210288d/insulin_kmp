@@ -8,7 +8,7 @@ import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkAuth
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkLoginResult
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.withContext
 
 class LibreLinkRepository(
@@ -29,7 +29,7 @@ class LibreLinkRepository(
     // family member's, for example), so the caller must let the user pick before we commit to a
     // patientId. See connect() below for step 2.
     suspend fun login(email: String, password: String): Result<LibreLinkLoginResult> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             runCatching {
                 val auth = apiClient.login(email, password).getOrThrow()
                 val connections = apiClient.fetchConnections(auth).getOrThrow()
@@ -43,7 +43,7 @@ class LibreLinkRepository(
 
     // Step 2: persists a session for the chosen connection, using the auth obtained in login().
     suspend fun connect(userId: String, email: String, auth: LibreLinkAuth, connection: LibreLinkConnection): Result<LibreLinkSession> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             runCatching {
                 val session = LibreLinkSession(
                     email = email,
@@ -63,7 +63,7 @@ class LibreLinkRepository(
     }
 
     suspend fun syncLatestReadings(userId: String): Result<Int> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             runCatching {
                 val session = sessionStorage.getSession(userId) ?: error("Not connected to LibreLinkUp")
                 val readings = apiClient.fetchGlucoseReadings(session.auth, session.patientId).getOrThrow()

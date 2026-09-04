@@ -111,6 +111,9 @@
     <string name="nav_title_statistics">Statistics</string>
     <string name="side_drawer_statistics_title">Statistics</string>
     <string name="side_drawer_statistics_subtitle">Averages and ranges</string>
+    <string name="nav_title_shared_glucose_demo">Glucose (shared UI)</string>
+    <string name="side_drawer_shared_glucose_demo_title">Glucose (shared UI)</string>
+    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform screen, also used on iOS</string>
     <string name="statistics_range_today">Today</string>
     <string name="statistics_range_7_days">7 Days</string>
     <string name="statistics_range_15_days">15 Days</string>

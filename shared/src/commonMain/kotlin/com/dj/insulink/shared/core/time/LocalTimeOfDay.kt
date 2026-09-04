@@ -50,4 +50,36 @@ fun daysAgoMillis(days: Int): Long {
     return currentTimeMillis() - days * MILLIS_PER_DAY
 }
 
+// "HH:mm" - locale-independent replacement for SimpleDateFormat, which isn't available outside
+// the JVM (needed by the shared Compose Multiplatform Glucose screen, which also runs on iOS).
+@OptIn(ExperimentalTime::class)
+fun timeOfDayLabel(epochMillis: Long): String {
+    val time = localTimeOfDay(epochMillis)
+    return "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
+}
+
+// "dd/MM/yyyy HH:mm".
+@OptIn(ExperimentalTime::class)
+fun dateTimeLabel(epochMillis: Long): String {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(zone).date
+    @Suppress("DEPRECATION")
+    val day = date.dayOfMonth.toString().padStart(2, '0')
+    @Suppress("DEPRECATION")
+    val month = date.monthNumber.toString().padStart(2, '0')
+    return "$day/$month/${date.year} ${timeOfDayLabel(epochMillis)}"
+}
+
+// "Mon, 4 Sep 2026" - used for any day that isn't today/yesterday (those get their own labels).
+@OptIn(ExperimentalTime::class)
+fun shortWeekdayDateLabel(epochMillis: Long): String {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(zone).date
+    val weekday = date.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+    val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+    @Suppress("DEPRECATION")
+    val day = date.dayOfMonth
+    return "$weekday, $day $month ${date.year}"
+}
+
 private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000

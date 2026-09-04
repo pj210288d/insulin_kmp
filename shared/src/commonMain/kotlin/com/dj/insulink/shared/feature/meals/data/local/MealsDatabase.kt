@@ -11,7 +11,7 @@ import com.dj.insulink.shared.feature.meals.data.local.dao.MealIngredientDao
 import com.dj.insulink.shared.feature.meals.data.local.entity.IngredientEntity
 import com.dj.insulink.shared.feature.meals.data.local.entity.MealEntity
 import com.dj.insulink.shared.feature.meals.data.local.entity.MealIngredientEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val MEALS_DATABASE_FILE_NAME = "meals.db"
 
@@ -36,6 +36,6 @@ expect object MealsDatabaseConstructor : RoomDatabaseConstructor<MealsDatabase> 
 fun buildMealsDatabase(builder: RoomDatabase.Builder<MealsDatabase>): MealsDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .build()
 }

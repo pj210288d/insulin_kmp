@@ -6,7 +6,7 @@ import com.dj.insulink.shared.feature.glucose.data.mapper.toDomain
 import com.dj.insulink.shared.feature.glucose.data.mapper.toEntity
 import com.dj.insulink.shared.feature.glucose.data.remote.GlucoseRemoteDataSource
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -33,7 +33,7 @@ class GlucoseReadingRepository(
     }
 
     suspend fun getDateRange(userId: String): Pair<Long?, Long?> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             val minDate = glucoseReadingDao.getEarliestTimestamp(userId)
             val maxDate = glucoseReadingDao.getLatestTimestamp(userId)
             Pair(minDate, maxDate)
@@ -41,7 +41,7 @@ class GlucoseReadingRepository(
     }
 
     suspend fun insert(userId: String, reading: GlucoseReading) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val readingWithUniqueId = if (reading.id == 0L) {
                     reading.copy(id = currentTimeMillis())
@@ -58,7 +58,7 @@ class GlucoseReadingRepository(
     }
 
     suspend fun update(userId: String, reading: GlucoseReading) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 glucoseReadingDao.update(reading.toEntity())
                 remoteDataSource.updateReading(userId, reading)
@@ -69,7 +69,7 @@ class GlucoseReadingRepository(
     }
 
     suspend fun delete(userId: String, reading: GlucoseReading) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 glucoseReadingDao.delete(reading.toEntity())
                 remoteDataSource.deleteReading(userId, reading)
@@ -80,7 +80,7 @@ class GlucoseReadingRepository(
     }
 
     suspend fun fetchAllGlucoseReadingsForUserAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val fetchedReadings = remoteDataSource.fetchAllReadings(userId)
             glucoseReadingDao.deleteAllForUser(userId)
             glucoseReadingDao.insertAll(fetchedReadings.map { it.toEntity() })

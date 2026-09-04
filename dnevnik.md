@@ -1291,3 +1291,124 @@ Implementacija je prošla kroz nekoliko iteracija na osnovu korisnikovog fidbeka
 - Isto što i pre za preostale faze/FZ (faza 3 Compose Multiplatform UI, faza 4 iOS, faza 7 Web,
   faza 8 testiranje/pisanje rada; Health Connect integracija za Samsung Health istražena ali
   odložena po korisnikovoj odluci — vidi prethodnu sesiju).
+
+---
+
+## 2026-09-04 — Početak faze 4: prvi Compose Multiplatform ekran + iOS build bez Mac-a
+
+### Kontekst i rok
+Korisnik nema Mac do sutra, a rok za snimak aplikacije na Android-u I iOS-u je ponedeljak. Cilj
+danas: napraviti najmanji realan, ali PRAVI (ne toy demo) Compose Multiplatform vertikalni presek
+kroz Glucose feature koji radi na oba OS-a, i proveriti koliko se od iOS build lanca može
+potvrditi BEZ Mac-a, da se sutra ne gubi vreme na iznenađenja.
+
+### Odluka o obimu (dogovoreno sa korisnikom)
+Puna migracija SVIH ekrana na Compose Multiplatform (faza 3 u celosti) nije realna do ponedeljka.
+Umesto toga: jedan feature (Glucose, već najkompletniji u `:shared`) dobija nov, namerno manji
+MVP Compose Multiplatform ekran u `shared/commonMain` — bez insulin/meal povezivanja, bez Wear OS
+push-a, bez ručne izmene datuma/vremena (novi unos dobija trenutno vreme, izmena čuva original) —
+da prvi iOS build/test ciklus, rađen na slepo, ostane što manjeg rizika. Android-ov postojeći,
+potpuno funkcionalan Hilt Glucose ekran NIJE dirat (nulti rizik regresije na već-verifikovanu
+funkcionalnost); umesto toga isti novi deljeni ekran je DODATNO dostupan na Android strani preko
+novog side drawer unosa "Glucose (shared UI)", da se u snimku vidi da isti kod stvarno radi na
+oba OS-a, ne dva odvojena UI-ja koja liče jedan na drugi.
+
+### Šta smo dodali
+- **`UserSession`** (`shared/commonMain/core/session`) — objekat sa `MutableStateFlow<String?>`,
+  zamenjuje direktnu zavisnost od Firebase Auth-a (koji i dalje postoji SAMO na Android strani).
+  Android: `SharedViewModel.getCurrentUser()` upisuje pravi Firebase uid. iOS: `initKoinIOS()`
+  upisuje fiksni lokalni demo id (`"ios-demo-user"`) — nema još prijave na iOS-u, podaci ostaju
+  samo lokalni (Room/SQLite bundled, bez cloud sync-a — isto kao i za sve ostale feature-e na
+  iOS-u za sada, vidi `NotImplemented*RemoteDataSource`).
+- **`shared/commonMain/feature/glucose/ui/viewmodel/GlucoseViewModel.kt`** — nov Koin `single`
+  (ne Hilt), koristi `GlucoseReadingRepository` + `SettingsPreferences` + `UserSession`. Dnevni
+  prikaz + prev/next navigacija (isti obrazac kao Android-ov, iz prošle sesije), add/edit/delete.
+- **`shared/commonMain/feature/glucose/ui/GlucoseScreen.kt`** — status kartica, dan-header sa
+  ‹/› (obična `Text`, ne `Icon` — vidi "Problemi" niže), prost `Canvas`-baziran linijski grafik
+  (Vico, korišćen u Android ekranu, nije Compose Multiplatform kompatibilan), lista očitavanja,
+  add/edit dijalog. Nema zavisnosti od Android string resursa/teme — brend boje su lokalne
+  `Color(0x...)` konstante, tekstovi su hardkodovani (privremeno, dok se ne doda compose-resources
+  i18n — obeleženo kao ostatak posla).
+- **`shared/commonMain/core/dispatcher/IoDispatcher.kt`** (`expect val ioDispatcher`) + android/ios
+  actual — zamenjuje SVAKI direktan poziv `Dispatchers.IO` u `:shared/commonMain` (13 fajlova:
+  svi repozitorijumi i `buildXDatabase()` funkcije). Razlog u sekciji "Problemi" niže.
+- **`shared/commonMain/core/time/LocalTimeOfDay.kt`** — dodato `timeOfDayLabel`/`dateTimeLabel`/
+  `shortWeekdayDateLabel` (ručno građeni iz `LocalDateTime` polja, BEZ `SimpleDateFormat` — taj
+  je JVM-only, ne postoji van Android/JVM strane).
+- **`shared/iosMain/core/di/KoinInit.ios.kt`** — `initKoinIOS()`, poziva se jednom iz
+  `MainViewController.kt` pre prvog Compose ekrana (Android već ima svoj `startKoin` poziv u
+  `InsulinkApplication`, iOS ga do sada nije imao uopšte).
+- **`org.example.project.App()`** (`shared/commonMain`) — prepravljen iz KMP wizard placeholder-a
+  (dugme "Click me!") u pravi root ekran: `MaterialTheme` + `GlucoseScreen`. Koristi ga i iOS
+  (`MainViewController`) i Android (novi `SharedGlucoseDemo` route).
+- **Android strana**: nov `Screen.SharedGlucoseDemo` route, side drawer unos ("Glucose (shared
+  UI)", `ic_devices.xml`), poziva `org.example.project.App()` direktno (bez Hilt-a za taj ekran).
+- **`iosApp/Configuration/Config.xcconfig`**: `PRODUCT_NAME`/`PRODUCT_BUNDLE_IDENTIFIER` sa KMP
+  wizard default-a ("proba kmp" / `org.example.project.probakmp$(TEAM_ID)`) na `Insulink` /
+  `com.dj.insulink.ios`. `TEAM_ID` ostaje prazan do sutra (postavlja se u Xcode-u iz korisnikovog
+  Apple ID naloga).
+
+### Problemi otkriveni BEZ Mac-a (najvažniji deo današnjeg rada)
+Umesto da se čeka Mac da bi se build uopšte probao, korišćeno je da Kotlin/Native ume da
+kompajlira klib-ove (metadata i stvarni `iosArm64`/`iosSimulatorArm64` target kod) i na Windows-u
+— samo link/codesign/Xcode/simulator zahtevaju Mac. Ovim putem otkrivena su tri prava, ozbiljna
+problema koja bi sutra na Mac-u izgledala kao nepoznata, teško-dijagnostikovana greška:
+
+1. **`Dispatchers.IO` ne postoji u `commonMain` API površini koju Kotlin/Native vidi.** Svi
+   repozitorijumi u `:shared` (glucose, meals, insulin, friends, reminders, fitness, librelink)
+   su ga koristili direktno u `commonMain` kodu — radilo je na Android/JVM strani (zato niko nije
+   primetio), ali bi potpuno blokiralo BILO KAKAV iOS build, ne samo Glucose. Otkriveno preko
+   `:shared:compileIosMainKotlinMetadata` ("Unresolved reference 'IO'" na ~30 mesta). Popravljeno
+   uvođenjem `ioDispatcher` (gore) — Android actual i dalje koristi pravi `Dispatchers.IO`
+   (identično ponašanje, nulti rizik za Android), iOS actual koristi `Dispatchers.Default`.
+2. **`GlobalContext` (Koin) nije deo commonMain API površine** — samo JVM/Android varijanta Koin-a
+   ga ima (potvrđeno raspakivanjem `koin-core-jvm-4.1.1.jar` nasuprot `koin-core-metadata-4.1.1.jar`
+   — `GlobalContext`/`KoinPlatformTools` klase postoje samo u JVM jar-u). Popravljeno korišćenjem
+   `org.koin.mp.KoinPlatform.getKoin()` (multiplatform-bezbedan Koin API) u `App.kt`.
+3. **Kotlin/Native ABI verzija ne odgovara** — `composeMultiplatform` 1.11.1 (i uz njega vezan
+   `material3` 1.11.0-alpha07), `androidxLifecycleMultiplatform` 2.11.0-beta01 i `ktor` 3.4.0 su
+   svi objavljeni sa native klib ABI 2.3.0 (Kotlin 2.3.20/2.3.0 kompajlerom), a projekat je
+   pinovan na Kotlin **2.2.20**, čiji Kotlin/Native kompajler ume da učita samo ABI <= 2.2.0.
+   Android/JVM strana ovo ne vidi (JVM classfile nema takvo ograničenje) — `:app:assembleDebug`
+   je i dalje prolazio, pa bi ovo sutra na Mac-u ispalo kao potpuno iznenađenje tek pri
+   `:shared:embedAndSignAppleFrameworkForXcode`/Xcode build-u. CMP-ov zvaničan changelog (GitHub
+   release 1.11.0) eksplicitno kaže "Kotlin 2.3 is required for native and web platforms" — ovaj
+   projekat namerno NE podiže Kotlin na 2.3 ovako blizu roka (veliki, rizičan zahvat — vidi gotcha
+   #5 u CLAUDE.md). Umesto toga vraćeno na poslednje verzije u svakoj liniji potvrđene da rade sa
+   Kotlin 2.2.20 (proveravano jedno po jedno preko zvaničnih JetBrains/Ktor release beleški, isti
+   princip kao ranija material3 gotcha): `composeMultiplatform` → 1.10.0, `composeMaterial3` →
+   1.10.0-alpha05, `androidxLifecycleMultiplatform` → 2.10.0-alpha06, `ktor` → 3.3.3. Detaljan
+   komentar ostavljen u `gradle/libs.versions.toml` i CLAUDE.md (gotcha #5) da se ne ponovi.
+
+### Manje odluke
+- **Bez ikonica** (`Icons.Filled.*`) u novom deljenom ekranu — `androidx.compose.material:material-
+  icons-extended` je Android-only artefakt (ne radi za iOS target), a JetBrains-ov CMP
+  `material-icons-core` artefakt (`org.jetbrains.compose.material:material-icons-core`) se
+  pokazao nedostupan za tačno `composeMultiplatform` verziju koju smo prvo probali (1.11.1) —
+  umesto dodatnog kopanja po još jednoj nezavisnoj verzionoj liniji, dan-navigacija i dugmad
+  koriste obične `Text("‹")`/`Text("+")`/`Text("✕")` glifove. Sasvim dovoljno za MVP, nula
+  dodatnih zavisnosti.
+- **`compileIosMainKotlinMetadata`/`compileKotlinIosArm64`/`compileKotlinIosSimulatorArm64` kao
+  redovan deo provere** — ovi Gradle taskovi rade na Windows-u (samo Kotlin/Native kompajler,
+  bez Apple linker-a/Xcode-a) i otkrivaju gotovo sve greške vezane za iOS pre nego što se uopšte
+  stigne do Mac-a. Vredi ih pokretati posle svake promene u `:shared` do kraja iOS rada.
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:compileIosMainKotlinMetadata`,
+  `:shared:compileKotlinIosArm64`, `:shared:compileKotlinIosSimulatorArm64`,
+  `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`, `:app:testDebugUnitTest`,
+  `:app:assembleDebug` — svi BUILD SUCCESSFUL.
+- Vizuelna provera novog "Glucose (shared UI)" ekrana na fizičkom Android uređaju NIJE urađena u
+  ovoj sesiji (nijedan uređaj nije bio povezan) — prvo sledeće na listi kad korisnik proba.
+- Xcode build / simulator / uređaj pokretanje ostaju potpuno neverifikovani do sutra (Mac).
+
+### Šta je ostalo
+- Sutra (kad stigne Mac): otvoriti `iosApp.xcodeproj`, postaviti `TEAM_ID` (Signing & Capabilities
+  → Team, besplatan Apple ID nalog je dovoljan za simulator/sopstveni uređaj), pokrenuti build —
+  očekivano da preostanu SAMO Xcode/link-specifične greške (ako ih uopšte bude), pošto je sav
+  Kotlin/Native kod već potvrđeno kompajlira.
+- Vizuelno potvrditi na Android uređaju da novi deljeni ekran radi kako treba pre nego što se
+  osloni na njega kao referencu za iOS izgled.
+- i18n (compose-resources) za deljeni ekran — tekstovi su za sada hardkodovani na srpskom.
+- Ako ostane vremena: isti obrazac (Koin ViewModel + deljeni Compose ekran) ponoviti za još
+  jedan-dva ekrana pre snimka, npr. Statistics — trenutno je iOS ograničen na samo Glucose.

@@ -26,15 +26,27 @@ okhttp = "4.12.0"
 mockk = "1.13.13"
 coroutinesTest = "1.10.2"
 turbine = "1.1.0"
-composeMultiplatform = "1.11.1"
+# composeMultiplatform / composeMaterial3 / androidxLifecycleMultiplatform / ktor:
+# NAMERNO ne najnovije verzije. Kotlin je ovde pinovan na 2.2.20 (vidi `kotlin` iznad).
+# composeMultiplatform 1.11.x, material3 1.11.0-alpha07, androidx.lifecycle multiplatform
+# 2.11.0-beta01 i ktor 3.4.0 su svi ABI 2.3.0 (built with Kotlin 2.3.20/2.3.0) - Kotlin/Native
+# kompajler koji ide uz Kotlin 2.2.20 ume da čita samo klib-ove sa ABI <= 2.2.0, pa
+# `:shared:compileKotlinIosArm64`/`compileKotlinIosSimulatorArm64` pucaju sa
+# "KLIB resolver: ... incompatible ABI version" ako se bilo koja od ove četiri verzije podigne
+# bez da se prvo podigne i Kotlin na 2.3+ (veliki, rizičan skok - utiče na KSP/Room/Compose
+# compiler plugin/AGP kompatibilnost). Ove verzije (composeMultiplatform 1.10.0, material3
+# 1.10.0-alpha05, lifecycle 2.10.0-alpha06, ktor 3.3.3) su poslednje u svojim linijama
+# potvrđene (`:shared:compileKotlinIosSimulatorArm64` i `compileKotlinIosArm64` - BUILD
+# SUCCESSFUL) da rade sa Kotlin 2.2.20. Ne diraj bez da prvo probaš ta dva taska.
+composeMultiplatform = "1.10.0"
 android-compileSdk = "36"
 android-minSdk = "24"
-androidxLifecycleMultiplatform = "2.11.0-beta01"
-composeMaterial3 = "1.11.0-alpha07"
+androidxLifecycleMultiplatform = "2.10.0-alpha06"
+composeMaterial3 = "1.10.0-alpha05"
 androidxSqlite = "2.6.2"
 koin = "4.1.1"
 kotlinxCoroutines = "1.10.2"
-ktor = "3.4.0"
+ktor = "3.3.3"
 kotlinxSerialization = "1.9.0"
 kotlinxDatetime = "0.8.0"
 wearCompose = "1.6.2"

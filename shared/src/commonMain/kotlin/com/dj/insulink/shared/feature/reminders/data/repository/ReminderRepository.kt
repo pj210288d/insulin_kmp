@@ -7,7 +7,7 @@ import com.dj.insulink.shared.feature.reminders.data.mapper.toDomain
 import com.dj.insulink.shared.feature.reminders.data.mapper.toEntity
 import com.dj.insulink.shared.feature.reminders.data.remote.ReminderRemoteDataSource
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -24,7 +24,7 @@ class ReminderRepository(
     }
 
     suspend fun getAllReminders(): List<Reminder> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             reminderDao.getAllReminders().toDomain()
         }
     }
@@ -36,7 +36,7 @@ class ReminderRepository(
             reminder
         }
 
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 reminderDao.insert(reminderWithUniqueId.toEntity())
                 remoteDataSource.pushReminder(userId, reminderWithUniqueId)
@@ -49,7 +49,7 @@ class ReminderRepository(
     }
 
     suspend fun delete(userId: String, reminder: Reminder) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 reminderDao.delete(reminder.toEntity())
                 remoteDataSource.deleteReminder(userId, reminder)
@@ -60,7 +60,7 @@ class ReminderRepository(
     }
 
     suspend fun fetchAllRemindersForUserAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val fetchedReminders = remoteDataSource.fetchAllReminders(userId)
             reminderDao.deleteAllForUser(userId)
             reminderDao.insertAll(fetchedReminders.map { it.toEntity() })

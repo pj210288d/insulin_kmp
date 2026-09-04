@@ -12,7 +12,12 @@ Puna specifikacija rada nalazi se u `specifikacija.md` u korenu repoa — **pre 
 - Postojeći `androidApp` (ranije `app`) modul i dalje radi nepromenjen — Hilt, Room, Retrofit/Gson, Firebase
 - Dodat je novi `:shared` Gradle modul (Kotlin Multiplatform + Compose Multiplatform + Android KMP library plugin)
 - **`shared` modul sada uspešno builduje** (Gradle sync i build prolaze)
-- iOS strana (`iosApp`) još nije testirana — planirano kad korisnik obezbedi pristup Mac računaru
+- iOS strana (`iosApp`) je potvrđena da builduje na nivou Kotlin/Native klib-a bez Mac-a
+  (`:shared:compileKotlinIosArm64` i `compileKotlinIosSimulatorArm64` - BUILD SUCCESSFUL), ali
+  **nikad nije pokrenuta u Xcode-u/simulatoru** (to zahteva Mac, koji korisnik dobija tek sutradan
+  posle ovoga) - vidi gotcha #5 ispod za bitan detalj koji je to omogućio. Prvi pravi
+  UI (Compose Multiplatform Glucose ekran, MVP obim) postoji u `shared/commonMain` i vezan je i
+  za iOS root (`org.example.project.App()`) i za Android side drawer ("Glucose (shared UI)").
 
 ## Rešeni problemi pri postavljanju (da se ne ponavljaju)
 
@@ -20,6 +25,7 @@ Puna specifikacija rada nalazi se u `specifikacija.md` u korenu repoa — **pre 
 2. **Version catalog (`gradle/libs.versions.toml`)** — kad se dodaju novi KMP/Compose alias-i, moraju se dodati i odgovarajući `[libraries]` unosi, ne samo `[versions]`/`[plugins]`. Crtice u ključu (`compose-components-resources`) postaju ugnježdeni pristup u kodu (`libs.compose.components.resources`).
 3. **Material3 ima poseban verzioni ciklus** — u Compose Multiplatform 1.11.1, `material3` artefakt je ostao na `1.11.0-alpha07` (nije stigao do 1.11.1 kao runtime/ui/foundation). Ima svoj `composeMaterial3` version key u tomlu, odvojen od `composeMultiplatform`. Ako se compose verzija ikad podigne, proveri zvanične JetBrains release notes za tačnu material3 verziju pre nego što je uskladiš sa ostatkom.
 4. Ne diraj AGP verziju na 9.0+ dok se ne planira namerna migracija — AGP 9.x zahteva potpuno razdvajanje Android app modula od KMP shared modula i menja ceo pristup (built-in Kotlin, `com.android.kotlin.multiplatform.library` obavezan). Trenutno radimo sa AGP 8.11.1 i `androidLibrary {}` sintaksom namerno.
+5. **Kotlin/Native ABI verzija blokira iOS build ako se compose/lifecycle/ktor podignu na najnovije** — Kotlin je pinovan na `2.2.20` (`kotlin` u tomlu). Kotlin/Native kompajler koji ide uz tu verziju ume da učita samo klib-ove sa ABI <= 2.2.0. `composeMultiplatform` 1.11.x, `composeMaterial3` 1.11.0-alpha07, `androidxLifecycleMultiplatform` 2.11.0-beta01 i `ktor` 3.4.0 su svi objavljeni sa ABI 2.3.0 (Kotlin 2.3.20/2.3.0 kompajlerom) - Android/JVM strana ih normalno može da koristi (JVM classfile nema ovo ograničenje), pa se problem NE vidi na `:app:compileDebugKotlin`/`:app:assembleDebug`, samo na `:shared:compileKotlinIosArm64`/`compileKotlinIosSimulatorArm64` ("KLIB resolver: ... incompatible ABI version"). Vraćeno na poslednje potvrđene kompatibilne verzije (composeMultiplatform 1.10.0, material3 1.10.0-alpha05, lifecycle 2.10.0-alpha06, ktor 3.3.3) — vidi opširan komentar u `gradle/libs.versions.toml` iznad tih ključeva. Da bi se koristile novije verzije, prvo treba podići Kotlin na 2.3+ (veći, rizičniji zahvat — utiče na KSP/Room/Compose compiler plugin/AGP kompatibilnost), pa istom logikom kao gotcha #3 proveriti zvanične JetBrains release notes za tačno uparene verzije PRE podizanja bilo koje od te četiri.
 
 ## Plan migracije (iz specifikacije, poglavlje 9)
 
@@ -36,5 +42,10 @@ Puna specifikacija rada nalazi se u `specifikacija.md` u korenu repoa — **pre 
 
 ## Napomene o razvojnom okruženju
 
-- Developer radi na Windows laptopu — nema pristup macOS/Xcode za iOS build, planira da pozajmi Mac od druga kad dođe vreme za iOS deo (faza 4)
+- Developer radi na Windows laptopu — nema pristup macOS/Xcode za iOS build; Mac stiže uskoro
+  (nabavlja ga dan posle početka iOS rada), do tada se iOS strana radi "na slepo" — verifikovano
+  koliko je moguće preko `:shared:compileKotlinIosArm64`/`compileKotlinIosSimulatorArm64` (rade
+  BEZ Mac-a, jer je to samo Kotlin/Native klib kompajliranje, ne link/codesign/pokretanje), ali
+  Xcode build + link + simulator/uređaj pokretanje ostaju neverifikovani do prvog pristupa Mac-u.
+- Rok: snimak (screen recording) aplikacije kako radi i na Android-u i na iOS-u, do ponedeljka.
 - Git remote koristi Personal Access Token (ne SSH) za push na GitHub

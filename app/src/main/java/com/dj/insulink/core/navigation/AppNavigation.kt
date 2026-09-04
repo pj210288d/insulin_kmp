@@ -103,6 +103,10 @@ fun AppNavigation() {
                         navController.navigateTo(Screen.Statistics.route)
                         coroutineScope.launch { drawerState.close() }
                     },
+                    navigateToSharedGlucoseDemo = {
+                        navController.navigateTo(Screen.SharedGlucoseDemo.route)
+                        coroutineScope.launch { drawerState.close() }
+                    },
                     onSignOutClick = {
                         sharedViewModel.signOut(context)
                         navController.navigateTo(Screen.Login.route)
@@ -239,6 +243,13 @@ fun AppNavigation() {
                 }
                 composable(Screen.Statistics.route) {
                     StatisticsWrapper()
+                }
+                composable(Screen.SharedGlucoseDemo.route) {
+                    // Ista Compose Multiplatform komponenta koju iOS koristi kao root ekran
+                    // (shared/.../org/example/project/App.kt) - dokazuje da isti kod stvarno
+                    // radi na oba OS-a. Sopstveni Koin-owned GlucoseViewModel (vidi tu klasu),
+                    // ne prolazi kroz Hilt kao ostatak app-a.
+                    org.example.project.App()
                 }
             }
         }
