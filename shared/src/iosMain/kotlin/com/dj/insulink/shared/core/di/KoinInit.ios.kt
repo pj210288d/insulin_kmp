@@ -1,12 +1,12 @@
 package com.dj.insulink.shared.core.di
 
 import com.dj.insulink.shared.core.session.UserSession
-import com.dj.insulink.shared.feature.glucose.di.glucoseModule
-import com.dj.insulink.shared.feature.settings.di.settingsModule
+import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import org.koin.core.context.startKoin
 
-// Pokreće Koin za iOS - trenutno samo modul-i koje MVP Glucose ekran zahteva (vidi
-// GlucoseViewModel u feature/glucose/ui/viewmodel). Poziva se jednom iz MainViewController.kt
+// Pokreće Koin za iOS - trenutno samo modul-i koje MVP Glucose/Statistics ekrani zahtevaju
+// (statisticsModule uključuje i glucoseModule/settingsModule - vidi StatisticsModule.kt).
+// Poziva se jednom iz MainViewController.kt
 // pre prvog Compose ekrana - `started` čuva od dvostrukog startKoin poziva (Koin baca ako se
 // pozove dva puta u istom procesu) ako bi MainViewController() ikad bio pozvan više puta.
 //
@@ -21,7 +21,7 @@ fun initKoinIOS() {
     if (started) return
     started = true
     startKoin {
-        modules(glucoseModule, settingsModule)
+        modules(statisticsModule)
     }
     UserSession.setCurrentUserId(IOS_DEMO_USER_ID)
 }

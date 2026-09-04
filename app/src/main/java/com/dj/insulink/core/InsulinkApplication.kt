@@ -11,6 +11,7 @@ import com.dj.insulink.shared.feature.librelink.di.librelinkModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
 import com.dj.insulink.shared.feature.settings.di.settingsModule
+import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import dagger.hilt.android.HiltAndroidApp
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -34,7 +35,8 @@ class InsulinkApplication : Application() {
                 friendsModule,
                 settingsModule,
                 librelinkModule,
-                insulinModule
+                insulinModule,
+                statisticsModule
             )
         }
     }
