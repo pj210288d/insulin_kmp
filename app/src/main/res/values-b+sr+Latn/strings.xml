@@ -138,7 +138,7 @@
     <string name="side_drawer_statistics_subtitle">Proseci i opsezi</string>
     <string name="nav_title_shared_glucose_demo">Deljeni UI (i na iOS-u)</string>
     <string name="side_drawer_shared_glucose_demo_title">Deljeni UI (i na iOS-u)</string>
-    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform: Glukoza + Statistika</string>
+    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform: Glukoza + Statistika + Insulin</string>
     <string name="statistics_range_today">Danas</string>
     <string name="statistics_range_7_days">7 dana</string>
     <string name="statistics_range_15_days">15 dana</string>

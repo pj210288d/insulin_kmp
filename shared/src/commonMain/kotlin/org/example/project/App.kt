@@ -23,20 +23,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.insulink.shared.feature.glucose.ui.GlucoseScreen
 import com.dj.insulink.shared.feature.glucose.ui.viewmodel.GlucoseViewModel
+import com.dj.insulink.shared.feature.insulin.ui.InsulinScreen
+import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
 import com.dj.insulink.shared.feature.statistics.ui.StatisticsScreen
 import com.dj.insulink.shared.feature.statistics.ui.viewmodel.StatisticsViewModel
 import org.koin.mp.KoinPlatform
 
 // Root ekran deljen preko Compose Multiplatform-a - koristi ga i iOS (MainViewController.ios.kt
 // poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseDemo route
-// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje dva deljena MVP ekrana
-// (Glucose, Statistics - vidi njihove ViewModel-e za obim) iza proste tab-trake, bez prijave
-// (vidi UserSession) i bez prave navigacione biblioteke - samo lokalni Compose state, dovoljno
-// za dva ekrana. GlucoseViewModel/StatisticsViewModel su Koin single-ovi (vidi
-// glucoseModule/statisticsModule), zato se ovde uzimaju direktno preko KoinPlatform-a
-// (multiplatform-bezbedan način da se dođe do trenutne Koin instance - obično GlobalContext,
-// dostupan samo na JVM/Android strani) umesto Compose-Koin integracije - isti obrazac kao
-// postojeći SharedModule.kt most (Hilt -> Koin) na Android strani, samo u suprotnom smeru.
+// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje tri deljena MVP ekrana
+// (Glucose, Statistics, Insulin - vidi njihove ViewModel-e za obim) iza proste tab-trake, bez
+// prijave (vidi UserSession) i bez prave navigacione biblioteke - samo lokalni Compose state,
+// dovoljno za par ekrana. Svaki ViewModel je Koin single (vidi glucoseModule/statisticsModule/
+// insulinModule), zato se ovde uzimaju direktno preko KoinPlatform-a (multiplatform-bezbedan
+// način da se dođe do trenutne Koin instance - obično GlobalContext, dostupan samo na JVM/
+// Android strani) umesto Compose-Koin integracije - isti obrazac kao postojeći SharedModule.kt
+// most (Hilt -> Koin) na Android strani, samo u suprotnom smeru.
 @Composable
 fun App() {
     MaterialTheme(colorScheme = insulinkColorScheme()) {
@@ -54,13 +56,17 @@ fun App() {
                         val viewModel = remember { KoinPlatform.getKoin().get<StatisticsViewModel>() }
                         StatisticsScreen(viewModel = viewModel)
                     }
+                    SharedTab.INSULIN -> {
+                        val viewModel = remember { KoinPlatform.getKoin().get<InsulinViewModel>() }
+                        InsulinScreen(viewModel = viewModel)
+                    }
                 }
             }
         }
     }
 }
 
-private enum class SharedTab { GLUCOSE, STATISTICS }
+private enum class SharedTab { GLUCOSE, STATISTICS, INSULIN }
 
 @Composable
 private fun SharedTabBar(selectedTab: SharedTab, onSelect: (SharedTab) -> Unit) {
@@ -75,6 +81,12 @@ private fun SharedTabBar(selectedTab: SharedTab, onSelect: (SharedTab) -> Unit) 
             label = "Statistika",
             selected = selectedTab == SharedTab.STATISTICS,
             onClick = { onSelect(SharedTab.STATISTICS) },
+            modifier = Modifier.weight(1f)
+        )
+        SharedTabItem(
+            label = "Insulin",
+            selected = selectedTab == SharedTab.INSULIN,
+            onClick = { onSelect(SharedTab.INSULIN) },
             modifier = Modifier.weight(1f)
         )
     }

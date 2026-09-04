@@ -113,7 +113,7 @@
     <string name="side_drawer_statistics_subtitle">Averages and ranges</string>
     <string name="nav_title_shared_glucose_demo">Shared UI (also on iOS)</string>
     <string name="side_drawer_shared_glucose_demo_title">Shared UI (also on iOS)</string>
-    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform: Glucose + Statistics</string>
+    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform: Glucose + Statistics + Insulin</string>
     <string name="statistics_range_today">Today</string>
     <string name="statistics_range_7_days">7 Days</string>
     <string name="statistics_range_15_days">15 Days</string>
