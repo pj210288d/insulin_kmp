@@ -1412,3 +1412,80 @@ problema koja bi sutra na Mac-u izgledala kao nepoznata, teško-dijagnostikovana
 - i18n (compose-resources) za deljeni ekran — tekstovi su za sada hardkodovani na srpskom.
 - Ako ostane vremena: isti obrazac (Koin ViewModel + deljeni Compose ekran) ponoviti za još
   jedan-dva ekrana pre snimka, npr. Statistics — trenutno je iOS ograničen na samo Glucose.
+
+---
+
+## 2026-09-05 — Faza 4 nastavak: još četiri deljena ekrana + priprema za prvi Xcode build
+
+### Kontekst
+Nastavak prethodnog dana, i dalje bez Mac-a. Korisnik je uživo potvrdio da Glucose+tab-bar radi
+na Android uređaju, pa je isti obrazac (Koin ViewModel u `shared/commonMain` + Compose ekran +
+Koin registracija na oba platform-specifična init mesta) ponovljen za još četiri ekrana, svaki
+odmah verifikovan preko `:shared:compileAndroidMain` + `:shared:compileKotlinIosArm64` +
+`:shared:compileKotlinIosSimulatorArm64` + pun `:app` test/assemble ciklus + instalacija na
+fizički Android uređaj (`R5CR92E8BCT`) pre commit-a. Redosled ekrana biran po rastućoj
+složenosti/riziku, svaki potvrđen pre prelaska na sledeći:
+
+1. **Statistics** — range chip-ovi + `StatisticsCalculator`/`StatisticsRange` (već postojali u
+   commonMain bez ikakve Android zavisnosti otkad je FZ-12 rađen ranije), TIR traka.
+2. **Insulin** — najprostiji preostali entitet (`InsulinType` = samo `name`, repository ima
+   samo insert/delete, bez update-a) — add/delete lista.
+3. **Settings** — jezik + jedinica za glukozu, tanak `StateFlow` omotač oko već postojećeg
+   sinhronog `SettingsPreferences` (NSUserDefaults na iOS-u, radi identično). Namerno NE menja
+   stvarni jezik cele aplikacije (to ostaje u pravom Android-only Settings ekranu preko
+   `AppCompatDelegate`) — korisnik je to primetio i potvrđeno je da je to očekivano, ne bug.
+4. **Reminders** — naslov/tip/"odrađeno danas"/vreme, namerno SAMO podaci — pravo zakazivanje OS
+   notifikacija (AlarmManager na Android-u) ostaje van ovog ekrana; iOS bi za to trebalo
+   `UNUserNotificationCenter`, van obima ove MVP iteracije.
+
+`App()` (iOS root, i Android-ov "Shared UI (also on iOS)" side-drawer ekran) sad ima pet
+tabova iza horizontalno-skrolabilne trake (zamenila je fiksnu `weight(1f)` traku iz prve verzije
+— skalira se bez guranja kad se doda još tabova).
+
+### Priprema za sutra (Mac stiže, korisnik pokreće NOVU sesiju sa Claude Code na Mac-u)
+Pošto sutrašnja sesija neće imati memoriju ove konverzacije, urađen je poslednji "pripremni"
+prolaz kroz sve što se moglo proveriti/ispraviti bez Mac-a:
+
+- **`iosApp/iosApp.xcodeproj/project.pbxproj`**: `IPHONEOS_DEPLOYMENT_TARGET` spušten sa
+  **18.2 → 15.0** (Debug i Release config). 18.2 je bio KMP wizard/Xcode default u trenutku
+  generisanja projekta, ne stvarna potreba — Compose Multiplatform 1.10.0 zahteva samo iOS 13+.
+  18.2 bi bio realan rizik za snimak: ako korisnikov iPhone ili prvi dostupan simulator runtime
+  ne bude tačno 18.2+, instalacija/build bi pukli sa nejasnom porukom baš u trenutku kad je
+  najvažnije da sve radi glatko.
+- **Room-na-iOS pregled**: provereno da SVIH 6 `buildXDatabase()` funkcija (glucose, insulin,
+  reminders, settings nema svoju bazu, friends, fitness, meals) ispravno zovu
+  `.setDriver(BundledSQLiteDriver())` + `.setQueryCoroutineContext(ioDispatcher)` pre `.build()`
+  — ovo je zvanično dokumentovan način da Room Multiplatform radi na ne-Android ciljevima
+  (Android ima podrazumevani drajver, iOS/Desktop moraju eksplicitno). Svih 5
+  `DatabaseFactory.ios.kt` fajlova (po jedan po feature-u) prati isti, ispravan obrazac
+  (`NSFileManager` → `NSDocumentDirectory` putanja → `Room.databaseBuilder(name = putanja)`).
+  Ovo je najveći preostali neizvestan deo (compile-time provera ne garantuje runtime uspeh -
+  SQLite bundled + Room na iOS je relativno nova kombinacija), ali kod prati zvaničan obrazac
+  1:1, visoka je verovatnoća da radi.
+- **`SettingsPreferences.ios.kt`**: standardan `NSUserDefaults` kod, nema ničeg neobičnog.
+- Potvrđeno da nijedan od 5 deljenih ekrana ne pravi mrežni poziv na iOS-u (svi
+  `NotImplementedXRemoteDataSource` samo bacaju grešku, bez ikakvog HTTP klijenta) — znači nema
+  potrebe ni za kakvim App Transport Security izuzetkom u Info.plist za ovu MVP iteraciju.
+
+### Šta uraditi na Mac-u (redosled)
+1. `git pull` na `jovan/glucose-shared-migration` grani.
+2. Otvoriti `iosApp/iosApp.xcodeproj` u Xcode-u.
+3. Signing & Capabilities → Team → izabrati Apple ID (besplatan nalog je dovoljan za
+   simulator/sopstveni uređaj, ne treba plaćeni Developer Program).
+4. Build & Run na iOS Simulator-u prvo (bez potrebe za provisioning profilom na uređaju) —
+   `Cmd+R`. Ako pukne na Gradle build fazi (`embedAndSignAppleFrameworkForXcode` script build
+   phase), pokrenuti `./gradlew :shared:embedAndSignAppleFrameworkForXcode` ručno iz terminala
+   prvo da se vidi puna Gradle greška (Xcode-ova konzola je često skraćena/nejasna).
+5. Ako sve radi na simulatoru: probati na fizičkom iPhone-u (potreban USB kabl + "Trust This
+   Computer" + provisioning preko istog Apple ID-a, Xcode to uglavnom automatski ponudi).
+6. Proći kroz svih 5 tabova (Glukoza/Statistika/Insulin/Podešavanja/Podsetnici) - dodati po
+   jedan unos u svakom, obrisati, promeniti podešavanje - potvrditi da ništa ne puca.
+
+### Šta je ostalo
+- Xcode build/link/pokretanje i dalje potpuno neverifikovani do stvarnog Mac-a - sve gore je
+  provereno koliko je moguće bez njega.
+- Ako nešto na Mac-u pukne: najverovatnije mesto je `TEAM_ID`/signing (očekivano, rešava se u
+  Xcode UI-ju) ili neka Room/SQLite-bundled specifičnost na iOS-u koja se ne vidi dok se stvarno
+  ne pokrene (vidi napomenu gore).
+- i18n za deljene ekrane i dalje samo srpski, hardkodovano — nije bitno za funkcionalnost, samo
+  kozmetika.

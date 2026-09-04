@@ -14,10 +14,25 @@ Puna specifikacija rada nalazi se u `specifikacija.md` u korenu repoa — **pre 
 - **`shared` modul sada uspešno builduje** (Gradle sync i build prolaze)
 - iOS strana (`iosApp`) je potvrđena da builduje na nivou Kotlin/Native klib-a bez Mac-a
   (`:shared:compileKotlinIosArm64` i `compileKotlinIosSimulatorArm64` - BUILD SUCCESSFUL), ali
-  **nikad nije pokrenuta u Xcode-u/simulatoru** (to zahteva Mac, koji korisnik dobija tek sutradan
-  posle ovoga) - vidi gotcha #5 ispod za bitan detalj koji je to omogućio. Prvi pravi
-  UI (Compose Multiplatform Glucose ekran, MVP obim) postoji u `shared/commonMain` i vezan je i
-  za iOS root (`org.example.project.App()`) i za Android side drawer ("Glucose (shared UI)").
+  **nikad nije pokrenuta u Xcode-u/simulatoru** (to zahteva Mac). Vidi gotcha #5 ispod za bitan
+  detalj koji je build bez Mac-a omogućio.
+- **Pet deljenih Compose Multiplatform MVP ekrana** postoji u `shared/commonMain`, svaki kao
+  Koin `single` ViewModel + Compose ekran u odgovarajućem `feature/*/ui` paketu: Glucose,
+  Statistics, Insulin, Settings, Reminders (u tom redosledu dodavanja - svaki sledeći malo
+  rizičniji/kompleksniji od prethodnog). Svi se prikazuju iza proste tab-trake u
+  `org.example.project.App()` - to je iOS-ov root ekran (`MainViewController.kt` poziva
+  `initKoinIOS()` pa `ComposeUIViewController { App() }`) i ISTOVREMENO Android-ov "Shared UI
+  (also on iOS)" side-drawer ekran (`AppNavigation.kt` poziva `org.example.project.App()`
+  direktno) - dokazano isti kod na oba OS-a, ne dva odvojena UI-ja. Svaki ekran je namerno manjeg
+  obima od svog Android-only pandana (bez cloud sync-a, bez OS-specifičnih integracija poput
+  AlarmManager-a ili app-wide locale switch-a) - vidi dnevnik.md 2026-09-04/2026-09-05 unose za
+  tačan obim i odluke po ekranu. `UserSession` (`shared/commonMain/core/session`) zamenjuje
+  direktnu Firebase Auth zavisnost - Android upisuje pravi uid, iOS upisuje fiksni lokalni demo
+  id (nema prijave na iOS-u za sada).
+- `iosApp/iosApp.xcodeproj`: `IPHONEOS_DEPLOYMENT_TARGET` namerno spušten na 15.0 (bio je
+  18.2, KMP wizard default) da se smanji rizik da build/instalacija na Mac-u pukne zbog
+  neusklađene iOS/simulator verzije. `TEAM_ID` je i dalje prazan - MORA se postaviti u Xcode-u
+  (Signing & Capabilities → Team) pre prvog build-a, besplatan Apple ID nalog je dovoljan.
 
 ## Rešeni problemi pri postavljanju (da se ne ponavljaju)
 
