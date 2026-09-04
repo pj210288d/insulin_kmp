@@ -4,6 +4,7 @@ import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.feature.fitness.di.fitnessModule
 import com.dj.insulink.shared.feature.insulin.di.insulinModule
 import com.dj.insulink.shared.feature.librelink.di.librelinkModule
+import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
 import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import org.koin.core.context.startKoin
@@ -25,7 +26,17 @@ fun initKoinIOS() {
     if (started) return
     started = true
     startKoin {
-        modules(statisticsModule, insulinModule, remindersModule, fitnessModule, librelinkModule)
+        modules(
+            statisticsModule,
+            insulinModule,
+            remindersModule,
+            fitnessModule,
+            librelinkModule,
+            // LogMeal/USDA/Spoonacular ključevi nisu potrebni - deljeni Meals MVP ekran (vidi
+            // MealsViewModel) je namerno samo ručni unos, ne poziva analyzeFoodImage ni
+            // searchIngredients.
+            mealsModule(usdaApiKey = "", spoonacularApiKey = "", logMealApiKey = "")
+        )
     }
     UserSession.setCurrentUserId(IOS_DEMO_USER_ID)
 }

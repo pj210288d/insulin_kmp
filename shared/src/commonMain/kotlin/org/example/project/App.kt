@@ -31,6 +31,8 @@ import com.dj.insulink.shared.feature.insulin.ui.InsulinScreen
 import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
 import com.dj.insulink.shared.feature.librelink.ui.LibreLinkScreen
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkViewModel
+import com.dj.insulink.shared.feature.meals.ui.MealsScreen
+import com.dj.insulink.shared.feature.meals.ui.viewmodel.MealsViewModel
 import com.dj.insulink.shared.feature.reminders.ui.RemindersScreen
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 import com.dj.insulink.shared.feature.settings.ui.SettingsScreen
@@ -41,8 +43,8 @@ import org.koin.mp.KoinPlatform
 
 // Root ekran deljen preko Compose Multiplatform-a - koristi ga i iOS (MainViewController.ios.kt
 // poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseDemo route
-// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje sedam deljenih MVP
-// ekrana (Glucose, Statistics, Insulin, Settings, Reminders, Fitness, LibreLinkUp - vidi
+// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje osam deljenih MVP
+// ekrana (Glucose, Statistics, Insulin, Settings, Reminders, Fitness, LibreLinkUp, Meals - vidi
 // njihove ViewModel-e za obim) iza proste horizontalno-skrolabilne tab-trake, bez prijave (vidi
 // UserSession) i bez prave navigacione biblioteke - samo lokalni Compose state, dovoljno za
 // par ekrana. Svaki ViewModel je Koin single (vidi glucoseModule/statisticsModule/
@@ -88,6 +90,10 @@ fun App() {
                         val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
                         LibreLinkScreen(viewModel = viewModel)
                     }
+                    SharedTab.MEALS -> {
+                        val viewModel = remember { KoinPlatform.getKoin().get<MealsViewModel>() }
+                        MealsScreen(viewModel = viewModel)
+                    }
                 }
             }
         }
@@ -101,7 +107,8 @@ private enum class SharedTab(val label: String) {
     SETTINGS("Podešavanja"),
     REMINDERS("Podsetnici"),
     FITNESS("Fitnes"),
-    LIBRELINK("LibreLinkUp")
+    LIBRELINK("LibreLinkUp"),
+    MEALS("Obroci")
 }
 
 @Composable

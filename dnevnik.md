@@ -1489,3 +1489,65 @@ prolaz kroz sve što se moglo proveriti/ispraviti bez Mac-a:
   ne pokrene (vidi napomenu gore).
 - i18n za deljene ekrane i dalje samo srpski, hardkodovano — nije bitno za funkcionalnost, samo
   kozmetika.
+
+---
+
+## 2026-09-05 (nastavak) — "Aplikacije moraju da budu iste": Fitness, LibreLinkUp, Meals
+
+### Kontekst
+Korisnik je eksplicitno tražio da se doda SVE što postoji na Android strani, da bi obe
+aplikacije bile iste - ne samo demo par ekrana. Nastavljeno je istim tempom (Koin ViewModel +
+Compose ekran + pun verifikacioni lanac + instalacija na uređaj + commit po ekranu), uz jasnu
+procenu rizika za svaki preostali Android feature pre nego što se krenulo u implementaciju.
+
+### Dodato (isti obrazac kao ranije, sad ukupno 8 deljenih ekrana)
+- **Fitness** — dodavanje + lista sportskih aktivnosti. Nije svesno umanjeno - Android-ov pravi
+  Fitness ekran TAKOĐE nema brisanje (ExerciseDao nema per-item delete metodu), pa je ovo
+  stvarna 1:1 paritetna funkcionalnost.
+- **LibreLinkUp** — pun login → biranje konekcije → povezano/sinhronizacija tok. Takođe nije
+  umanjeno - `LibreLinkRepository` je već bio potpuno platform-agnostičan (Ktor + interface za
+  session storage, iOS actual preko NSUserDefaults već postojao iz ranije sesije) - ovo je
+  realna paritetna funkcionalnost sa Android-ovim LibreLinkSection-om, minus Wear OS push (koji
+  je Android-only i van dosega bilo kog dela ove MVP iteracije).
+- **Meals** — dodavanje (naziv/kalorije/UH) + lista + brisanje. NAMERNO bez LogMeal
+  prepoznavanja sa slike - mrežni deo (`MealRepository.analyzeFoodImage`) je već dokazano
+  platform-agnostičan, ali fotografisanje zahteva platform-specifičan UI (Android koristi
+  CameraX/Intent u `AddMealWrapper.kt`) koji bi za iOS trebalo pisati kao nov, potpuno
+  netestiran `UIImagePickerController` cinterop kod.
+
+### Namerno NIJE urađeno (razlozi, ne propusti)
+- **Prave OS notifikacije za Podsetnike na iOS-u** (`UNUserNotificationCenter`) — razmotreno i
+  odbačeno za sada: zahtevalo bi ili dupliranje postojeće, već ispravne Android notifikacione
+  infrastrukture (`ReminderScheduler`/`ReminderReceiver`/`BootReminderReceiver` u `:app`) da bi
+  deljeni ekran imao PRAVI paritet na oba OS-a, ili asimetričnu implementaciju (samo iOS "zvoni")
+  koja bi bila čudnija nego korisna. Delegate-bazirani UIKit API bi bio potpuno nov, netestiran
+  kod bez ikakve mogućnosti provere pre Mac-a.
+- **Friends** — blokirano na cloud-u: dodavanje prijatelja zahteva Firestore pretragu tuđeg
+  friend code-a da bi se pronašao njihov `friendId`/ime, a cloud sync na iOS-u je svuda
+  namerno `NotImplemented` za sada. Ekran koji nikad ne bi mogao ništa stvarno da doda bi bio
+  gori od izostavljenog za snimak.
+- **Reports (PDF izvoz)** — `GlucoseReportPdfGenerator` koristi Android-specifičnu PDF
+  biblioteku; iOS ekvivalent bi bio nov, netestiran kod, a Statistics ekran već pokriva glavnu
+  vrednost (pregled očitavanja po opsegu) bez PDF izvoza kao specifičnog dodatka.
+- **Prava Firebase Auth prijava na iOS-u** — najveća preostala stavka, namerno NIJE ni
+  pokušana na slepo. Realan put (GitLive Firebase KMP ili slično) zahteva CocoaPods setup u
+  Xcode projektu + `GoogleService-Info.plist` (mora se preuzeti sa Firebase konzole, korisnikov
+  nalog) + inicijalizaciju u iOS app lifecycle-u - sve to su promene na Xcode/CocoaPods nivou
+  koje se ne mogu ni napraviti ni proveriti bez Mac-a, i realan rizik da pokvare postojeći,
+  već proveren `embedAndSignAppleFrameworkForXcode` script-based framework setup. Ovo eksplicitno
+  ostavljeno za zajednički rad na Mac-u.
+
+### Verifikacija
+- Svaki od tri nova ekrana (Fitness, LibreLinkUp, Meals) pojedinačno proveren pre commit-a:
+  `:shared:compileAndroidMain` + `:shared:compileIosMainKotlinMetadata` +
+  `:shared:compileKotlinIosArm64` + `:shared:compileKotlinIosSimulatorArm64` +
+  `:shared:testAndroidHostTest` + `:app:compileDebugKotlin` + `:app:testDebugUnitTest` +
+  `:app:assembleDebug` — sve BUILD SUCCESSFUL, instalirano na `R5CR92E8BCT` posle svakog.
+- Vizuelna provera na uređaju NIJE rađena za ova tri (korisnik je najavio da se javlja tek kad
+  dobije Mac) - kompajlira i instalira se čisto, ali nije uživo isprobano.
+
+### Šta je ostalo
+- Kad korisnik dobije Mac: proći kroz Xcode checklist iz prethodnog unosa, PA zajedno odlučiti
+  da li se ide na Firebase Auth (najveći preostali gap za "iste aplikacije") - to zahteva
+  njegov Firebase nalog/GoogleService-Info.plist, ne može se pripremiti unapred.
+- Friends/Reports/prave notifikacije ostaju otvoreni ako se posle Auth-a ukaže potreba i vremena.

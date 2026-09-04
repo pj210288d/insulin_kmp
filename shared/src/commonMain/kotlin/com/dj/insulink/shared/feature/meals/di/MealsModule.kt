@@ -9,6 +9,7 @@ import com.dj.insulink.shared.feature.meals.data.remote.KtorFoodApiRemoteDataSou
 import com.dj.insulink.shared.feature.meals.data.remote.LogMealFoodImageAnalysisRemoteDataSource
 import com.dj.insulink.shared.feature.meals.data.remote.createHttpClient
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.ui.viewmodel.MealsViewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -28,4 +29,5 @@ fun mealsModule(usdaApiKey: String, spoonacularApiKey: String, logMealApiKey: St
         LogMealFoodImageAnalysisRemoteDataSource(get(), apiKey = logMealApiKey)
     }
     single { MealRepository(get(), get(), get(), get(), get(), get()) }
+    single { MealsViewModel(get()) }
 }
