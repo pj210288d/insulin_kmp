@@ -23,10 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.feature.fitness.ui.FitnessScreen
+import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 import com.dj.insulink.shared.feature.glucose.ui.GlucoseScreen
 import com.dj.insulink.shared.feature.glucose.ui.viewmodel.GlucoseViewModel
 import com.dj.insulink.shared.feature.insulin.ui.InsulinScreen
 import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
+import com.dj.insulink.shared.feature.librelink.ui.LibreLinkScreen
+import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkViewModel
 import com.dj.insulink.shared.feature.reminders.ui.RemindersScreen
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 import com.dj.insulink.shared.feature.settings.ui.SettingsScreen
@@ -37,12 +41,12 @@ import org.koin.mp.KoinPlatform
 
 // Root ekran deljen preko Compose Multiplatform-a - koristi ga i iOS (MainViewController.ios.kt
 // poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseDemo route
-// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje pet deljenih MVP
-// ekrana (Glucose, Statistics, Insulin, Settings, Reminders - vidi njihove ViewModel-e za obim)
-// iza proste horizontalno-skrolabilne tab-trake, bez prijave (vidi UserSession) i bez prave
-// navigacione biblioteke - samo lokalni Compose state, dovoljno za par ekrana. Svaki ViewModel
-// je Koin single (vidi glucoseModule/statisticsModule/insulinModule/settingsModule/
-// remindersModule), zato se ovde
+// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje sedam deljenih MVP
+// ekrana (Glucose, Statistics, Insulin, Settings, Reminders, Fitness, LibreLinkUp - vidi
+// njihove ViewModel-e za obim) iza proste horizontalno-skrolabilne tab-trake, bez prijave (vidi
+// UserSession) i bez prave navigacione biblioteke - samo lokalni Compose state, dovoljno za
+// par ekrana. Svaki ViewModel je Koin single (vidi glucoseModule/statisticsModule/
+// insulinModule/settingsModule/remindersModule/fitnessModule/librelinkModule), zato se ovde
 // uzimaju direktno preko KoinPlatform-a (multiplatform-bezbedan način da se dođe do trenutne
 // Koin instance - obično GlobalContext, dostupan samo na JVM/Android strani) umesto
 // Compose-Koin integracije - isti obrazac kao postojeći SharedModule.kt most (Hilt -> Koin) na
@@ -76,6 +80,14 @@ fun App() {
                         val viewModel = remember { KoinPlatform.getKoin().get<RemindersViewModel>() }
                         RemindersScreen(viewModel = viewModel)
                     }
+                    SharedTab.FITNESS -> {
+                        val viewModel = remember { KoinPlatform.getKoin().get<FitnessViewModel>() }
+                        FitnessScreen(viewModel = viewModel)
+                    }
+                    SharedTab.LIBRELINK -> {
+                        val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
+                        LibreLinkScreen(viewModel = viewModel)
+                    }
                 }
             }
         }
@@ -87,7 +99,9 @@ private enum class SharedTab(val label: String) {
     STATISTICS("Statistika"),
     INSULIN("Insulin"),
     SETTINGS("Podešavanja"),
-    REMINDERS("Podsetnici")
+    REMINDERS("Podsetnici"),
+    FITNESS("Fitnes"),
+    LIBRELINK("LibreLinkUp")
 }
 
 @Composable
