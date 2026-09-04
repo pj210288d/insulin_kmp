@@ -4,6 +4,7 @@ import com.dj.insulink.shared.feature.reminders.data.local.DatabaseFactory
 import com.dj.insulink.shared.feature.reminders.data.local.ReminderDatabase
 import com.dj.insulink.shared.feature.reminders.data.local.buildReminderDatabase
 import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
+import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -14,4 +15,5 @@ val remindersModule = module {
     single<ReminderDatabase> { buildReminderDatabase(get<DatabaseFactory>().create()) }
     single { get<ReminderDatabase>().reminderDao() }
     single { ReminderRepository(get(), get()) }
+    single { RemindersViewModel(get()) }
 }
