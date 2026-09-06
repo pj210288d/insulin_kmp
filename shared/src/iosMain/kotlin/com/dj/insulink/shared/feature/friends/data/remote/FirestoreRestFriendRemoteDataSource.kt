@@ -40,6 +40,16 @@ class FirestoreRestFriendRemoteDataSource(
         firestoreClient.setArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, updated, idToken)
     }
 
+    // Dodato 2026-09-07 na zahtev korisnika (uklanjanje prijatelja) - vidi FriendsViewModel.
+    override suspend fun removeFriendFromFirestoreForUser(userId: String, friendId: String) {
+        val idToken = tokenProvider.currentIdToken()
+        val current = firestoreClient.getArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, idToken)
+        val updated = current.filterNot { FirestoreValue.plainStringOf(it) == friendId }
+        if (updated.size != current.size) {
+            firestoreClient.setArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, updated, idToken)
+        }
+    }
+
     override suspend fun fetchFriendCandidates(userId: String): List<FriendCandidate> {
         val idToken = tokenProvider.currentIdToken()
         val friendIds = firestoreClient.getArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, idToken)

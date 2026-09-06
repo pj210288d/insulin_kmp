@@ -21,6 +21,7 @@ class FakeFriendDao : FriendDao {
     )
 
     val updateLatestReadingCalls = mutableListOf<UpdateLatestReadingCall>()
+    val deleteFriendCalls = mutableListOf<Pair<String, String>>()
 
     override fun getAllFriendsForUser(userId: String): Flow<List<FriendEntity>> = allFriendsFlow
 
@@ -42,5 +43,9 @@ class FakeFriendDao : FriendDao {
         timestamp: Long
     ) {
         updateLatestReadingCalls += UpdateLatestReadingCall(userId, friendId, readingValue, timestamp)
+    }
+
+    override suspend fun deleteFriend(userId: String, friendId: String) {
+        deleteFriendCalls += userId to friendId
     }
 }

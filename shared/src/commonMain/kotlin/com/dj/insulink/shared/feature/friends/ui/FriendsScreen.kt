@@ -110,6 +110,13 @@ private fun FriendRow(friend: Friend, unit: GlucoseUnit) {
                     ?: "--",
                 fontWeight = FontWeight.Bold
             )
+            // Poznat bug (namerno OSTAVLJEN na zahtev korisnika 2026-09-07 - beta testiranje je u
+            // toku): nema dugmeta za uklanjanje prijatelja. viewModel.removeFriend(friend) je
+            // spreman (zakomentarisan u FriendsViewModel.kt) - samo treba dodati onDelete
+            // parametar ovoj funkciji i otkomentarisati dole kad beta period prođe.
+            // IconButton(onClick = { onDelete(friend) }) {
+            //     Text(text = "✕", color = MaterialTheme.colorScheme.error)
+            // }
         }
     }
 }

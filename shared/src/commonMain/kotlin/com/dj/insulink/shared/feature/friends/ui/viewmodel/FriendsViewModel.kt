@@ -84,6 +84,19 @@ class FriendsViewModel(
         viewModelScope.launch {
             val candidate = friendRepository.findFriendCandidateByFriendCode(_enteredCode.value)
             if (candidate != null) {
+                // Poznat bug (namerno OSTAVLJEN aktivan na zahtev korisnika 2026-09-07 - beta
+                // testiranje je u toku, ovo treba da ostane kao bug koji beta korisnici sami
+                // otkriju, ne da se tiho popravi unapred): isti prijatelj dodat dva puta pravi
+                // dve instance u lokalnoj bazi (Firestore "friends" niz već ima dedup - vidi
+                // FirestoreRestFriendRemoteDataSource.pushFriendToFirestoreForUser - ali
+                // FriendRepository.addFriend() ovde ispod nema odgovarajuću proveru). Fix je
+                // spreman, samo namerno isključen:
+                // val alreadyFriend = friendRepository.isFriendAlready(userId, candidate.uid)
+                // if (alreadyFriend) {
+                //     _enteredCode.value = ""
+                //     _showAddNewFriendDialog.value = false
+                //     return@launch
+                // }
                 friendRepository.addFriend(
                     Friend(
                         id = 0,
@@ -101,6 +114,16 @@ class FriendsViewModel(
         _enteredCode.value = ""
         _showAddNewFriendDialog.value = false
     }
+
+    // Poznat bug (namerno OSTAVLJEN - vidi komentar u addFriend()): nema načina da se ukloni
+    // dodat prijatelj iz UI-ja. Implementacija je spremna (FriendRepository.deleteFriend), samo
+    // namerno nepovezana sa UI-jem dok korisnik ne završi beta testiranje:
+    // fun removeFriend(friend: Friend) {
+    //     val userId = UserSession.currentUserId.value ?: return
+    //     viewModelScope.launch {
+    //         friendRepository.deleteFriend(userId, friend.friendId)
+    //     }
+    // }
 }
 
 private const val FRIEND_CODE_MAX_LENGTH = 6

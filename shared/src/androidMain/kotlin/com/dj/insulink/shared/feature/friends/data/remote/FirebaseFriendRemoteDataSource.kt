@@ -29,6 +29,13 @@ class FirebaseFriendRemoteDataSource(
             .await()
     }
 
+    override suspend fun removeFriendFromFirestoreForUser(userId: String, friendId: String) {
+        firestore.collection(COLLECTION_NAME_USERS)
+            .document(userId)
+            .update(DOCUMENT_FIELD_FRIENDS, FieldValue.arrayRemove(friendId))
+            .await()
+    }
+
     override suspend fun fetchFriendCandidates(userId: String): List<FriendCandidate> {
         val userSnapshot = firestore.collection(COLLECTION_NAME_USERS)
             .document(userId)
