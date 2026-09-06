@@ -1692,9 +1692,61 @@ protiv pravog Firestore-a, Xcode build + simulator no-crash launch sa postojećo
 DI graf se ispravno razrešio za svih pet novih zavisnosti). NIJE urađeno: ručno kucanje/dodavanje
 stavki kroz UI za svaki od pet ekrana (samo no-crash provera + wire-format curl test).
 
+### Google Sign-In na iOS-u (isti dan, korisnikov zahtev - "želim da vidim iste podatke sa Android naloga")
+Korisnik je tražio Google prijavu na iOS-u da bi proverio da li se podaci sa Android naloga
+(kojim je sve dosad testirano) vide i na iOS-u. Nema GoogleSignIn SDK-a (namerno, izbegava
+CocoaPods) - ceo tok ručno preko `ASWebAuthenticationSession` (sistemski framework, besplatan
+preko Kotlin/Native ObjC interop-a):
+
+- Korisnik je registrovao iOS app u Firebase konzoli (isti `insulink-e8caa` projekat) SAMO da bi
+  se dobio iOS OAuth klijent (`GoogleService-Info.plist` -> `CLIENT_ID`/`REVERSED_CLIENT_ID`,
+  javni identifikatori, bezbedno za commit) - ne koristi se Firebase iOS SDK.
+- **`GoogleSignInCoordinator`** (iOS-only) - `ASWebAuthenticationSession` prezentuje Google OAuth
+  ekran. Prvi pokušaj (implicit `response_type=id_token` flow) je pukao uživo sa "Error 400:
+  unsupported_response_type" - Google to više ne podržava za ovaj tip klijenta. Prepravljeno na
+  **Authorization Code + PKCE** (`response_type=code`, `code_challenge`/`code_verifier` preko
+  novog `sha256Bytes` u `core/crypto`) - standardni preporučen tok za native app-ove bez client
+  secret-a.
+- **`GoogleTokenExchangeClient`** (commonMain) - razmenjuje code za Google `id_token` preko
+  Google-ovog sopstvenog token endpoint-a.
+- **`FirebaseAuthRestClient.signInWithGoogleIdToken`** - taj `id_token` ide Firebase-u
+  (`accounts:signInWithIdp`) - poveže postojeći nalog (isti uid kao Android-ov
+  `GoogleAuthProvider`) ili napravi nov.
+- `isGoogleSignInSupported` expect/actual sakriva dugme na Android-u (deljeni demo ekran se
+  tamo u praksi ne prikazuje - pravi Google Sign-In već postoji na drugom mehanizmu).
+
+**Usput primećeno (nerešeno, ne blokira)**: pri prvom testu se pojavio sistemski
+"Insulink Wants to Use google.com to Sign In" dijalog BEZ ijednog tap-a sa moje strane (nemam
+tap automatizaciju) - reprodukovan samo jednom, čist reinstall+launch posle toga nije ga
+ponovio. Verovatno OS-nivo artefakt (leftover ASWebAuthenticationSession sesija preko
+reinstall-a), ne potvrđen kao stvaran bug u kodu.
+
+**project.pbxproj napomena**: Firebase "Add iOS app" čarobnjak je dodao NEPOVEZANU
+(unlinked, ni za jedan target) SPM referencu na `firebase-ios-sdk` - namerno nije dirana
+(kosi se sa "bez SDK-a" arhitekturom, ali ne utiče na build). Korisnik može ukloniti u Xcode-u
+(File → Package Dependencies → minus) ako želi.
+
+### Kritičan fix: sinhronizacija nikad nije povlačila podatke na login
+Korisnik se uspešno prijavio preko Google naloga, ali **ništa** od Android podataka nije se
+videlo na iOS-u iako je isti nalog. Uzrok: svaki repozitorijum ima `fetchXAndUpdateDatabase
+(userId)` metodu (povlači iz Firestore-a, puni lokalnu Room bazu) koja se MORA eksplicitno
+pozvati - Android to radi u svakom feature Wrapper-u (`LaunchedEffect(currentUser)`), ali
+deljeni (shared) ViewModel-i iz ranijih sesija (pre Faze 2) taj poziv nikad nisu imali - lokalna
+baza na svakom novom uređaju/instalaciji ostaje prazna zauvek, čak i uz ispravnu prijavu.
+Popravljeno: dodat `init` blok u svih 5 shared ViewModel-a (Glucose/Insulin/Fitness/Reminders/
+Meals) koji prati `UserSession.currentUserId` i čim postane ne-null zove odgovarajući
+`fetchXAndUpdateDatabase`. Potvrđeno uživo - Glucose tab posle Google prijave sada ispravno
+prikazuje stvarno poslednje očitavanje sa Android naloga (106 mg/dL, 04/09/2026 23:53).
+
+**Pouka za ubuduće**: "cloud sync implementiran" (remote data source radi) i "cloud sync
+POVEZAN sa UI-jem" (neko stvarno poziva fetch-and-update na login) su DVE odvojene stvari - lako
+je propustiti drugu ako se prva testira samo preko curl-a/wire-format provere, bez pravog
+login-preko-drugog-naloga scenarija.
+
 ### Šta je ostalo
 - Ručno probati dodavanje/brisanje stavki kroz UI za svih 5 Faza 2 ekrana (i na Android uređaju
-  kad bude dostupan) - do sada samo curl + no-crash launch provera.
+  kad bude dostupan) - do sada samo curl + no-crash launch provera + potvrđeno čitanje.
 - Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF) - pun plan
   u `.claude/plans/` ove sesije, rezime u CLAUDE.md ako se prenese.
-- Rok je ponedeljak - realno neće stati sve; Faza 1+2 (gotove) su jezgro za snimak.
+- Rok je ponedeljak - realno neće stati sve; Faza 1+2 (gotove, uz Google Sign-In i sync fix) su
+  jezgro za snimak.
