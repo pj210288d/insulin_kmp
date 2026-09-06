@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.ui.sharedRootTopInset
 import com.dj.insulink.shared.feature.fitness.ui.FitnessScreen
 import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 import com.dj.insulink.shared.feature.glucose.ui.GlucoseScreen
@@ -58,7 +59,7 @@ fun App() {
     MaterialTheme(colorScheme = insulinkColorScheme()) {
         var selectedTab by remember { mutableStateOf(SharedTab.GLUCOSE) }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().sharedRootTopInset()) {
             SharedTabBar(selectedTab = selectedTab, onSelect = { selectedTab = it })
             Box(modifier = Modifier.fillMaxSize()) {
                 when (selectedTab) {
