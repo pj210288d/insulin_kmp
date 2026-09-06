@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.auth.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -37,6 +40,7 @@ fun RegistrationScreen(
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -45,12 +49,12 @@ fun RegistrationScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
         Text(
-            text = "Napravi nalog",
+            text = tr(language, "Napravi nalog", "Create an account"),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Popuni podatke da počneš da pratiš glukozu",
+            text = tr(language, "Popuni podatke da počneš da pratiš glukozu", "Fill in your details to start tracking glucose"),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
         )
@@ -59,14 +63,14 @@ fun RegistrationScreen(
             OutlinedTextField(
                 value = firstName,
                 onValueChange = { firstName = it },
-                label = { Text("Ime") },
+                label = { Text(tr(language, "Ime", "First name")) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
                 value = lastName,
                 onValueChange = { lastName = it },
-                label = { Text("Prezime") },
+                label = { Text(tr(language, "Prezime", "Last name")) },
                 singleLine = true,
                 modifier = Modifier.weight(1f).padding(start = 8.dp)
             )
@@ -82,7 +86,7 @@ fun RegistrationScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Lozinka") },
+            label = { Text(tr(language, "Lozinka", "Password")) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -110,7 +114,7 @@ fun RegistrationScreen(
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.padding(4.dp), color = Color.White)
             } else {
-                Text("Registruj se")
+                Text(tr(language, "Registruj se", "Sign up"))
             }
         }
 
@@ -118,7 +122,7 @@ fun RegistrationScreen(
             onClick = onNavigateToLogin,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Već imaš nalog? Prijavi se")
+            Text(tr(language, "Već imaš nalog? Prijavi se", "Already have an account? Sign in"))
         }
     }
 }

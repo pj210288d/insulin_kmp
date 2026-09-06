@@ -27,6 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.shared.feature.statistics.domain.model.GlucoseStatistics
 import com.dj.insulink.shared.feature.statistics.domain.model.StatisticsRange
@@ -41,6 +44,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel) {
     val selectedRange by viewModel.selectedRange.collectAsState()
     val statistics by viewModel.statistics.collectAsState()
     val unit by viewModel.glucoseUnit.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -48,7 +52,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(vertical = 16.dp)
     ) {
-        RangeSelector(selectedRange = selectedRange, onSelect = viewModel::setRange)
+        RangeSelector(selectedRange = selectedRange, language = language, onSelect = viewModel::setRange)
         Spacer(Modifier.height(16.dp))
 
         if (statistics == null) {
@@ -57,20 +61,20 @@ fun StatisticsScreen(viewModel: StatisticsViewModel) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Nema očitavanja u izabranom periodu",
+                    text = tr(language, "Nema očitavanja u izabranom periodu", "No readings in the selected period"),
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
         } else {
-            StatisticsSummary(statistics = statistics!!, unit = unit)
+            StatisticsSummary(statistics = statistics!!, unit = unit, language = language)
             Spacer(Modifier.height(16.dp))
-            TimeInRangeBar(statistics = statistics!!)
+            TimeInRangeBar(statistics = statistics!!, language = language)
         }
     }
 }
 
 @Composable
-private fun RangeSelector(selectedRange: StatisticsRange, onSelect: (StatisticsRange) -> Unit) {
+private fun RangeSelector(selectedRange: StatisticsRange, language: AppLanguage, onSelect: (StatisticsRange) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,7 +94,7 @@ private fun RangeSelector(selectedRange: StatisticsRange, onSelect: (StatisticsR
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = rangeLabel(range),
+                    text = rangeLabel(range, language),
                     color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                 )
@@ -99,25 +103,25 @@ private fun RangeSelector(selectedRange: StatisticsRange, onSelect: (StatisticsR
     }
 }
 
-private fun rangeLabel(range: StatisticsRange): String = when (range) {
-    StatisticsRange.TODAY -> "Danas"
-    StatisticsRange.LAST_7_DAYS -> "7 dana"
-    StatisticsRange.LAST_15_DAYS -> "15 dana"
-    StatisticsRange.LAST_30_DAYS -> "30 dana"
-    StatisticsRange.LAST_90_DAYS -> "90 dana"
+private fun rangeLabel(range: StatisticsRange, language: AppLanguage): String = when (range) {
+    StatisticsRange.TODAY -> tr(language, "Danas", "Today")
+    StatisticsRange.LAST_7_DAYS -> tr(language, "7 dana", "7 days")
+    StatisticsRange.LAST_15_DAYS -> tr(language, "15 dana", "15 days")
+    StatisticsRange.LAST_30_DAYS -> tr(language, "30 dana", "30 days")
+    StatisticsRange.LAST_90_DAYS -> tr(language, "90 dana", "90 days")
 }
 
 @Composable
-private fun StatisticsSummary(statistics: GlucoseStatistics, unit: GlucoseUnit) {
+private fun StatisticsSummary(statistics: GlucoseStatistics, unit: GlucoseUnit, language: AppLanguage) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard(
-                label = "Prosek",
+                label = tr(language, "Prosek", "Average"),
                 value = "${unit.formatValue(statistics.average)} ${unit.suffix}",
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                label = "Broj očitavanja",
+                label = tr(language, "Broj očitavanja", "Reading count"),
                 value = statistics.readingCount.toString(),
                 modifier = Modifier.weight(1f)
             )
@@ -137,7 +141,7 @@ private fun StatisticsSummary(statistics: GlucoseStatistics, unit: GlucoseUnit) 
         }
         Spacer(Modifier.height(8.dp))
         StatCard(
-            label = "Standardna devijacija",
+            label = tr(language, "Standardna devijacija", "Standard deviation"),
             value = oneDecimal(statistics.standardDeviation),
             modifier = Modifier.fillMaxWidth()
         )
@@ -156,9 +160,9 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun TimeInRangeBar(statistics: GlucoseStatistics) {
+private fun TimeInRangeBar(statistics: GlucoseStatistics, language: AppLanguage) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Text(text = "Vreme u ciljnom opsegu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(text = tr(language, "Vreme u ciljnom opsegu", "Time in range"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Row(
             modifier = Modifier
@@ -172,9 +176,9 @@ private fun TimeInRangeBar(statistics: GlucoseStatistics) {
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            LegendItem(color = GlucoseLow, label = "Ispod (${oneDecimal(statistics.timeInRange.belowPercent)}%)")
-            LegendItem(color = GlucoseNormal, label = "U opsegu (${oneDecimal(statistics.timeInRange.inRangePercent)}%)")
-            LegendItem(color = GlucoseHigh, label = "Iznad (${oneDecimal(statistics.timeInRange.abovePercent)}%)")
+            LegendItem(color = GlucoseLow, label = "${tr(language, "Ispod", "Below")} (${oneDecimal(statistics.timeInRange.belowPercent)}%)")
+            LegendItem(color = GlucoseNormal, label = "${tr(language, "U opsegu", "In range")} (${oneDecimal(statistics.timeInRange.inRangePercent)}%)")
+            LegendItem(color = GlucoseHigh, label = "${tr(language, "Iznad", "Above")} (${oneDecimal(statistics.timeInRange.abovePercent)}%)")
         }
     }
 }

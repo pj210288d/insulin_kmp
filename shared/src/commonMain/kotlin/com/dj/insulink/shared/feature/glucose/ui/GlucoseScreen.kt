@@ -59,6 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.core.time.combineDateAndTime
 import com.dj.insulink.shared.core.time.combineTimeWithDate
 import com.dj.insulink.shared.core.time.currentTimeMillis
@@ -98,6 +101,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
     val editing by viewModel.editingReading.collectAsState()
     val insulinTypes by viewModel.allInsulinTypesForUser.collectAsState()
     val sameDayMeals by viewModel.sameDayMealsForNewReading.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Box(
         modifier = Modifier
@@ -126,11 +130,12 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
                     )
                 }
             ) {
-                StatusCard(latest, unit)
+                StatusCard(latest, unit, language)
                 Spacer(Modifier.height(12.dp))
                 DayHeader(
                     selectedDayStartMillis = selectedDay,
                     canGoToNextDay = canGoNext,
+                    language = language,
                     onPreviousDay = viewModel::goToPreviousDay,
                     onNextDay = viewModel::goToNextDay
                 )
@@ -155,7 +160,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Nema očitavanja za ovaj dan",
+                        text = tr(language, "Nema očitavanja za ovaj dan", "No readings for this day"),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
@@ -166,6 +171,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
                             reading = reading,
                             unit = unit,
                             insulinTypes = insulinTypes,
+                            language = language,
                             onClick = { viewModel.startEditReading(reading) },
                             onDelete = { viewModel.deleteReading(reading) }
                         )
@@ -201,6 +207,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
             onMealSelected = viewModel::setNewLinkedMealId,
             unit = unit,
             isEditMode = editing != null,
+            language = language,
             onDismiss = viewModel::dismissDialog,
             onSave = viewModel::submitReading
         )
@@ -208,7 +215,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
 }
 
 @Composable
-private fun StatusCard(latest: GlucoseReading?, unit: GlucoseUnit) {
+private fun StatusCard(latest: GlucoseReading?, unit: GlucoseUnit, language: AppLanguage) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier = Modifier
@@ -220,7 +227,7 @@ private fun StatusCard(latest: GlucoseReading?, unit: GlucoseUnit) {
             )
     ) {
         Column(modifier = Modifier.padding(vertical = 16.dp).padding(start = 24.dp, end = 16.dp)) {
-            Text(text = "Poslednje očitavanje", color = Color.White)
+            Text(text = tr(language, "Poslednje očitavanje", "Latest reading"), color = Color.White)
             Spacer(Modifier.height(8.dp))
             Text(
                 text = if (latest != null) {
@@ -235,18 +242,18 @@ private fun StatusCard(latest: GlucoseReading?, unit: GlucoseUnit) {
             Spacer(Modifier.height(8.dp))
             Text(text = latest?.let { dateTimeLabel(it.timestamp) } ?: "", color = Color.White)
             Spacer(Modifier.height(8.dp))
-            GlucoseLevelRow(latest?.value)
+            GlucoseLevelRow(latest?.value, language)
         }
     }
 }
 
 @Composable
-private fun GlucoseLevelRow(value: Int?) {
+private fun GlucoseLevelRow(value: Int?, language: AppLanguage) {
     if (value == null) return
     val (label, color) = when {
-        value < LOWER_GLUCOSE_THRESHOLD -> "Ispod cilja" to GlucoseLow
-        value <= HIGH_GLUCOSE_THRESHOLD -> "U cilju" to GlucoseNormal
-        else -> "Iznad cilja" to GlucoseHigh
+        value < LOWER_GLUCOSE_THRESHOLD -> tr(language, "Ispod cilja", "Below target") to GlucoseLow
+        value <= HIGH_GLUCOSE_THRESHOLD -> tr(language, "U cilju", "In target") to GlucoseNormal
+        else -> tr(language, "Iznad cilja", "Above target") to GlucoseHigh
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(16.dp).background(color, CircleShape))
@@ -259,6 +266,7 @@ private fun GlucoseLevelRow(value: Int?) {
 private fun DayHeader(
     selectedDayStartMillis: Long,
     canGoToNextDay: Boolean,
+    language: AppLanguage,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit
 ) {
@@ -269,7 +277,7 @@ private fun DayHeader(
     ) {
         NavArrow(symbol = "‹", enabled = true, onClick = onPreviousDay)
         Text(
-            text = dayLabel(selectedDayStartMillis),
+            text = dayLabel(selectedDayStartMillis, language),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -299,11 +307,11 @@ private fun NavArrow(symbol: String, enabled: Boolean, onClick: () -> Unit) {
     }
 }
 
-private fun dayLabel(dayStartMillis: Long): String {
+private fun dayLabel(dayStartMillis: Long, language: AppLanguage): String {
     val today = startOfDayMillis(currentTimeMillis())
     return when (dayStartMillis) {
-        today -> "Danas"
-        shiftedDayStartMillis(today, -1) -> "Juče"
+        today -> tr(language, "Danas", "Today")
+        shiftedDayStartMillis(today, -1) -> tr(language, "Juče", "Yesterday")
         else -> shortWeekdayDateLabel(dayStartMillis)
     }
 }
@@ -313,6 +321,7 @@ private fun ReadingRow(
     reading: GlucoseReading,
     unit: GlucoseUnit,
     insulinTypes: List<InsulinType>,
+    language: AppLanguage,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -338,7 +347,7 @@ private fun ReadingRow(
                 if (insulinLabel != null) {
                     val units = reading.insulinUnits
                     Text(
-                        text = if (units != null) "$insulinLabel · $units j." else insulinLabel,
+                        text = if (units != null) "$insulinLabel · $units ${tr(language, "j.", "u.")}" else insulinLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -405,6 +414,7 @@ private fun AddEditReadingDialog(
     onMealSelected: (Long?) -> Unit,
     unit: GlucoseUnit,
     isEditMode: Boolean,
+    language: AppLanguage,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -430,7 +440,7 @@ private fun AddEditReadingDialog(
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Otkaži") }
+                TextButton(onClick = { showDatePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -450,12 +460,12 @@ private fun AddEditReadingDialog(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Izaberi vreme", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr(language, "Izaberi vreme", "Choose time"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     TimePicker(state = timePickerState)
                     Spacer(Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showTimePicker = false }) { Text("Otkaži") }
+                        TextButton(onClick = { showTimePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             onTimestampChange(
@@ -484,7 +494,7 @@ private fun AddEditReadingDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = if (isEditMode) "Izmeni očitavanje" else "Novo očitavanje",
+                    text = if (isEditMode) tr(language, "Izmeni očitavanje", "Edit reading") else tr(language, "Novo očitavanje", "New reading"),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Spacer(Modifier.height(24.dp))
@@ -509,7 +519,7 @@ private fun AddEditReadingDialog(
                             }
                         )
                     },
-                    label = { Text("Vrednost (${unit.suffix})") },
+                    label = { Text("${tr(language, "Vrednost", "Value")} (${unit.suffix})") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
@@ -518,14 +528,14 @@ private fun AddEditReadingDialog(
                 OutlinedTextField(
                     value = comment,
                     onValueChange = onCommentChange,
-                    label = { Text("Komentar") },
+                    label = { Text(tr(language, "Komentar", "Comment")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
-                Text(text = "Tip insulina", modifier = Modifier.fillMaxWidth())
+                Text(text = tr(language, "Tip insulina", "Insulin type"), modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(4.dp))
-                val noneLabel = "Bez"
+                val noneLabel = tr(language, "Bez", "None")
                 val insulinLabels = listOf(noneLabel) + insulinTypes.map { it.name }
                 val selectedInsulinLabel = insulinTypes.find { it.id == selectedInsulinTypeId }?.name
                     ?: noneLabel
@@ -545,13 +555,13 @@ private fun AddEditReadingDialog(
                 OutlinedTextField(
                     value = insulinUnits,
                     onValueChange = onInsulinUnitsChange,
-                    label = { Text("Insulinske jedinice") },
+                    label = { Text(tr(language, "Insulinske jedinice", "Insulin units")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
-                Text(text = "Povezan obrok (isti dan)", modifier = Modifier.fillMaxWidth())
+                Text(text = tr(language, "Povezan obrok (isti dan)", "Linked meal (same day)"), modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(4.dp))
                 val mealLabels = listOf(noneLabel) + sameDayMeals.map { it.name }
                 val selectedMealLabel = sameDayMeals.find { it.id == selectedMealId }?.name ?: noneLabel
@@ -569,7 +579,7 @@ private fun AddEditReadingDialog(
                 )
                 Spacer(Modifier.height(24.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Otkaži") }
+                    TextButton(onClick = onDismiss) { Text(tr(language, "Otkaži", "Cancel")) }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
@@ -580,7 +590,7 @@ private fun AddEditReadingDialog(
                         },
                         enabled = value.toDoubleOrNull() != null
                     ) {
-                        Text("Sačuvaj")
+                        Text(tr(language, "Sačuvaj", "Save"))
                     }
                 }
             }

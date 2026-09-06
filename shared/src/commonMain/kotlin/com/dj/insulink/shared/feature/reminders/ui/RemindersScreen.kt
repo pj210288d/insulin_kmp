@@ -42,6 +42,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.core.time.combineTimeWithDate
 import com.dj.insulink.shared.core.time.localTimeOfDay
 import com.dj.insulink.shared.core.time.timeOfDayLabel
@@ -58,6 +61,7 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
     val newTitle by viewModel.newTitle.collectAsState()
     val newType by viewModel.newType.collectAsState()
     val newTime by viewModel.newTime.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -69,28 +73,29 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
             OutlinedTextField(
                 value = newTitle,
                 onValueChange = viewModel::setNewTitle,
-                label = { Text("Naslov podsetnika") },
+                label = { Text(tr(language, "Naslov podsetnika", "Reminder title")) },
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = viewModel::addReminder, enabled = newTitle.isNotBlank()) {
-                Text("Dodaj")
+                Text(tr(language, "Dodaj", "Add"))
             }
         }
         Spacer(Modifier.height(8.dp))
-        TimePickerButton(time = newTime, onTimeChange = viewModel::setNewTime)
+        TimePickerButton(time = newTime, language = language, onTimeChange = viewModel::setNewTime)
         Spacer(Modifier.height(8.dp))
-        TypeSelector(selected = newType, onSelect = viewModel::setNewType)
+        TypeSelector(selected = newType, language = language, onSelect = viewModel::setNewType)
         Spacer(Modifier.height(16.dp))
 
         if (reminders.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(text = "Nema dodatih podsetnika", color = MaterialTheme.colorScheme.onBackground)
+                Text(text = tr(language, "Nema dodatih podsetnika", "No reminders added"), color = MaterialTheme.colorScheme.onBackground)
             }
         } else {
             LazyColumn {
                 items(items = reminders, key = { it.id }) { reminder ->
                     ReminderRow(
                         reminder = reminder,
+                        language = language,
                         onToggleDone = { viewModel.toggleDoneForToday(reminder) },
                         onDelete = { viewModel.deleteReminder(reminder) }
                     )
@@ -102,11 +107,11 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerButton(time: Long, onTimeChange: (Long) -> Unit) {
+private fun TimePickerButton(time: Long, language: AppLanguage, onTimeChange: (Long) -> Unit) {
     var showTimePicker by remember { mutableStateOf(false) }
 
     OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
-        Text("Vreme: ${timeOfDayLabel(time)}")
+        Text("${tr(language, "Vreme", "Time")}: ${timeOfDayLabel(time)}")
     }
 
     if (showTimePicker) {
@@ -122,12 +127,12 @@ private fun TimePickerButton(time: Long, onTimeChange: (Long) -> Unit) {
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Izaberi vreme", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr(language, "Izaberi vreme", "Choose time"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     TimePicker(state = timePickerState)
                     Spacer(Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showTimePicker = false }) { Text("Otkaži") }
+                        TextButton(onClick = { showTimePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             onTimeChange(combineTimeWithDate(timePickerState.hour, timePickerState.minute, time))
@@ -141,7 +146,7 @@ private fun TimePickerButton(time: Long, onTimeChange: (Long) -> Unit) {
 }
 
 @Composable
-private fun TypeSelector(selected: ReminderType, onSelect: (ReminderType) -> Unit) {
+private fun TypeSelector(selected: ReminderType, language: AppLanguage, onSelect: (ReminderType) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -158,7 +163,7 @@ private fun TypeSelector(selected: ReminderType, onSelect: (ReminderType) -> Uni
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = typeLabel(type),
+                    text = typeLabel(type, language),
                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -166,14 +171,14 @@ private fun TypeSelector(selected: ReminderType, onSelect: (ReminderType) -> Uni
     }
 }
 
-private fun typeLabel(type: ReminderType): String = when (type) {
-    ReminderType.MEAL_REMINDER -> "Obrok"
+private fun typeLabel(type: ReminderType, language: AppLanguage): String = when (type) {
+    ReminderType.MEAL_REMINDER -> tr(language, "Obrok", "Meal")
     ReminderType.INSULIN_REMINDER -> "Insulin"
-    ReminderType.BLOOD_SUGAR_CHECK_REMINDER -> "Merenje šećera"
+    ReminderType.BLOOD_SUGAR_CHECK_REMINDER -> tr(language, "Merenje šećera", "Glucose check")
 }
 
 @Composable
-private fun ReminderRow(reminder: Reminder, onToggleDone: () -> Unit, onDelete: () -> Unit) {
+private fun ReminderRow(reminder: Reminder, language: AppLanguage, onToggleDone: () -> Unit, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -193,7 +198,7 @@ private fun ReminderRow(reminder: Reminder, onToggleDone: () -> Unit, onDelete: 
                         textDecoration = if (reminder.isDoneForToday) TextDecoration.LineThrough else null
                     )
                     Text(
-                        text = "${typeLabel(reminder.reminderType)} · ${timeOfDayLabel(reminder.time)}",
+                        text = "${typeLabel(reminder.reminderType, language)} · ${timeOfDayLabel(reminder.time)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

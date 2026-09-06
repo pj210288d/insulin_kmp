@@ -57,6 +57,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.core.time.combineDateAndTime
 import com.dj.insulink.shared.core.time.combineTimeWithDate
 import com.dj.insulink.shared.core.time.currentTimeMillis
@@ -84,6 +87,7 @@ fun MealsScreen(viewModel: MealsViewModel) {
     val dailyNutrition by viewModel.dailyNutrition.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val showAddDialog by viewModel.showAddMealDialog.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Box(
         modifier = Modifier
@@ -93,18 +97,20 @@ fun MealsScreen(viewModel: MealsViewModel) {
         Column(modifier = Modifier.fillMaxSize()) {
             DateSelector(
                 selectedDate = selectedDate,
+                language = language,
                 onDateSelected = viewModel::setSelectedDate,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
 
             DailyNutritionCard(
                 dailyNutrition,
+                language = language,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             )
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Obroci",
+                text = tr(language, "Obroci", "Meals"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -114,12 +120,12 @@ fun MealsScreen(viewModel: MealsViewModel) {
 
             if (meals.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(text = "Nema dodatih obroka za ovaj dan", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = tr(language, "Nema dodatih obroka za ovaj dan", "No meals added for this day"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     items(items = meals, key = { it.id }) { meal ->
-                        MealRow(meal = meal, onDelete = { viewModel.deleteMeal(meal) })
+                        MealRow(meal = meal, language = language, onDelete = { viewModel.deleteMeal(meal) })
                         Spacer(Modifier.height(8.dp))
                     }
                     item { Spacer(Modifier.height(72.dp)) }
@@ -142,7 +148,7 @@ fun MealsScreen(viewModel: MealsViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateSelector(selectedDate: Long, onDateSelected: (Long) -> Unit, modifier: Modifier = Modifier) {
+private fun DateSelector(selectedDate: Long, language: AppLanguage, onDateSelected: (Long) -> Unit, modifier: Modifier = Modifier) {
     var showDatePicker by remember { mutableStateOf(false) }
     val isToday = startOfDayMillis(selectedDate) == startOfDayMillis(currentTimeMillis())
 
@@ -152,7 +158,7 @@ private fun DateSelector(selectedDate: Long, onDateSelected: (Long) -> Unit, mod
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (isToday) "Danas" else dateOnlyLabel(selectedDate),
+                text = if (isToday) tr(language, "Danas", "Today") else dateOnlyLabel(selectedDate),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -170,7 +176,7 @@ private fun DateSelector(selectedDate: Long, onDateSelected: (Long) -> Unit, mod
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Otkaži") }
+                TextButton(onClick = { showDatePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -179,22 +185,22 @@ private fun DateSelector(selectedDate: Long, onDateSelected: (Long) -> Unit, mod
 }
 
 @Composable
-private fun DailyNutritionCard(nutrition: DailyNutrition, modifier: Modifier = Modifier) {
+private fun DailyNutritionCard(nutrition: DailyNutrition, language: AppLanguage, modifier: Modifier = Modifier) {
     Card(modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            NutritionCard("Kalorije", nutrition.calories.toString(), InsulinkBlue, Modifier.weight(1f))
-            NutritionCard("Proteini", "${nutrition.protein}g", GlucoseNormal, Modifier.weight(1f))
-            NutritionCard("Masti", "${nutrition.fat}g", LastDropLabel, Modifier.weight(1f))
-            NutritionCard("UH", "${nutrition.carbs}g", GlucoseLow, Modifier.weight(1f))
+            NutritionCard(tr(language, "Kalorije", "Calories"), nutrition.calories.toString(), InsulinkBlue, Modifier.weight(1f))
+            NutritionCard(tr(language, "Proteini", "Protein"), "${nutrition.protein}g", GlucoseNormal, Modifier.weight(1f))
+            NutritionCard(tr(language, "Masti", "Fat"), "${nutrition.fat}g", LastDropLabel, Modifier.weight(1f))
+            NutritionCard(tr(language, "UH", "Carbs"), "${nutrition.carbs}g", GlucoseLow, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun MealRow(meal: Meal, onDelete: () -> Unit) {
+private fun MealRow(meal: Meal, language: AppLanguage, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -207,7 +213,7 @@ private fun MealRow(meal: Meal, onDelete: () -> Unit) {
                     text = buildString {
                         append(timeOfDayLabel(meal.timestamp))
                         meal.calories?.let { append(" · $it kcal") }
-                        meal.carbs?.let { append(" · ${it}g UH") }
+                        meal.carbs?.let { append(" · ${it}g ${tr(language, "UH", "carbs")}") }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -228,7 +234,7 @@ private fun MealRow(meal: Meal, onDelete: () -> Unit) {
 // ograničenje na prošlost/sadašnjost (Android-ova DateTimeInput.kt takođe nema).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MealDateTimeSelector(timestamp: Long, onTimestampChange: (Long) -> Unit) {
+private fun MealDateTimeSelector(timestamp: Long, language: AppLanguage, onTimestampChange: (Long) -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -253,7 +259,7 @@ private fun MealDateTimeSelector(timestamp: Long, onTimestampChange: (Long) -> U
                     showDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Otkaži") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) } }
         ) {
             DatePicker(state = datePickerState)
         }
@@ -265,12 +271,12 @@ private fun MealDateTimeSelector(timestamp: Long, onTimestampChange: (Long) -> U
         Dialog(onDismissRequest = { showTimePicker = false }) {
             Card(shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Izaberi vreme", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr(language, "Izaberi vreme", "Choose time"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     TimePicker(state = timePickerState)
                     Spacer(Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showTimePicker = false }) { Text("Otkaži") }
+                        TextButton(onClick = { showTimePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             onTimestampChange(combineTimeWithDate(timePickerState.hour, timePickerState.minute, timestamp))
@@ -298,6 +304,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
     val isAnalyzingMealPhoto by viewModel.isAnalyzingMealPhoto.collectAsState()
     val mealPhotoAnalysis by viewModel.mealPhotoAnalysis.collectAsState()
     val mealPhotoAnalysisError by viewModel.mealPhotoAnalysisError.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     val photoPicker = rememberMealPhotoPickerLauncher(
         onPhotoPicked = { bytes -> viewModel.analyzeMealPhoto(bytes) },
@@ -315,7 +322,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Novi obrok",
+                        text = tr(language, "Novi obrok", "New meal"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
@@ -334,12 +341,12 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = viewModel::setNewMealName,
-                        label = { Text("Naziv obroka") },
+                        label = { Text(tr(language, "Naziv obroka", "Meal name")) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     Spacer(Modifier.height(12.dp))
-                    MealDateTimeSelector(timestamp = timestamp, onTimestampChange = viewModel::setNewMealTimestamp)
+                    MealDateTimeSelector(timestamp = timestamp, language = language, onTimestampChange = viewModel::setNewMealTimestamp)
 
                     Spacer(Modifier.height(12.dp))
                     Row(
@@ -347,11 +354,11 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TextButton(onClick = { photoPicker.pickFromGallery() }) {
-                            Text(if (isAnalyzingMealPhoto) "..." else "🖼 Iz galerije")
+                            Text(if (isAnalyzingMealPhoto) "..." else "🖼 ${tr(language, "Iz galerije", "From gallery")}")
                         }
                         if (photoPicker.isCameraAvailable) {
                             TextButton(onClick = { photoPicker.takePhoto() }) {
-                                Text(if (isAnalyzingMealPhoto) "..." else "📷 Slikaj")
+                                Text(if (isAnalyzingMealPhoto) "..." else "📷 ${tr(language, "Slikaj", "Take photo")}")
                             }
                         }
                         if (isAnalyzingMealPhoto) {
@@ -360,7 +367,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     }
                     if (mealPhotoAnalysisError != null) {
                         Text(
-                            text = "Greška: $mealPhotoAnalysisError",
+                            text = "${tr(language, "Greška", "Error")}: $mealPhotoAnalysisError",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -370,17 +377,17 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = viewModel::setSearchQuery,
-                        label = { Text("Pretraži sastojke") },
+                        label = { Text(tr(language, "Pretraži sastojke", "Search ingredients")) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { viewModel.setShowCreateIngredientDialog(true) }) {
-                            Text("+ Novi sastojak")
+                            Text("+ ${tr(language, "Novi sastojak", "New ingredient")}")
                         }
                         TextButton(onClick = { viewModel.setShowMyIngredientsDialog(true) }) {
-                            Text("Moji sastojci")
+                            Text(tr(language, "Moji sastojci", "My ingredients"))
                         }
                     }
 
@@ -405,14 +412,14 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
 
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Dodati sastojci",
+                        text = tr(language, "Dodati sastojci", "Added ingredients"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(8.dp))
                     if (selectedIngredients.isEmpty()) {
                         Text(
-                            text = "Još nema dodatih sastojaka",
+                            text = tr(language, "Još nema dodatih sastojaka", "No ingredients added yet"),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
@@ -430,7 +437,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
 
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Nutritivne vrednosti",
+                        text = tr(language, "Nutritivne vrednosti", "Nutrition facts"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -440,17 +447,17 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     val totalFat = selectedIngredients.sumOf { it.ingredient.fatPer100g * it.quantity / 100 }
                     val totalCarbs = selectedIngredients.sumOf { it.ingredient.carbsPer100g * it.quantity / 100 }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        NutritionCard("Kalorije", totalCalories.toString(), InsulinkBlue, Modifier.weight(1f))
-                        NutritionCard("Proteini", formatGrams(totalProtein), GlucoseNormal, Modifier.weight(1f))
-                        NutritionCard("Masti", formatGrams(totalFat), LastDropLabel, Modifier.weight(1f))
-                        NutritionCard("UH", formatGrams(totalCarbs), GlucoseLow, Modifier.weight(1f))
+                        NutritionCard(tr(language, "Kalorije", "Calories"), totalCalories.toString(), InsulinkBlue, Modifier.weight(1f))
+                        NutritionCard(tr(language, "Proteini", "Protein"), formatGrams(totalProtein), GlucoseNormal, Modifier.weight(1f))
+                        NutritionCard(tr(language, "Masti", "Fat"), formatGrams(totalFat), LastDropLabel, Modifier.weight(1f))
+                        NutritionCard(tr(language, "UH", "Carbs"), formatGrams(totalCarbs), GlucoseLow, Modifier.weight(1f))
                     }
 
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = comment,
                         onValueChange = viewModel::setNewMealComment,
-                        label = { Text("Komentar") },
+                        label = { Text(tr(language, "Komentar", "Comment")) },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 3
                     )
@@ -465,7 +472,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                     } else {
-                        Text("Sačuvaj obrok")
+                        Text(tr(language, "Sačuvaj obrok", "Save meal"))
                     }
                 }
             }
@@ -474,6 +481,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
 
     if (showCreateIngredientDialog) {
         CreateIngredientDialog(
+            language = language,
             onDismiss = { viewModel.setShowCreateIngredientDialog(false) },
             onSave = viewModel::createCustomIngredient,
             isLoading = isLoading
@@ -483,6 +491,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
     if (showMyIngredientsDialog) {
         MyIngredientsDialog(
             userIngredients = userIngredients,
+            language = language,
             onDismiss = { viewModel.setShowMyIngredientsDialog(false) },
             onCreateIngredient = { viewModel.setShowCreateIngredientDialog(true) },
             onDeleteIngredient = viewModel::deleteCustomIngredient
@@ -493,6 +502,7 @@ private fun AddMealDialog(viewModel: MealsViewModel) {
     if (analysis != null) {
         MealPhotoAnalysisDialog(
             analysis = analysis,
+            language = language,
             onAccept = viewModel::acceptMealPhotoAnalysis,
             onDismiss = viewModel::dismissMealPhotoAnalysis
         )
@@ -592,6 +602,7 @@ private fun NutritionCard(label: String, value: String, color: Color, modifier: 
 
 @Composable
 private fun CreateIngredientDialog(
+    language: AppLanguage,
     onDismiss: () -> Unit,
     onSave: (Ingredient) -> Unit,
     isLoading: Boolean
@@ -610,20 +621,20 @@ private fun CreateIngredientDialog(
                 modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Novi sastojak", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(tr(language, "Novi sastojak", "New ingredient"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     IconButton(onClick = onDismiss) { Text("✕") }
                 }
                 Spacer(Modifier.height(16.dp))
-                OutlinedTextField(name, { name = it }, label = { Text("Naziv") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(name, { name = it }, label = { Text(tr(language, "Naziv", "Name")) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Spacer(Modifier.height(12.dp))
-                Text("Nutritivne vrednosti (na 100g)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(tr(language, "Nutritivne vrednosti (na 100g)", "Nutrition facts (per 100g)"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
-                NumberField(calories, { calories = it }, "Kalorije")
-                NumberField(protein, { protein = it }, "Proteini (g)")
-                NumberField(carbs, { carbs = it }, "Ugljeni hidrati (g)")
-                NumberField(fat, { fat = it }, "Masti (g)")
-                NumberField(sugar, { sugar = it }, "Šećeri (g)")
-                NumberField(salt, { salt = it }, "So (g)")
+                NumberField(calories, { calories = it }, tr(language, "Kalorije", "Calories"))
+                NumberField(protein, { protein = it }, tr(language, "Proteini (g)", "Protein (g)"))
+                NumberField(carbs, { carbs = it }, tr(language, "Ugljeni hidrati (g)", "Carbs (g)"))
+                NumberField(fat, { fat = it }, tr(language, "Masti (g)", "Fat (g)"))
+                NumberField(sugar, { sugar = it }, tr(language, "Šećeri (g)", "Sugar (g)"))
+                NumberField(salt, { salt = it }, tr(language, "So (g)", "Salt (g)"))
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = {
@@ -645,7 +656,7 @@ private fun CreateIngredientDialog(
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                     } else {
-                        Text("Sačuvaj sastojak")
+                        Text(tr(language, "Sačuvaj sastojak", "Save ingredient"))
                     }
                 }
             }
@@ -668,6 +679,7 @@ private fun NumberField(value: String, onValueChange: (String) -> Unit, label: S
 @Composable
 private fun MyIngredientsDialog(
     userIngredients: List<Ingredient>,
+    language: AppLanguage,
     onDismiss: () -> Unit,
     onCreateIngredient: () -> Unit,
     onDeleteIngredient: (Ingredient) -> Unit
@@ -680,16 +692,16 @@ private fun MyIngredientsDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Moji sastojci", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(tr(language, "Moji sastojci", "My ingredients"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Row {
-                        TextButton(onClick = onCreateIngredient) { Text("+ Novi") }
+                        TextButton(onClick = onCreateIngredient) { Text("+ ${tr(language, "Novi", "New")}") }
                         IconButton(onClick = onDismiss) { Text("✕") }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
                 if (userIngredients.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Još nemaš sopstvenih sastojaka", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr(language, "Još nemaš sopstvenih sastojaka", "You don't have any custom ingredients yet"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -727,6 +739,7 @@ private fun MyIngredientsDialog(
 @Composable
 private fun MealPhotoAnalysisDialog(
     analysis: FoodImageAnalysis,
+    language: AppLanguage,
     onAccept: (List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -736,11 +749,11 @@ private fun MealPhotoAnalysisDialog(
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Prepoznata hrana", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(tr(language, "Prepoznata hrana", "Recognized food"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     IconButton(onClick = onDismiss) { Text("✕") }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Izmeni imena ako je potrebno:", style = MaterialTheme.typography.bodyMedium)
+                Text(tr(language, "Izmeni imena ako je potrebno:", "Edit the names if needed:"), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Column(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState())) {
                     editedNames.forEachIndexed { index, name ->
@@ -758,24 +771,24 @@ private fun MealPhotoAnalysisDialog(
                 Spacer(Modifier.height(12.dp))
                 val ingredient = analysis.estimatedIngredient
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NutritionCard("Kalorije", ingredient.caloriesPer100g.toInt().toString(), InsulinkBlue, Modifier.weight(1f))
-                    NutritionCard("UH", formatGrams(ingredient.carbsPer100g), GlucoseLow, Modifier.weight(1f))
-                    NutritionCard("Proteini", formatGrams(ingredient.proteinPer100g), GlucoseNormal, Modifier.weight(1f))
+                    NutritionCard(tr(language, "Kalorije", "Calories"), ingredient.caloriesPer100g.toInt().toString(), InsulinkBlue, Modifier.weight(1f))
+                    NutritionCard(tr(language, "UH", "Carbs"), formatGrams(ingredient.carbsPer100g), GlucoseLow, Modifier.weight(1f))
+                    NutritionCard(tr(language, "Proteini", "Protein"), formatGrams(ingredient.proteinPer100g), GlucoseNormal, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Procena na osnovu fotografije - ispravi ako nije tačno.",
+                    tr(language, "Procena na osnovu fotografije - ispravi ako nije tačno.", "Estimate based on the photo - correct it if it's wrong."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Odbaci") }
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text(tr(language, "Odbaci", "Discard")) }
                     Button(
                         onClick = { onAccept(editedNames.toList()) },
                         modifier = Modifier.weight(1f),
                         enabled = editedNames.any { it.isNotBlank() }
-                    ) { Text("Dodaj") }
+                    ) { Text(tr(language, "Dodaj", "Add")) }
                 }
             }
         }

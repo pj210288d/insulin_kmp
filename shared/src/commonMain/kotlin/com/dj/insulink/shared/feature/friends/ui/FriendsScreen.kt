@@ -27,9 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.core.time.dateTimeLabel
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import com.dj.insulink.shared.feature.friends.ui.viewmodel.FriendsViewModel
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
 // Deveti deljeni Compose Multiplatform MVP ekran - vidi FriendsViewModel u istom paketu za
@@ -43,6 +46,7 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
     val showDialog by viewModel.showAddNewFriendDialog.collectAsState()
     val enteredCode by viewModel.enteredCode.collectAsState()
     val unit by viewModel.glucoseUnit.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -55,23 +59,23 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
             onClick = { viewModel.setShowAddNewFriendDialog(true) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Dodaj prijatelja")
+            Text(tr(language, "Dodaj prijatelja", "Add friend"))
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Prijatelji (${friends.size})",
+            text = "${tr(language, "Prijatelji", "Friends")} (${friends.size})",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(12.dp))
         if (friends.isEmpty()) {
             Text(
-                text = "Još nemaš prijatelja - unesi njihov kod da ih dodaš.",
+                text = tr(language, "Još nemaš prijatelja - unesi njihov kod da ih dodaš.", "You don't have any friends yet - enter their code to add them."),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             friends.forEach { friend ->
-                FriendRow(friend, unit)
+                FriendRow(friend, unit, language)
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -81,6 +85,7 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
         AddFriendDialog(
             usersFriendCode = usersFriendCode,
             enteredCode = enteredCode,
+            language = language,
             onEnteredCodeChange = viewModel::setEnteredCode,
             onDismiss = { viewModel.setShowAddNewFriendDialog(false) },
             onAdd = viewModel::addFriend
@@ -89,7 +94,7 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
 }
 
 @Composable
-private fun FriendRow(friend: Friend, unit: GlucoseUnit) {
+private fun FriendRow(friend: Friend, unit: GlucoseUnit, language: AppLanguage) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -99,8 +104,8 @@ private fun FriendRow(friend: Friend, unit: GlucoseUnit) {
             Column {
                 Text(text = friend.friendName, fontWeight = FontWeight.Bold)
                 Text(
-                    text = friend.friendsLastGlucoseReadingTime?.let { "Poslednje: ${dateTimeLabel(it)}" }
-                        ?: "Nema očitavanja",
+                    text = friend.friendsLastGlucoseReadingTime?.let { "${tr(language, "Poslednje", "Last")}: ${dateTimeLabel(it)}" }
+                        ?: tr(language, "Nema očitavanja", "No readings"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -125,22 +130,23 @@ private fun FriendRow(friend: Friend, unit: GlucoseUnit) {
 private fun AddFriendDialog(
     usersFriendCode: String,
     enteredCode: String,
+    language: AppLanguage,
     onEnteredCodeChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onAdd: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Dodaj prijatelja") },
+        title = { Text(tr(language, "Dodaj prijatelja", "Add friend")) },
         text = {
             Column {
-                Text("Tvoj kod za deljenje:")
+                Text(tr(language, "Tvoj kod za deljenje:", "Your code to share:"))
                 Text(text = usersFriendCode, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = enteredCode,
                     onValueChange = onEnteredCodeChange,
-                    label = { Text("Unesi kod prijatelja") },
+                    label = { Text(tr(language, "Unesi kod prijatelja", "Enter friend's code")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     modifier = Modifier.fillMaxWidth()
@@ -149,11 +155,11 @@ private fun AddFriendDialog(
         },
         confirmButton = {
             TextButton(onClick = onAdd, enabled = enteredCode.isNotBlank()) {
-                Text("Dodaj")
+                Text(tr(language, "Dodaj", "Add"))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Otkaži") }
+            TextButton(onClick = onDismiss) { Text(tr(language, "Otkaži", "Cancel")) }
         }
     )
 }

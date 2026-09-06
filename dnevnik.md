@@ -2055,3 +2055,44 @@ end-to-end bez ijedne ručne akcije korisnika (samo restart app-a).
 ### Šta je ostalo
 - Korisnik da ručno otvori Settings ekran i proba oba prekidača uživo (bio je već implicitno
   potvrđen kroz persistenciju od ranije, ali nije direktno testiran ovaj put).
+
+## 2026-09-07 (nastavak) - Puna lokalizacija svih deljenih ekrana (sr/en)
+
+Korisnik potvrdio da prethodni minimalni obim (samo navigacija + Settings) radi, pa zatražio da
+se lokalizacija proširi na sve deljene ekrane - "ima vremena".
+
+Urađeno: nov `tr(language, sr, en)` helper (`shared/core/localization/Translate.kt`) - čist
+top-level Kotlin fun (ne @Composable), namerno BEZ Compose Multiplatform composeResources
+sistema (runtime override jezika nije proveren u ovoj pinovanoj CMP 1.10 verziji - isti oprezan
+princip kao ostale "izbegavaj neproveren noviji API" odluke u CLAUDE.md). Svaki string na svakom
+od preostalih 12 deljenih ekrana zamenjen pozivom `tr(language, "srpski", "english")` na mestu
+upotrebe - `language` se čita JEDNOM po ekranu (`LocalizationSession.currentLanguage.
+collectAsState()`, isti `LocalizationSession` iz prethodnog unosa) i prosleđuje dalje kroz
+parametre u privatne sub-composable funkcije koje ga trebaju.
+
+Prevedeni ekrani (svi u `shared/commonMain`): GlucoseScreen (najveći - status kartica, day
+header, dijalog za dodavanje/izmenu očitavanja sa insulin/obrok dropdown-ovima), MealsScreen
+(drugi najveći - dijalog za dodavanje obroka, CreateIngredientDialog, MyIngredientsDialog,
+MealPhotoAnalysisDialog), FitnessScreen, InsulinScreen, RemindersScreen (+ typeLabel funkcija),
+LibreLinkScreen, StatisticsScreen (+ rangeLabel funkcija), ReportsScreen, FriendsScreen,
+LoginScreen, RegistrationScreen, ForgotPasswordScreen. SettingsScreen je već delimično bio
+pokriven od ranije (samo naslovi sekcija) - ostao nepromenjen.
+
+Namerno OSTAJE neprevedeno (van obima i ove proširene lokalizacije): poruke greške koje dolaze
+iz ViewModel-a/mreže (npr. `errorMessage: String?` iz `AuthViewModel`, exception `.message` u
+Reports/Meals) - te poruke se generišu duboko u data/repository sloju, ne u UI Compose kodu, i
+njihov prevod bi zahtevao menjanje logike bacanja grešaka na desetinama mesta, mnogo veći i
+rizičniji zahvat od prevoda UI literala. Ovo je namerna granica, ne previd.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - screenshot potvrđuje da je Glucose ekran (sadržaj, ne samo
+navigacija) sada na engleskom: "Latest reading", "In target", "Today", "No readings for this
+day" - potpuna promena jezika radi end-to-end na stvarnom sadržaju ekrana, ne samo na
+navigacionoj ljusci.
+
+### Šta je ostalo
+- Ručna provera preostalih ekrana (Meals dijalog, Fitness, Insulin, Reminders, LibreLink,
+  Statistics, Reports, Friends, Auth ekrani) - Glucose je jedini vizuelno potvrđen ovim
+  screenshot-om.
+- Poruke grešaka iz ViewModel/network sloja ostaju na srpskom bez obzira na jezik (namerna
+  granica, vidi gore).

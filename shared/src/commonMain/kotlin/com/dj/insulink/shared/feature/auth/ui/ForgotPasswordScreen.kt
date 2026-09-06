@@ -14,6 +14,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.auth.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -33,6 +36,7 @@ fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -41,12 +45,12 @@ fun ForgotPasswordScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
         Text(
-            text = "Reset lozinke",
+            text = tr(language, "Reset lozinke", "Reset password"),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Unesi email - poslaćemo ti link za novu lozinku",
+            text = tr(language, "Unesi email - poslaćemo ti link za novu lozinku", "Enter your email - we'll send you a link to reset your password"),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
         )
@@ -85,7 +89,7 @@ fun ForgotPasswordScreen(
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.padding(4.dp), color = Color.White)
             } else {
-                Text("Pošalji email")
+                Text(tr(language, "Pošalji email", "Send email"))
             }
         }
 
@@ -93,7 +97,7 @@ fun ForgotPasswordScreen(
             onClick = onNavigateBack,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Nazad na prijavu")
+            Text(tr(language, "Nazad na prijavu", "Back to sign in"))
         }
     }
 }

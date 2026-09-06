@@ -33,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.core.time.currentTimeMillis
 import com.dj.insulink.shared.core.time.dateOnlyLabel
 import com.dj.insulink.shared.feature.reports.ui.viewmodel.PdfGenerationState
@@ -43,14 +45,21 @@ import com.dj.insulink.shared.feature.reports.ui.viewmodel.ReportsViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(viewModel: ReportsViewModel) {
+    val language by LocalizationSession.currentLanguage.collectAsState()
+
     if (!viewModel.isSupported) {
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "PDF izveštaj je dostupan samo na iOS-u u ovoj deljenoj demo verziji - " +
-                    "Android ima svoj puni PDF izvoz u glavnom Reports ekranu.",
+                text = tr(
+                    language,
+                    "PDF izveštaj je dostupan samo na iOS-u u ovoj deljenoj demo verziji - " +
+                        "Android ima svoj puni PDF izvoz u glavnom Reports ekranu.",
+                    "The PDF report is only available on iOS in this shared demo version - " +
+                        "Android has its own full PDF export in the main Reports screen."
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -74,18 +83,22 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Izveštaj o glukozi",
+            text = tr(language, "Izveštaj o glukozi", "Glucose report"),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "Izaberi period i generiši PDF izveštaj sa statistikom i listom očitavanja.",
+            text = tr(
+                language,
+                "Izaberi period i generiši PDF izveštaj sa statistikom i listom očitavanja.",
+                "Choose a period and generate a PDF report with statistics and the list of readings."
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(24.dp))
 
-        Text("Od:")
+        Text(tr(language, "Od:", "From:"))
         OutlinedButton(
             onClick = { isSelectingStart = true; showDatePicker = true },
             modifier = Modifier.fillMaxWidth()
@@ -93,7 +106,7 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
             Text(selectedMinDate?.let { dateOnlyLabel(it) } ?: "-")
         }
         Spacer(Modifier.height(12.dp))
-        Text("Do:")
+        Text(tr(language, "Do:", "To:"))
         OutlinedButton(
             onClick = { isSelectingStart = false; showDatePicker = true },
             modifier = Modifier.fillMaxWidth()
@@ -111,7 +124,7 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
             if (isGenerating) {
                 CircularProgressIndicator(modifier = Modifier.height(20.dp), color = Color.White)
             } else {
-                Text("Generiši PDF")
+                Text(tr(language, "Generiši PDF", "Generate PDF"))
             }
         }
 
@@ -119,7 +132,7 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
             is PdfGenerationState.Success -> {
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = viewModel::shareReport, modifier = Modifier.fillMaxWidth()) {
-                    Text("Podeli PDF")
+                    Text(tr(language, "Podeli PDF", "Share PDF"))
                 }
             }
             is PdfGenerationState.Error -> {
@@ -153,7 +166,7 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Otkaži") }
+                TextButton(onClick = { showDatePicker = false }) { Text(tr(language, "Otkaži", "Cancel")) }
             }
         ) {
             DatePicker(state = datePickerState)

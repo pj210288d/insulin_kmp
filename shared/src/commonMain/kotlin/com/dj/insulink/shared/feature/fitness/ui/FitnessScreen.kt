@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
 import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 
@@ -38,6 +40,7 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
     val durationMinutes by viewModel.durationMinutes.collectAsState()
     val glucoseBefore by viewModel.glucoseBefore.collectAsState()
     val glucoseAfter by viewModel.glucoseAfter.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -48,7 +51,7 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
         OutlinedTextField(
             value = sportName,
             onValueChange = viewModel::setSportName,
-            label = { Text("Sport/aktivnost") },
+            label = { Text(tr(language, "Sport/aktivnost", "Sport/activity")) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
@@ -56,7 +59,7 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
             OutlinedTextField(
                 value = durationMinutes,
                 onValueChange = viewModel::setDurationMinutes,
-                label = { Text("Trajanje (min)") },
+                label = { Text(tr(language, "Trajanje (min)", "Duration (min)")) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f)
             )
@@ -64,7 +67,7 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
             OutlinedTextField(
                 value = glucoseBefore,
                 onValueChange = viewModel::setGlucoseBefore,
-                label = { Text("Šećer pre") },
+                label = { Text(tr(language, "Šećer pre", "Glucose before")) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f)
             )
@@ -72,7 +75,7 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
             OutlinedTextField(
                 value = glucoseAfter,
                 onValueChange = viewModel::setGlucoseAfter,
-                label = { Text("Šećer posle") },
+                label = { Text(tr(language, "Šećer posle", "Glucose after")) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f)
             )
@@ -83,13 +86,13 @@ fun FitnessScreen(viewModel: FitnessViewModel) {
             enabled = sportName.isNotBlank() && durationMinutes.isNotBlank() &&
                 glucoseBefore.isNotBlank() && glucoseAfter.isNotBlank()
         ) {
-            Text("Dodaj aktivnost")
+            Text(tr(language, "Dodaj aktivnost", "Add activity"))
         }
         Spacer(Modifier.height(8.dp))
 
         if (exercises.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(text = "Nema dodatih aktivnosti", color = MaterialTheme.colorScheme.onBackground)
+                Text(text = tr(language, "Nema dodatih aktivnosti", "No activities added"), color = MaterialTheme.colorScheme.onBackground)
             }
         } else {
             LazyColumn {

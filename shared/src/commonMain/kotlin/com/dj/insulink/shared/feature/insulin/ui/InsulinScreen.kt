@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
 import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
 
@@ -33,6 +35,7 @@ import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
 fun InsulinScreen(viewModel: InsulinViewModel) {
     val insulinTypes by viewModel.insulinTypes.collectAsState()
     val newTypeName by viewModel.newTypeName.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -47,11 +50,11 @@ fun InsulinScreen(viewModel: InsulinViewModel) {
             OutlinedTextField(
                 value = newTypeName,
                 onValueChange = viewModel::setNewTypeName,
-                label = { Text("Naziv insulina (npr. Humalog)") },
+                label = { Text(tr(language, "Naziv insulina (npr. Humalog)", "Insulin name (e.g. Humalog)")) },
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = viewModel::addInsulinType, enabled = newTypeName.isNotBlank()) {
-                Text("Dodaj")
+                Text(tr(language, "Dodaj", "Add"))
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -59,7 +62,7 @@ fun InsulinScreen(viewModel: InsulinViewModel) {
         if (insulinTypes.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Nema dodatih tipova insulina",
+                    text = tr(language, "Nema dodatih tipova insulina", "No insulin types added"),
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }

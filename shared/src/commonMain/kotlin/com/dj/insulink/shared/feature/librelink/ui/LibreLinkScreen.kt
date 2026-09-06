@@ -31,6 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.localization.tr
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkConnectState
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkViewModel
@@ -43,6 +46,7 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
     val password by viewModel.password.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val lastSyncMessage by viewModel.lastSyncMessage.collectAsState()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -57,15 +61,16 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
                     onEmailChange = viewModel::setEmail,
                     password = password,
                     onPasswordChange = viewModel::setPassword,
-                    onLogin = viewModel::login
+                    onLogin = viewModel::login,
+                    language = language
                 )
             }
             is LibreLinkConnectState.Connecting -> {
-                Text(text = "Povezivanje...", color = MaterialTheme.colorScheme.onBackground)
+                Text(text = tr(language, "Povezivanje...", "Connecting..."), color = MaterialTheme.colorScheme.onBackground)
             }
             is LibreLinkConnectState.ChoosingConnection -> {
                 Text(
-                    text = "Izaberi konekciju",
+                    text = tr(language, "Izaberi konekciju", "Choose connection"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -76,12 +81,12 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = viewModel::cancelChoosingConnection) {
-                    Text("Otkaži")
+                    Text(tr(language, "Otkaži", "Cancel"))
                 }
             }
             is LibreLinkConnectState.Connected -> {
                 Text(
-                    text = "Povezano",
+                    text = tr(language, "Povezano", "Connected"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = InsulinkGreen
@@ -91,11 +96,11 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
                 Spacer(Modifier.height(16.dp))
                 Row {
                     TextButton(onClick = viewModel::syncNow, enabled = !isSyncing) {
-                        Text(if (isSyncing) "Sinhronizacija..." else "Sinhronizuj sada")
+                        Text(if (isSyncing) tr(language, "Sinhronizacija...", "Syncing...") else tr(language, "Sinhronizuj sada", "Sync now"))
                     }
                     Spacer(Modifier.width(8.dp))
                     TextButton(onClick = viewModel::disconnect) {
-                        Text("Prekini vezu")
+                        Text(tr(language, "Prekini vezu", "Disconnect"))
                     }
                 }
                 lastSyncMessage?.let {
@@ -111,7 +116,8 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
                     onEmailChange = viewModel::setEmail,
                     password = password,
                     onPasswordChange = viewModel::setPassword,
-                    onLogin = viewModel::login
+                    onLogin = viewModel::login,
+                    language = language
                 )
             }
         }
@@ -124,10 +130,11 @@ private fun LoginForm(
     onEmailChange: (String) -> Unit,
     password: String,
     onPasswordChange: (String) -> Unit,
-    onLogin: () -> Unit
+    onLogin: () -> Unit,
+    language: AppLanguage
 ) {
     Text(
-        text = "Poveži LibreLinkUp nalog",
+        text = tr(language, "Poveži LibreLinkUp nalog", "Connect your LibreLinkUp account"),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold
     )
@@ -143,14 +150,14 @@ private fun LoginForm(
     OutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
-        label = { Text("Lozinka") },
+        label = { Text(tr(language, "Lozinka", "Password")) },
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(8.dp))
     TextButton(onClick = onLogin, enabled = email.isNotBlank() && password.isNotBlank()) {
-        Text("Poveži se")
+        Text(tr(language, "Poveži se", "Connect"))
     }
 }
 
