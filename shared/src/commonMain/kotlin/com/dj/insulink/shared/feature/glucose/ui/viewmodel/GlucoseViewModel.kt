@@ -36,6 +36,24 @@ class GlucoseViewModel(
     private val settingsPreferences: SettingsPreferences
 ) : ViewModel() {
 
+    // Android-ov ekvivalent ovo pokreće iz GlucoseWrapper.kt (LaunchedEffect(currentUser)) -
+    // ovde isti okidač živi direktno u ViewModel-u da bi radio identično na oba OS-a bez
+    // dodatnog wrapper sloja. Bez ovoga: lokalna Room baza na novom uređaju/instalaciji ostaje
+    // prazna zauvek (getAllGlucoseReadingsForUser čita SAMO lokalno), iako je nalog isti kao na
+    // uređaju gde su podaci uneti - otkriveno kad Google Sign-In na iOS-u nije pokazao ništa od
+    // podataka unetih na Android-u sa istim nalogom (2026-09-06).
+    init {
+        viewModelScope.launch {
+            UserSession.currentUserId.collect { userId ->
+                if (userId != null) {
+                    runCatching {
+                        glucoseReadingRepository.fetchAllGlucoseReadingsForUserAndUpdateDatabase(userId)
+                    }
+                }
+            }
+        }
+    }
+
     private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
     val glucoseUnit: StateFlow<GlucoseUnit> = _glucoseUnit.asStateFlow()
 

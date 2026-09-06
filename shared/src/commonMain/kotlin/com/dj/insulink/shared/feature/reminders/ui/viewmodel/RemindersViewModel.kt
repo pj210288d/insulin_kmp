@@ -27,6 +27,20 @@ class RemindersViewModel(
     private val reminderRepository: ReminderRepository
 ) : ViewModel() {
 
+    // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
+    // uređaju/instalaciji ostaje prazna, iako je nalog isti kao na uređaju gde su podaci uneti.
+    init {
+        viewModelScope.launch {
+            UserSession.currentUserId.collect { userId ->
+                if (userId != null) {
+                    runCatching {
+                        reminderRepository.fetchAllRemindersForUserAndUpdateDatabase(userId)
+                    }
+                }
+            }
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val reminders: StateFlow<List<Reminder>> = UserSession.currentUserId
         .flatMapLatest { userId ->

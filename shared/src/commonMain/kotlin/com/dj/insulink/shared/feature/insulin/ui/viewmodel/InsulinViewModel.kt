@@ -23,6 +23,20 @@ class InsulinViewModel(
     private val insulinTypeRepository: InsulinTypeRepository
 ) : ViewModel() {
 
+    // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
+    // uređaju/instalaciji ostaje prazna, iako je nalog isti kao na uređaju gde su podaci uneti.
+    init {
+        viewModelScope.launch {
+            UserSession.currentUserId.collect { userId ->
+                if (userId != null) {
+                    runCatching {
+                        insulinTypeRepository.fetchAllInsulinTypesForUserAndUpdateDatabase(userId)
+                    }
+                }
+            }
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val insulinTypes: StateFlow<List<InsulinType>> = UserSession.currentUserId
         .flatMapLatest { userId ->
