@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.domain.repository.AuthRepository
+import com.dj.insulink.shared.feature.auth.domain.repository.isGoogleSignInSupported
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ class AuthViewModel(
 ) : ViewModel() {
 
     val currentUser: StateFlow<AuthUser?> = authRepository.currentUserFlow
+    val googleSignInAvailable: Boolean = isGoogleSignInSupported
 
     private val _isRestoringSession = MutableStateFlow(true)
     val isRestoringSession: StateFlow<Boolean> = _isRestoringSession.asStateFlow()
@@ -45,6 +47,10 @@ class AuthViewModel(
         runAuthAction {
             authRepository.register(firstName.trim(), lastName.trim(), email.trim(), password)
         }
+    }
+
+    fun signInWithGoogle() {
+        runAuthAction { authRepository.signInWithGoogle() }
     }
 
     fun sendPasswordResetEmail(email: String) {

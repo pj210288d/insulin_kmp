@@ -6,8 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 // Platform-agnostičan oblik postojećeg app/auth/data/AuthRepository.kt (Android, Hilt) - vidi
 // androidMain/iosMain actual-e. Android actual wrapuje POSTOJEĆI Firebase Auth/Firestore kod
 // (GMS SDK, nepromenjen), iOS actual koristi nov Ktor REST klijent (Identity Toolkit +
-// Firestore REST API - vidi core/network i core/firestore). Google Sign-In namerno izostavljen
-// iz v1 (vidi plan, Faza 1) - samo email/password + reset lozinke + verifikacija emaila.
+// Firestore REST API - vidi core/network i core/firestore).
 interface AuthRepository {
     val currentUserFlow: StateFlow<AuthUser?>
 
@@ -24,6 +23,17 @@ interface AuthRepository {
         password: String
     ): AuthUser
 
+    // Ceo tok (prezentacija OS-specifičnog Google login UI-ja + Firebase razmena) se dešava
+    // ovde, bez parametara - pozivalac (AuthViewModel) samo čeka rezultat ili grešku. Android
+    // actual baca UnsupportedOperationException (deljeni demo ekran se u praksi nikad ne
+    // prikazuje na Android-u - do njega se stiže tek posle pravog login-a u glavnoj app, vidi
+    // FirebaseAuthRepository), iOS actual koristi ASWebAuthenticationSession + Identity
+    // Toolkit-ov accounts:signInWithIdp (vidi GoogleSignInCoordinator).
+    suspend fun signInWithGoogle(): AuthUser
+
     suspend fun sendPasswordResetEmail(email: String)
     suspend fun signOut()
 }
+
+/** true samo tamo gde signInWithGoogle() ima stvarnu implementaciju - vidi actual-e. */
+expect val isGoogleSignInSupported: Boolean

@@ -9,6 +9,10 @@ import com.dj.insulink.shared.feature.auth.data.local.AuthTokenStorage
 import com.dj.insulink.shared.feature.auth.data.local.StoredAuthSession
 import com.dj.insulink.shared.feature.auth.data.remote.FirebaseAuthRestClient
 import com.dj.insulink.shared.feature.auth.data.remote.FirebaseAuthTokens
+import com.dj.insulink.shared.feature.auth.data.remote.GOOGLE_IOS_CLIENT_ID
+import com.dj.insulink.shared.feature.auth.data.remote.GOOGLE_IOS_REVERSED_CLIENT_ID
+import com.dj.insulink.shared.feature.auth.data.remote.GoogleSignInCoordinator
+import com.dj.insulink.shared.feature.auth.data.remote.GoogleTokenExchangeClient
 import com.dj.insulink.shared.feature.auth.domain.model.AuthException
 import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.domain.repository.AuthRepository
@@ -21,14 +25,16 @@ private const val USERS_COLLECTION = "users"
 
 // Isto ponašanje kao Android-ov app/auth/data/AuthRepository.kt, ali preko Ktor REST klijenata
 // (FirebaseAuthRestClient + FirestoreRestClient) umesto pravog Firebase GMS SDK-a - arhitektonska
-// odluka iz Faze 1 plana (izbegava CocoaPods/ABI rizik). Google Sign-In namerno izostavljen.
+// odluka iz Faze 1 plana (izbegava CocoaPods/ABI rizik).
 // Token refresh logika (ensureValidTokens) živi u IosAuthTokenProvider - deljena sa Faza 2
 // FirestoreRestXRemoteDataSource actual-ima, ne duplirana ovde.
 class RestAuthRepository(
     private val authClient: FirebaseAuthRestClient,
     private val firestoreClient: FirestoreRestClient,
     private val tokenStorage: AuthTokenStorage,
-    private val tokenProvider: IosAuthTokenProvider
+    private val tokenProvider: IosAuthTokenProvider,
+    private val googleSignInCoordinator: GoogleSignInCoordinator,
+    private val googleTokenExchangeClient: GoogleTokenExchangeClient
 ) : AuthRepository {
 
     private val _currentUserFlow = MutableStateFlow<AuthUser?>(null)
@@ -110,6 +116,65 @@ class RestAuthRepository(
             isEmailVerified = false
         )
         persistSession(tokens, user)
+        publish(user)
+        return user
+    }
+
+    @OptIn(ExperimentalTime::class)
+    override suspend fun signInWithGoogle(): AuthUser {
+        val authResult = googleSignInCoordinator.signIn()
+        val googleIdToken = googleTokenExchangeClient.exchangeCodeForIdToken(
+            code = authResult.code,
+            codeVerifier = authResult.codeVerifier,
+            clientId = GOOGLE_IOS_CLIENT_ID,
+            redirectUri = "$GOOGLE_IOS_REVERSED_CLIENT_ID:/oauth2redirect"
+        )
+        val result = authClient.signInWithGoogleIdToken(googleIdToken)
+
+        val existingFields = firestoreClient.getDocumentFields(
+            USERS_COLLECTION, result.tokens.uid, result.tokens.idToken
+        )
+        val user = if (existingFields != null) {
+            // Postojeći nalog (npr. isti Google nalog kojim je korisnik već registrovan na
+            // Android-u) - samo pročitaj postojeći profil, ne diraj ga.
+            AuthUser(
+                uid = result.tokens.uid,
+                firstName = FirestoreValue.stringOrNull(existingFields, "firstName").orEmpty(),
+                lastName = FirestoreValue.stringOrNull(existingFields, "lastName").orEmpty(),
+                email = result.email,
+                friendCode = FirestoreValue.stringOrNull(existingFields, "friendCode").orEmpty(),
+                isEmailVerified = true
+            )
+        } else {
+            // Nov nalog - isti obrazac kao register(), friendCode iz email-a.
+            val friendCode = generateFriendCodeFromEmail(result.email)
+            firestoreClient.createDocument(
+                collection = USERS_COLLECTION,
+                documentId = result.tokens.uid,
+                idToken = result.tokens.idToken,
+                fields = mapOf(
+                    "firstName" to FirestoreValue.Str(result.firstName),
+                    "lastName" to FirestoreValue.Str(result.lastName),
+                    "email" to FirestoreValue.Str(result.email),
+                    "createdAt" to FirestoreValue.Timestamp(Clock.System.now().toString()),
+                    "userId" to FirestoreValue.Str(result.tokens.uid),
+                    "readings" to FirestoreValue.Arr(),
+                    "friendCode" to FirestoreValue.Str(friendCode),
+                    "friends" to FirestoreValue.Arr(),
+                    "reminders" to FirestoreValue.Arr(),
+                    "exercises" to FirestoreValue.Arr()
+                )
+            )
+            AuthUser(
+                uid = result.tokens.uid,
+                firstName = result.firstName,
+                lastName = result.lastName,
+                email = result.email,
+                friendCode = friendCode,
+                isEmailVerified = true
+            )
+        }
+        persistSession(result.tokens, user)
         publish(user)
         return user
     }

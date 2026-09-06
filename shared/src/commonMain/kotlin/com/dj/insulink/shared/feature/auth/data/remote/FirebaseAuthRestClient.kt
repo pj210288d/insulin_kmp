@@ -1,5 +1,6 @@
 package com.dj.insulink.shared.feature.auth.data.remote
 
+import com.dj.insulink.shared.core.config.FIREBASE_PROJECT_ID
 import com.dj.insulink.shared.core.config.FIREBASE_WEB_API_KEY
 import com.dj.insulink.shared.core.network.createCoreHttpClient
 import com.dj.insulink.shared.feature.auth.domain.model.AuthException
@@ -30,6 +31,15 @@ data class FirebaseAuthTokens(
     val refreshToken: String,
     val expiresInSeconds: Long,
     val uid: String
+)
+
+/** Rezultat accounts:signInWithIdp - tokeni + Google profil polja za popunjavanje AuthUser-a. */
+data class GoogleSignInResult(
+    val tokens: FirebaseAuthTokens,
+    val email: String,
+    val firstName: String,
+    val lastName: String,
+    val isNewUser: Boolean
 )
 
 // Ručno pisan Ktor klijent za Firebase Identity Toolkit REST API (login/registracija/reset
@@ -92,6 +102,40 @@ class FirebaseAuthRestClient(
             setBody(OobCodeRequest(requestType = "PASSWORD_RESET", email = email))
         }
         requireSuccess(response)
+    }
+
+    /**
+     * Razmenjuje Google OAuth id_token (dobijen preko ASWebAuthenticationSession - vidi
+     * GoogleSignInCoordinator, iOS-only) za Firebase sesiju. Isti krajnji rezultat kao
+     * Android-ov firebaseAuth.signInWithCredential(GoogleAuthProvider.getCredential(...)), samo
+     * preko REST-a: accounts:signInWithIdp prihvata bilo koji spoljni id_token i ili poveže
+     * postojeći Firebase nalog (isti email) ili napravi nov, i vraća Google profil polja
+     * (firstName/lastName/email) pored uobičajenih idToken/refreshToken/localId.
+     */
+    suspend fun signInWithGoogleIdToken(googleIdToken: String): GoogleSignInResult {
+        val response = httpClient.post("$IDENTITY_TOOLKIT_BASE/accounts:signInWithIdp") {
+            parameter("key", FIREBASE_WEB_API_KEY)
+            contentType(ContentType.Application.Json)
+            setBody(
+                SignInWithIdpRequest(
+                    postBody = "id_token=$googleIdToken&providerId=google.com",
+                    requestUri = "https://$FIREBASE_PROJECT_ID.firebaseapp.com"
+                )
+            )
+        }
+        val json = parseJsonObject(response)
+        return GoogleSignInResult(
+            tokens = FirebaseAuthTokens(
+                idToken = requireField(json, "idToken", response),
+                refreshToken = requireField(json, "refreshToken", response),
+                expiresInSeconds = json["expiresIn"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 3600L,
+                uid = requireField(json, "localId", response)
+            ),
+            email = json["email"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            firstName = json["firstName"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            lastName = json["lastName"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            isNewUser = json["isNewUser"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        )
     }
 
     suspend fun refreshToken(refreshToken: String): FirebaseAuthTokens {
@@ -165,4 +209,12 @@ private data class OobCodeRequest(
     val requestType: String,
     val idToken: String? = null,
     val email: String? = null
+)
+
+@Serializable
+private data class SignInWithIdpRequest(
+    val postBody: String,
+    val requestUri: String,
+    val returnIdpCredential: Boolean = true,
+    val returnSecureToken: Boolean = true
 )

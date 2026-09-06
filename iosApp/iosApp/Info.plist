@@ -4,5 +4,17 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Google Sign-In OAuth redirect (ASWebAuthenticationSession) - REVERSED_CLIENT_ID iz
+	     GoogleService-Info.plist, iOS OAuth klijent registrovan u istom Firebase projektu
+	     (insulink-e8caa) samo radi ovog OAuth toka, ne koristimo Firebase iOS SDK. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.846271429991-hr3eu5bnqf995kl361be02e1huhcbj3q</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

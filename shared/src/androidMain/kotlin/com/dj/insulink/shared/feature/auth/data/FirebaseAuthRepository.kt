@@ -92,6 +92,17 @@ class FirebaseAuthRepository(
         return user
     }
 
+    override suspend fun signInWithGoogle(): AuthUser {
+        // Deljeni demo ekran u praksi se ne prikazuje na Android-u (do njega se stiže tek posle
+        // pravog login-a u glavnoj app - vidi restoreSession() gore), a Android-ov PRAVI Google
+        // Sign-In ekran (app/auth/ui/LoginScreen.kt) već postoji, sa potpuno drugačijim OS
+        // mehanizmom (Activity Result Contract, ne ASWebAuthenticationSession) - namerno se ne
+        // duplira ovde. Vidi isGoogleSignInSupported.
+        throw UnsupportedOperationException(
+            "Google Sign-In u deljenom demo ekranu nije podržan na Android-u - koristi glavni Login ekran"
+        )
+    }
+
     override suspend fun sendPasswordResetEmail(email: String) {
         runCatching { firebaseAuth.sendPasswordResetEmail(email).await() }
             .getOrElse { throw AuthException(it.message ?: "Slanje emaila nije uspelo") }
