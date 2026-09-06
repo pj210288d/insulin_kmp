@@ -1643,10 +1643,58 @@ Novi `shared/commonMain/feature/auth` + `core/network` + `core/crypto` + `core/f
   type automatizaciju) - vizuelno potvrđeno samo da se ekran ispravno renderuje. Instalacija na
   fizički Android uređaj takođe nije urađena (nijedan nije povezan na ovaj Mac trenutno).
 
+### Bug uhvaćen uživo: login je pucao, registracija ne (isti dan, posle prvog testa na uređaju)
+Korisnik je ručno probao ceo tok u simulatoru - registracija je prošla, ali login sa ispravnim
+kredencijalima je pucao sa `kotlinx.serialization` greškom ("Fields [refreshToken, expiresIn]
+required..."). Root cause pronađen sistematski (curl protiv pravog Firebase backend-a, ne
+nagađanje): `createCoreHttpClient()` (core/network/HttpClientFactory.kt) nije imao
+`encodeDefaults = true`, pa je kotlinx.serialization TIHO izostavljao `returnSecureToken`
+(default vrednost `true` u `EmailPasswordRequest`) iz tela zahteva - polje nikad nije stiglo do
+Google-a. `accounts:signUp` na to nije osetljiv (nov nalog uvek dobija refresh token bez obzira
+na to polje), zato je registracija radila iz prve; `accounts:signInWithPassword` BEZ eksplicitnog
+`returnSecureToken:true` vraća 200 OK sa idToken-om, ali BEZ refreshToken/expiresIn - otud
+pucanje tačno na login. Popravljeno (`encodeDefaults = true` na Json konfiguraciji + parsiranje
+Auth odgovora prepravljeno sa strogog `@Serializable` dekodiranja na ručno JsonObject čitanje,
+da buduća slična greška ispiše TAČNO koji ključevi nedostaju umesto kriptične poruke).
+Korisnik potvrdio uživo da login sad radi. Vidi commit "Fix: login je pucao..." za pun opis.
+
+**Pouka za ubuduće**: kad se request telo oslanja na Kotlin default vrednost parametra
+(`= true`), OBAVEZNO `encodeDefaults = true` na Json-u koji Ktor koristi za taj klijent - inače
+se polje tiho ne šalje, bez ikakve greške pri kompajliranju ili slanju, samo kad server zavisi
+od te vrednosti da bi vratio pun odgovor.
+
+### Faza 2 - cloud sync za Insulin/Fitness/Glucose/Reminders/Meals (isti dan, posle login fix-a)
+Korisnik: "nastavi dalje". Zamenjeno svih pet `NotImplementedXRemoteDataSource.ios.kt` sa pravim
+`FirestoreRestXRemoteDataSource` implementacijama, redosled po planu (najprostiji payload prvi):
+Insulin → Fitness → Glucose → Reminders → Meals.
+
+- **`FirestoreRestClient`** prošireno sa generičkim `setArrayField`/`getArrayField` - PATCH sa
+  `updateMask.fieldPaths=<polje>` upisuje CEO niz nazad i (potvrđeno curl testom) radi kao
+  upsert - kreira dokument/polje ako ne postoji, bez potrebe za Android-ovim eksplicitnim
+  `snapshot.exists()` grananjem.
+- **`FirestoreValue`** prošireno sa `MapVal` (ugnježdeni objekti u nizu), `DoubleNum`, i `Null`
+  (eksplicitna null vrednost za nullable polja - `GlucoseReading.insulinTypeId/insulinUnits/
+  linkedMealId`, `Meal.calories/carbs/...` - izostavljanje bi na update-u ostavilo staru
+  vrednost iz prethodnog upisa).
+- **`IosAuthTokenProvider`** (core/auth, iOS-only) izdvojen iz `RestAuthRepository` - zajednička
+  "daj mi važeći idToken sa auto-refresh-om" logika, sad je koriste i Auth ekran i svih pet
+  novih Firestore remote data source-a.
+- Svaki feature radi neatomski get-modifikuj-upiši (isti obrazac kao Android-ove
+  update/delete metode - push tamo koristi `arrayUnion`, ovde nema REST field-transform
+  ekvivalent bez dodatnog `:commit` poziva - prihvatljivo, nema konkurentnih pisanja sa više
+  uređaja u ovoj MVP iteraciji).
+- Meals je najsloženiji (ugnježdeni `MealIngredient` → `Ingredient` mapValue), namerno BEZ
+  LogMeal foto prepoznavanja (Faza 5, van obima ovog dela). Fitness nema update/delete
+  (`ExerciseDao` ni na Android-u nema per-item delete - stvarna paritetnost, ne umanjenje).
+
+Verifikovano: pun lanac (BUILD SUCCESSFUL), end-to-end curl test PATCH upsert + append-ciklusa
+protiv pravog Firestore-a, Xcode build + simulator no-crash launch sa postojećom sesijom (Koin
+DI graf se ispravno razrešio za svih pet novih zavisnosti). NIJE urađeno: ručno kucanje/dodavanje
+stavki kroz UI za svaki od pet ekrana (samo no-crash provera + wire-format curl test).
+
 ### Šta je ostalo
-- Ručno probati Login/Registration/ForgotPassword kroz UI u simulatoru (i na Android uređaju
-  kad bude dostupan) - potvrditi da ceo tok radi iz prve ruke, ne samo preko curl-a.
-- Faza 2 (cloud sync za Glucose/Insulin/Fitness/Reminders/Meals preko `FirestoreRestClient`),
-  pa Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF) - pun plan
+- Ručno probati dodavanje/brisanje stavki kroz UI za svih 5 Faza 2 ekrana (i na Android uređaju
+  kad bude dostupan) - do sada samo curl + no-crash launch provera.
+- Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF) - pun plan
   u `.claude/plans/` ove sesije, rezime u CLAUDE.md ako se prenese.
-- Rok je ponedeljak - realno neće stati sve; Faza 1+2 su jezgro za snimak.
+- Rok je ponedeljak - realno neće stati sve; Faza 1+2 (gotove) su jezgro za snimak.
