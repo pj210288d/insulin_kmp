@@ -1551,3 +1551,102 @@ procenu rizika za svaki preostali Android feature pre nego što se krenulo u imp
   da li se ide na Firebase Auth (najveći preostali gap za "iste aplikacije") - to zahteva
   njegov Firebase nalog/GoogleService-Info.plist, ne može se pripremiti unapred.
 - Friends/Reports/prave notifikacije ostaju otvoreni ako se posle Auth-a ukaže potreba i vremena.
+
+---
+
+## 2026-09-06 — Prvi Mac dan: Xcode build radi, feature-parity plan, Faza 1 (Auth)
+
+### Kontekst
+Mac je stigao. Prva sesija na njemu - Claude Code je radio direktno na Mac-u (Bash pristup),
+ne više "na slepo" preko Windows-a. Korisnik je uživo, korak po korak, prošao kroz Xcode
+Signing & Capabilities (Team → sopstveni Apple ID, `DEVELOPMENT_TEAM = 2D4528U2NJ`) pa tražio
+prvi pravi `Cmd+R`-ekvivalent build/run na iOS 18.6 simulatoru (iPhone 16 Pro).
+
+### Prvi Xcode/simulator build - USPEO iz prve
+`xcodebuild build` za `iphonesimulator18.6` → **BUILD SUCCEEDED**, instalacija + pokretanje na
+simulatoru → proces živ, nema crash reporta, log stream čist (samo sistemski šum). Screenshot
+potvrdio: Glucose tab renderuje karticu/prazno stanje kako treba. Najveći neizvestan rizik iz
+prethodnih unosa (Room/SQLite-bundled na iOS-u, nikad ranije pokrenuto) se pokazao netačnim -
+proradio je iz prve. Jedini vizuelni bug: tab traka se preklapala sa statusbar-om (sat/baterija
+preko "Glukoza" natpisa) - App() root Column nije poštovao top safe area na iOS-u.
+
+### Okolinski gap otkriven usput: nema Android SDK-a na ovom Mac-u
+Prvi pokušaj punog verifikacionog lanca (`:shared:compileAndroidMain`, `:app:*`) je pukao -
+`adb`/`ANDROID_HOME`/`~/Library/Android/sdk` uopšte ne postoje na ovom Mac-u (ceo dosadašnji
+Android build/test/instalacija rađen je na Windows laptopu). Rešeno: `brew install --cask
+android-commandlinetools` + `sdkmanager` (platform-tools, platform 36, build-tools) +
+`local.properties` sa `sdk.dir`. Posle ovoga ceo `:app:*` lanac radi i na ovom Mac-u.
+
+Usput otkriven i drugi okolinski gap: git na ovom Mac-u nije imao podešen `user.name`/
+`user.email`, pa je prvi commit dobio pogrešnog autora (auto-detektovano iz macOS naloga -
+"Maša Memedović" umesto "Jovan"). Ispravljeno (`git config --global` + `commit --amend
+--reset-author`) pre nego što se ponovilo na više commit-ova.
+
+### Faza 0 - ispravka status bar overlap-a
+`expect/actual Modifier.sharedRootTopInset()` (isti obrazac kao `ioDispatcher`): no-op na
+Android-u (SharedGlucoseDemo ruta već dobija Scaffold-ov innerPadding iznad ovog composable-a -
+dodatni inset bi tamo duplo padovao), `statusBarsPadding()` na iOS-u. Verifikovano Xcode
+rebuild + novi screenshot - traka sad čisto ispod status bara.
+
+### Feature-parity plan (korisnikov zahtev: "sve što radi na Android-u mora da radi i na iOS-u")
+Korisnik je eksplicitno tražio da SVAKI feature (login, registracija, LibreLinkUp, sve ostalo)
+radi identično na oba OS-a, sa nultim rizikom regresije na Android-u. Napravljen detaljan plan
+(6 faza: Auth → cloud sync za 5 postojećih ekrana → Friends → Reminders-notifikacije →
+Meals-kamera → Reports-PDF), sačuvan u `.claude/plans/` ove sesije. Ključna arhitektonska
+odluka, potvrđena sa korisnikom: Firebase Auth + Firestore na iOS-u preko **ručno pisanog Ktor
+REST klijenta** (Identity Toolkit + Firestore REST API), NE preko GitLive Firebase KMP - da se
+izbegne prvi CocoaPods setup u ovom projektu + Kotlin/Native ABI rizik sa pinovanim Kotlin
+2.2.20 (isti tip problema kao gotcha #5). Otkriveno usput da Reminders-notifikacije,
+Meals-kamera i Reports-PDF NE trebaju CocoaPods uopšte - Kotlin/Native ima besplatan ugrađen
+ObjC interop ka UIKit/CoreGraphics/UserNotifications (isti mehanizam koji već besplatno
+omogućava NSUserDefaults/NSFileManager) - značajno smanjuje rizik za te tri kasnije faze.
+Wear OS eksplicitno van obima ovog plana (posebna platforma, faza 6 specifikacije).
+
+### Faza 1 - Shared Auth (login/registracija/reset lozinke), urađeno danas
+Novi `shared/commonMain/feature/auth` + `core/network` + `core/crypto` + `core/firestore` +
+`core/auth`:
+- **`FirebaseAuthRestClient`** (Ktor) - Identity Toolkit REST (signIn/signUp/updateProfile/
+  sendOobCode za reset i verifikaciju emaila/refreshToken).
+- **`FirestoreRestClient`** (Ktor) - get/createDocument za `users/{uid}`, typed-value JSON
+  (`FirestoreValue`) - osnova za Fazu 2 (cloud sync ostalih ekrana).
+- **`AuthRepository`** (commonMain interfejs) - androidMain `FirebaseAuthRepository` wrapuje
+  POSTOJEĆI Firebase GMS SDK (nova, nezavisna klasa - `app/auth/data/AuthRepository.kt`
+  netaknut, guardrail iz plana), iosMain `RestAuthRepository` koristi nove REST klijente +
+  `AuthTokenStorage` (NSUserDefaults, isti obrazac kao `SettingsPreferences.ios.kt`).
+- **`AuthSession`** (core) - gate state, sinhronizuje postojeći `UserSession` (svih 8
+  ViewModel-a i dalje čita `UserSession.currentUserId` nepromenjeno - nula regresije).
+- **`App()` root** sada gate-uje: spinner dok `restoreSession()` traje, Login/Registration/
+  ForgotPassword ekrani (novi, Compose Multiplatform-bezbedni) kad nema sesije, postojeća tab
+  traka (8 ekrana, nepromenjeni) posle uspešne prijave. Dodato "Odjava" dugme pored tab trake.
+- **`FirebaseConfig`** (project_id/Web API key) generiše se Gradle task-om
+  (`:shared:generateFirebaseConfig`) direktno iz već-gitignore-ovanog `app/google-services.json`
+  u `build/` - ključ nikad ne ulazi u git, isti princip kao postojeća gitignore odluka za taj
+  fajl. Alternativa (hardkodovan konstantan `.kt` fajl) razmotrena i odbačena iz istog razloga.
+- Friend code na iOS-u NIJE bit-identičan Android-ovom (taj koristi `java.math.BigInteger`,
+  JVM-only) - nova `generateFriendCodeFromEmail` u `core/crypto` koristi isti charset/dužinu ali
+  drugačiji (sha256-bajt-po-bajt) izvod. Nema funkcionalni uticaj - Friends pretraga (Faza 3)
+  upoređuje sačuvan string, ne re-generiše kod.
+- Google Sign-In namerno izostavljen iz v1 (zahteva `ASWebAuthenticationSession` na iOS-u).
+
+### Verifikacija
+- Pun lanac (`:shared:compileAndroidMain/compileIosMainKotlinMetadata/compileKotlinIosArm64/
+  compileKotlinIosSimulatorArm64/testAndroidHostTest`, `:app:compileDebugKotlin/
+  testDebugUnitTest/assembleDebug`) - sve BUILD SUCCESSFUL.
+- Xcode build + iOS 18.6 simulator run - Login ekran se ispravno prikazuje (nema sačuvane
+  sesije → `restoreSession()` vraća null → gate pokazuje Login, ne tab traku), nema crash-a.
+- **End-to-end verifikacija wire formata protiv PRAVOG Firebase backend-a** (curl, van Kotlin
+  koda): Identity Toolkit `signUp` (200), Firestore `createDocument` (200), `getDocument`
+  vraća upisane vrednosti tačno (firstName/friendCode), cleanup (`delete` na oba, 200/200,
+  bez ostatka u bazi) - potvrđuje da su URL-ovi/JSON oblici u `FirebaseAuthRestClient`/
+  `FirestoreRestClient` tačni pre nego što se ikad testiraju kroz stvarni Kotlin/Native kod.
+- **NIJE urađeno**: stvarno kucanje kroz Login/Registration UI u simulatoru (simctl nema tap/
+  type automatizaciju) - vizuelno potvrđeno samo da se ekran ispravno renderuje. Instalacija na
+  fizički Android uređaj takođe nije urađena (nijedan nije povezan na ovaj Mac trenutno).
+
+### Šta je ostalo
+- Ručno probati Login/Registration/ForgotPassword kroz UI u simulatoru (i na Android uređaju
+  kad bude dostupan) - potvrditi da ceo tok radi iz prve ruke, ne samo preko curl-a.
+- Faza 2 (cloud sync za Glucose/Insulin/Fitness/Reminders/Meals preko `FirestoreRestClient`),
+  pa Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF) - pun plan
+  u `.claude/plans/` ove sesije, rezime u CLAUDE.md ako se prenese.
+- Rok je ponedeljak - realno neće stati sve; Faza 1+2 su jezgro za snimak.
