@@ -1876,3 +1876,37 @@ samo skida komentare, bez ponovnog smišljanja rešenja.
 
 ### Šta je ostalo
 Korisnik da vizuelno potvrdi da je PDF sada ispravno orijentisan preko UI-ja.
+
+## 2026-09-07 (nastavak) - Korisnik potvrdio PDF fix, ažuriran CLAUDE.md
+
+Korisnik potvrdio uživo: "pdf izgleda super, sta nam je ostalo dalje". Status svih 6 planiranih
+faza (Auth+Google Sign-In, Cloud sync, Glucose dijalog parity, Friends, Reminders notifikacije,
+Reports PDF) je sada: sve završeno i uživo potvrđeno OSIM Meals kamere (Faza 5, namerno
+preskočena - simulator nema pravu kameru) i Friends dedup/removal (namerno ostavljeno
+isključeno za beta testiranje, vidi prethodni unos).
+
+Korisnik izabrao sledeći korak: ažuriranje `CLAUDE.md` dokumentacije (umesto npr. fizičkog
+device testiranja ili Meals kamere). Ažurirano:
+- "Trenutno stanje" - prepisano da odražava Mac u aktivnoj upotrebi, Android SDK instaliran
+  preko Homebrew-a, sve 3 arhitektonske odluke (REST umesto GitLive/CocoaPods za Auth+Firestore,
+  isti princip za Google Sign-In/Reminders/Reports), status po fazi sa referencama na tačne
+  fajlove, i "Otvoreno/poznato ograničeno" sekcija (nema fizičkog device testa ove sesije, stray
+  SPM referenca u pbxproj, Wear OS/web van obima).
+- "Rešeni problemi" - dodate stavke #6-10: `encodeDefaults=true` Firebase REST bug (login crash
+  root cause), obavezan `init` sync-trigger blok u svakom ViewModel-u (cross-device sync bug root
+  cause), iOS Core Graphics `NSString.drawAtPoint` cinterop neuspeh + radno rešenje, PDF
+  top-down-CTM + text-matrix flip gotcha (dva odvojena efekta), Mac/Android-SDK/git-author setup
+  napomene za "prvi put na novom Mac-u".
+- "Plan migracije" (specifikacija, poglavlje 9) - koraci 2-4 markirani ✅ (bili su "U TOKU"/prazni
+  jos od Windows perioda), korak 5 delimično sa FZ-9/10/12/14 pojedinačno markiranim.
+- "Napomene o razvojnom okruženju" - uklonjeno zastarelo "Mac stiže uskoro", zamenjeno trenutnim
+  stanjem.
+
+Nije menjan kod, samo dokumentacija - bez potrebe za verifikacionim lancem.
+
+### Šta je ostalo
+- Fizičko device testiranje (ni Android ni iOS) nije rađeno ove sesije - otvoreno pitanje za
+  korisnika pred snimak.
+- Meals kamera (Faza 5) ostaje namerno nezavršena.
+- Snimak (screen recording) za oba OS-a - glavni preostali zadatak pred rok (ponedeljak,
+  2026-09-08).
