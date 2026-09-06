@@ -37,13 +37,15 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val language by viewModel.language.collectAsState()
     val glucoseUnit by viewModel.glucoseUnit.collectAsState()
 
+    val isEnglish = language == AppLanguage.ENGLISH
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        SectionTitle("Jezik")
+        SectionTitle(if (isEnglish) "Language" else "Jezik")
         Spacer(Modifier.height(8.dp))
         AppLanguage.entries.forEach { option ->
             SelectableRow(
@@ -55,7 +57,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
         }
 
         Spacer(Modifier.height(16.dp))
-        SectionTitle("Jedinica za glukozu")
+        SectionTitle(if (isEnglish) "Glucose unit" else "Jedinica za glukozu")
         Spacer(Modifier.height(8.dp))
         GlucoseUnit.entries.forEach { option ->
             SelectableRow(

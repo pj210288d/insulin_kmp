@@ -2019,3 +2019,39 @@ tap-automatizacije za otvaranje drawer-a u simulatoru, korisnik treba ručno da 
 
 ### Šta je ostalo
 - Korisnik da ručno otvori sidebar (☰) i potvrdi ime/prezime/email na vrhu i sve stavke ispod.
+
+## 2026-09-07 (nastavak) - Jezik i jedinica za šećer u Podešavanjima
+
+Korisnik pitao šta je sa Podešavanjima - da li rade promena jezika i jedinice za merenje šećera.
+Provera koda: **jedinica za glukozu (mmol/L ↔ mg/dL) je već potpuno funkcionalna** - persistira
+se preko `SettingsPreferences` i menja formatiranje vrednosti svuda gde se šećer prikazuje
+(Glucose, Friends, ...) - ništa nije trebalo dodati. **Promena jezika** je pre ove izmene samo
+persistirala izbor (`AppLanguage`), ali UI je ostajao hardkodovan na srpskom bez obzira na izbor -
+ceo deljeni UI (Glucose, Meals, Fitness, Reminders, Friends, Reports, Settings, Insulin,
+Statistics, LibreLink, Auth ekrani) ima string literale direktno u kodu, nema Android-ov
+strings.xml/values-en sistem.
+
+Pitan korisnik koliko duboko da ide prevod s obzirom na rok (snimak sutra) - izabrao "Samo
+navigacija + Settings ekran". Urađeno:
+- Nov `LocalizationSession` (`shared/core/localization`) - globalno posmatran trenutni jezik, isti
+  obrazac kao `AuthSession`/`UserSession`. `App()` ga inicijalizuje iz `SettingsPreferences` pri
+  prvoj kompoziciji (da nav labele odmah odražavaju već perzistiran izbor i pre nego što korisnik
+  ikad otvori Settings tab), `SettingsViewModel.setLanguage()` ga ažurira uživo.
+- `App.kt`: `AppDestination.label` promenjen iz fiksnog stringa u `label(language: AppLanguage)`
+  funkciju sa sr/en parovima za svih 10 destinacija (bottom bar + sidebar), "Odjava"/"Sign out" na
+  dnu sidebar-a takođe reaguje.
+- `SettingsScreen.kt`: naslovi sekcija "Jezik"/"Language" i "Jedinica za glukozu"/"Glucose unit"
+  sada prate `viewModel.language`.
+- Namerno OSTAJE nepromenjeno (van obima po dogovoru): sav ostatak deljenog UI-ja (sadržaj
+  Glucose/Meals/Fitness/... ekrana) ostaje na srpskom bez obzira na izbor jezika - puna
+  lokalizacija svakog stringa na svakom ekranu je van obima večeras.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - **live potvrda screenshot-om**: app je učitao ranije izabran engleski
+jezik iz persistencije i prikazao "Glucose" u naslovu + "Meals/Glucose/Fitness" u bottom baru, i
+"104 mg/dL" umesto "5.8 mmol/L" (jedinica takođe persistirana iz ranije) - oba dela rade
+end-to-end bez ijedne ručne akcije korisnika (samo restart app-a).
+
+### Šta je ostalo
+- Korisnik da ručno otvori Settings ekran i proba oba prekidača uživo (bio je već implicitno
+  potvrđen kroz persistenciju od ranije, ali nije direktno testiran ovaj put).

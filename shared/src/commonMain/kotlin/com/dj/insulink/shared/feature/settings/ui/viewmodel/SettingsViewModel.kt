@@ -1,6 +1,7 @@
 package com.dj.insulink.shared.feature.settings.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.dj.insulink.shared.core.localization.LocalizationSession
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
@@ -25,6 +26,8 @@ class SettingsViewModel(
     fun setLanguage(language: AppLanguage) {
         settingsPreferences.setLanguage(language)
         _language.value = language
+        // Ažurira i nav labele u App.kt (bottom bar/sidebar) - vidi LocalizationSession za obim.
+        LocalizationSession.setCurrentLanguage(language)
     }
 
     fun setGlucoseUnit(unit: GlucoseUnit) {

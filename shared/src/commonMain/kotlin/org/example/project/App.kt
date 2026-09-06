@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dj.insulink.shared.core.localization.LocalizationSession
 import com.dj.insulink.shared.core.ui.sharedRootTopInset
 import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.ui.ForgotPasswordScreen
@@ -57,6 +58,8 @@ import com.dj.insulink.shared.feature.reminders.ui.RemindersScreen
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 import com.dj.insulink.shared.feature.reports.ui.ReportsScreen
 import com.dj.insulink.shared.feature.reports.ui.viewmodel.ReportsViewModel
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
+import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.ui.SettingsScreen
 import com.dj.insulink.shared.feature.settings.ui.viewmodel.SettingsViewModel
 import com.dj.insulink.shared.feature.statistics.ui.StatisticsScreen
@@ -94,6 +97,12 @@ fun App() {
         val currentUser by authViewModel.currentUser.collectAsState()
 
         LaunchedEffect(Unit) { authViewModel.restoreSession() }
+        // Vidi LocalizationSession - nav labele (bottom bar/sidebar) treba da odmah odražavaju
+        // već perzistiran jezik, i pre nego što korisnik ikad otvori Settings tab ove sesije.
+        LaunchedEffect(Unit) {
+            val settingsPreferences = KoinPlatform.getKoin().get<SettingsPreferences>()
+            LocalizationSession.restoreFrom(settingsPreferences)
+        }
 
         val user = currentUser
         when {
@@ -157,6 +166,7 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
     var currentDestination by remember { mutableStateOf(AppDestination.GLUCOSE) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
+    val language by LocalizationSession.currentLanguage.collectAsState()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -165,6 +175,7 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
                 SideDrawerContent(
                     currentUser = currentUser,
                     selected = currentDestination,
+                    language = language,
                     onNavigate = { destination ->
                         currentDestination = destination
                         coroutineScope.launch { drawerState.close() }
@@ -181,7 +192,7 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text(currentDestination.label) },
+                    title = { Text(currentDestination.label(language)) },
                     navigationIcon = {
                         TextButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
                             Text("☰", style = MaterialTheme.typography.titleLarge)
@@ -190,7 +201,11 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
                 )
             },
             bottomBar = {
-                BottomNavBar(current = currentDestination, onSelect = { currentDestination = it })
+                BottomNavBar(
+                    current = currentDestination,
+                    language = language,
+                    onSelect = { currentDestination = it }
+                )
             }
         ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -247,14 +262,14 @@ private fun ScreenContent(destination: AppDestination) {
 }
 
 @Composable
-private fun BottomNavBar(current: AppDestination, onSelect: (AppDestination) -> Unit) {
+private fun BottomNavBar(current: AppDestination, language: AppLanguage, onSelect: (AppDestination) -> Unit) {
     NavigationBar {
         BOTTOM_BAR_DESTINATIONS.forEach { destination ->
             NavigationBarItem(
                 selected = destination == current,
                 onClick = { onSelect(destination) },
                 icon = { Text(destination.emoji) },
-                label = { Text(destination.label) }
+                label = { Text(destination.label(language)) }
             )
         }
     }
@@ -264,9 +279,11 @@ private fun BottomNavBar(current: AppDestination, onSelect: (AppDestination) -> 
 private fun SideDrawerContent(
     currentUser: AuthUser,
     selected: AppDestination,
+    language: AppLanguage,
     onNavigate: (AppDestination) -> Unit,
     onSignOut: () -> Unit
 ) {
+    val isEnglish = language == AppLanguage.ENGLISH
     Column(modifier = Modifier.fillMaxSize().padding(vertical = 24.dp)) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
             Text(
@@ -284,7 +301,7 @@ private fun SideDrawerContent(
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
         DRAWER_DESTINATIONS.forEach { destination ->
             NavigationDrawerItem(
-                label = { Text(destination.label) },
+                label = { Text(destination.label(language)) },
                 icon = { Text(destination.emoji) },
                 selected = destination == selected,
                 onClick = { onNavigate(destination) },
@@ -297,23 +314,41 @@ private fun SideDrawerContent(
             onClick = onSignOut,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
         ) {
-            Text("Odjava", color = MaterialTheme.colorScheme.error)
+            Text(if (isEnglish) "Sign out" else "Odjava", color = MaterialTheme.colorScheme.error)
         }
     }
 }
 
 // Isti spisak i redosled kao Android-ov Screen.kt/SideDrawer.kt - vidi komentar iznad App().
-private enum class AppDestination(val label: String, val emoji: String) {
-    MEALS("Obroci", "🍽"),
-    GLUCOSE("Glukoza", "💧"),
-    FITNESS("Fitnes", "🏃"),
-    REMINDERS("Podsetnici", "⏰"),
-    FRIENDS("Prijatelji", "👥"),
-    REPORTS("Izveštaji", "📄"),
-    SETTINGS("Podešavanja", "⚙️"),
-    INSULIN_TYPES("Insulin", "💉"),
-    STATISTICS("Statistika", "📊"),
-    LIBRELINK("LibreLinkUp", "📡")
+// `label(language)` - vidi LocalizationSession za obim promene jezika (samo navigacija +
+// Settings ekran, odluka korisnika 2026-09-07).
+private enum class AppDestination(val emoji: String) {
+    MEALS("🍽"),
+    GLUCOSE("💧"),
+    FITNESS("🏃"),
+    REMINDERS("⏰"),
+    FRIENDS("👥"),
+    REPORTS("📄"),
+    SETTINGS("⚙️"),
+    INSULIN_TYPES("💉"),
+    STATISTICS("📊"),
+    LIBRELINK("📡");
+
+    fun label(language: AppLanguage): String {
+        val english = language == AppLanguage.ENGLISH
+        return when (this) {
+            MEALS -> if (english) "Meals" else "Obroci"
+            GLUCOSE -> if (english) "Glucose" else "Glukoza"
+            FITNESS -> if (english) "Fitness" else "Fitnes"
+            REMINDERS -> if (english) "Reminders" else "Podsetnici"
+            FRIENDS -> if (english) "Friends" else "Prijatelji"
+            REPORTS -> if (english) "Reports" else "Izveštaji"
+            SETTINGS -> if (english) "Settings" else "Podešavanja"
+            INSULIN_TYPES -> "Insulin"
+            STATISTICS -> if (english) "Statistics" else "Statistika"
+            LIBRELINK -> "LibreLinkUp"
+        }
+    }
 }
 
 private val BOTTOM_BAR_DESTINATIONS = listOf(
