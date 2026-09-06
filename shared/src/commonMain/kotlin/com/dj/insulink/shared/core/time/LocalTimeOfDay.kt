@@ -50,12 +50,41 @@ fun daysAgoMillis(days: Int): Long {
     return currentTimeMillis() - days * MILLIS_PER_DAY
 }
 
+// KMP-safe ekvivalenti Android-ovog core/utils/DateUtils.kt (taj koristi java.util.Calendar,
+// JVM-only) - koristi ih shared GlucoseScreen-ov datum/vreme picker (Faza "glucose do kraja").
+@OptIn(ExperimentalTime::class)
+fun combineDateAndTime(dateEpochMillis: Long, existingTimestamp: Long): Long {
+    val zone = TimeZone.currentSystemDefault()
+    val newDate = Instant.fromEpochMilliseconds(dateEpochMillis).toLocalDateTime(zone).date
+    val existingTime = localTimeOfDay(existingTimestamp)
+    return LocalDateTime(newDate, existingTime).toInstant(zone).toEpochMilliseconds()
+}
+
+@OptIn(ExperimentalTime::class)
+fun combineTimeWithDate(hour: Int, minute: Int, existingTimestamp: Long): Long {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochMilliseconds(existingTimestamp).toLocalDateTime(zone).date
+    return LocalDateTime(date, LocalTime(hour, minute)).toInstant(zone).toEpochMilliseconds()
+}
+
 // "HH:mm" - locale-independent replacement for SimpleDateFormat, which isn't available outside
 // the JVM (needed by the shared Compose Multiplatform Glucose screen, which also runs on iOS).
 @OptIn(ExperimentalTime::class)
 fun timeOfDayLabel(epochMillis: Long): String {
     val time = localTimeOfDay(epochMillis)
     return "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
+}
+
+// "dd/MM/yyyy" - bez vremena, koristi ga datum dugme u AddEditReadingDialog (glucose).
+@OptIn(ExperimentalTime::class)
+fun dateOnlyLabel(epochMillis: Long): String {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(zone).date
+    @Suppress("DEPRECATION")
+    val day = date.dayOfMonth.toString().padStart(2, '0')
+    @Suppress("DEPRECATION")
+    val month = date.monthNumber.toString().padStart(2, '0')
+    return "$day/$month/${date.year}"
 }
 
 // "dd/MM/yyyy HH:mm".

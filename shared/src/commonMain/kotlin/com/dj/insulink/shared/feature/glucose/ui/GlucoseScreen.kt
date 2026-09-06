@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,22 +18,36 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,19 +58,29 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.dj.insulink.shared.core.time.combineDateAndTime
+import com.dj.insulink.shared.core.time.combineTimeWithDate
 import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.time.dateOnlyLabel
 import com.dj.insulink.shared.core.time.dateTimeLabel
+import com.dj.insulink.shared.core.time.localTimeOfDay
 import com.dj.insulink.shared.core.time.shiftedDayStartMillis
 import com.dj.insulink.shared.core.time.shortWeekdayDateLabel
 import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.core.time.timeOfDayLabel
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.glucose.ui.viewmodel.GlucoseViewModel
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
-// MVP Glucose ekran deljen preko Compose Multiplatform-a - vidi GlucoseViewModel u istom
-// paketu za obim/odluke. Ovaj fajl namerno ne zavisi ni od čega Android-specifičnog
-// (string resursi, tema, ikonice iz extended seta) da bi bio siguran za prvi iOS build.
+// Glucose ekran deljen preko Compose Multiplatform-a - vidi GlucoseViewModel u istom paketu za
+// obim/odluke. Dijalog za dodavanje/izmenu je sada u punom paritetu sa Android-ovim
+// AddGlucoseReadingDialog.kt (datum/vreme picker, insulin tip, insulinske jedinice, povezan
+// obrok) - namerno bez ikonica (Icons.Filled.*) jer material-icons-core nije pouzdano dostupan
+// za iOS target u pinovanoj Compose Multiplatform verziji (vidi dnevnik.md, ista odluka kao
+// ostatak deljenog UI-ja) - dropdown strelice su tekstualni glifovi (▾/▴).
 @Composable
 fun GlucoseScreen(viewModel: GlucoseViewModel) {
     val readings by viewModel.glucoseReadingsForSelectedDay.collectAsState()
@@ -64,9 +89,15 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
     val canGoNext by viewModel.canGoToNextDay.collectAsState()
     val unit by viewModel.glucoseUnit.collectAsState()
     val showDialog by viewModel.showAddDialog.collectAsState()
+    val newTimestamp by viewModel.newTimestamp.collectAsState()
     val newValue by viewModel.newValue.collectAsState()
     val newComment by viewModel.newComment.collectAsState()
+    val newInsulinTypeId by viewModel.newInsulinTypeId.collectAsState()
+    val newInsulinUnits by viewModel.newInsulinUnits.collectAsState()
+    val newLinkedMealId by viewModel.newLinkedMealId.collectAsState()
     val editing by viewModel.editingReading.collectAsState()
+    val insulinTypes by viewModel.allInsulinTypesForUser.collectAsState()
+    val sameDayMeals by viewModel.sameDayMealsForNewReading.collectAsState()
 
     Box(
         modifier = Modifier
@@ -134,6 +165,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
                         ReadingRow(
                             reading = reading,
                             unit = unit,
+                            insulinTypes = insulinTypes,
                             onClick = { viewModel.startEditReading(reading) },
                             onDelete = { viewModel.deleteReading(reading) }
                         )
@@ -153,10 +185,20 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
 
     if (showDialog) {
         AddEditReadingDialog(
+            timestamp = newTimestamp,
+            onTimestampChange = viewModel::setNewTimestamp,
             value = newValue,
             onValueChange = viewModel::setNewValue,
             comment = newComment,
             onCommentChange = viewModel::setNewComment,
+            insulinTypes = insulinTypes,
+            selectedInsulinTypeId = newInsulinTypeId,
+            onInsulinTypeSelected = viewModel::setNewInsulinTypeId,
+            insulinUnits = newInsulinUnits,
+            onInsulinUnitsChange = viewModel::setNewInsulinUnits,
+            sameDayMeals = sameDayMeals,
+            selectedMealId = newLinkedMealId,
+            onMealSelected = viewModel::setNewLinkedMealId,
             unit = unit,
             isEditMode = editing != null,
             onDismiss = viewModel::dismissDialog,
@@ -270,6 +312,7 @@ private fun dayLabel(dayStartMillis: Long): String {
 private fun ReadingRow(
     reading: GlucoseReading,
     unit: GlucoseUnit,
+    insulinTypes: List<InsulinType>,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -289,6 +332,16 @@ private fun ReadingRow(
                 Text(text = timeOfDayLabel(reading.timestamp), style = MaterialTheme.typography.bodySmall)
                 if (reading.comment.isNotBlank()) {
                     Text(text = reading.comment, style = MaterialTheme.typography.bodySmall)
+                }
+                val insulinLabel = reading.insulinTypeId
+                    ?.let { id -> insulinTypes.find { it.id == id }?.name }
+                if (insulinLabel != null) {
+                    val units = reading.insulinUnits
+                    Text(
+                        text = if (units != null) "$insulinLabel · $units j." else insulinLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             IconButton(onClick = onDelete) {
@@ -333,47 +386,235 @@ private fun SimpleLineChart(readings: List<GlucoseReading>, unit: GlucoseUnit, m
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddEditReadingDialog(
+    timestamp: Long,
+    onTimestampChange: (Long) -> Unit,
     value: String,
     onValueChange: (String) -> Unit,
     comment: String,
     onCommentChange: (String) -> Unit,
+    insulinTypes: List<InsulinType>,
+    selectedInsulinTypeId: Long?,
+    onInsulinTypeSelected: (Long?) -> Unit,
+    insulinUnits: String,
+    onInsulinUnitsChange: (String) -> Unit,
+    sameDayMeals: List<Meal>,
+    selectedMealId: Long?,
+    onMealSelected: (Long?) -> Unit,
     unit: GlucoseUnit,
     isEditMode: Boolean,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = if (isEditMode) "Izmeni očitavanje" else "Novo očitavanje") },
-        text = {
-            Column {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = timestamp,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis <= currentTimeMillis()
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        onTimestampChange(combineDateAndTime(millis, timestamp))
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Otkaži") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        val time = localTimeOfDay(timestamp)
+        val timePickerState = rememberTimePickerState(
+            initialHour = time.hour,
+            initialMinute = time.minute,
+            is24Hour = true
+        )
+        Dialog(onDismissRequest = { showTimePicker = false }) {
+            Card(shape = RoundedCornerShape(12.dp)) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Izaberi vreme", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(16.dp))
+                    TimePicker(state = timePickerState)
+                    Spacer(Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showTimePicker = false }) { Text("Otkaži") }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            onTimestampChange(
+                                combineTimeWithDate(timePickerState.hour, timePickerState.minute, timestamp)
+                            )
+                            showTimePicker = false
+                        }) { Text("OK") }
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isEditMode) "Izmeni očitavanje" else "Novo očitavanje",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
+                        Text(dateOnlyLabel(timestamp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.weight(1f)) {
+                        Text(timeOfDayLabel(timestamp))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = value,
-                    onValueChange = onValueChange,
+                    onValueChange = { newValue ->
+                        onValueChange(
+                            if (unit == GlucoseUnit.MMOL_L) {
+                                newValue.filter { it.isDigit() || it == '.' }
+                            } else {
+                                newValue.filter { it.isDigit() }
+                            }
+                        )
+                    },
                     label = { Text("Vrednost (${unit.suffix})") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = comment,
                     onValueChange = onCommentChange,
                     label = { Text("Komentar") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(16.dp))
+                Text(text = "Tip insulina", modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(4.dp))
+                val noneLabel = "Bez"
+                val insulinLabels = listOf(noneLabel) + insulinTypes.map { it.name }
+                val selectedInsulinLabel = insulinTypes.find { it.id == selectedInsulinTypeId }?.name
+                    ?: noneLabel
+                SharedDropdownMenu(
+                    items = insulinLabels,
+                    selectedItem = selectedInsulinLabel,
+                    onItemSelected = { selected ->
+                        if (selected == noneLabel) {
+                            onInsulinTypeSelected(null)
+                        } else {
+                            insulinTypes.find { it.name == selected }?.let { onInsulinTypeSelected(it.id) }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = insulinUnits,
+                    onValueChange = onInsulinUnitsChange,
+                    label = { Text("Insulinske jedinice") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(text = "Povezan obrok (isti dan)", modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(4.dp))
+                val mealLabels = listOf(noneLabel) + sameDayMeals.map { it.name }
+                val selectedMealLabel = sameDayMeals.find { it.id == selectedMealId }?.name ?: noneLabel
+                SharedDropdownMenu(
+                    items = mealLabels,
+                    selectedItem = selectedMealLabel,
+                    onItemSelected = { selected ->
+                        if (selected == noneLabel) {
+                            onMealSelected(null)
+                        } else {
+                            sameDayMeals.find { it.name == selected }?.let { onMealSelected(it.id) }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Otkaži") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (value.toDoubleOrNull() != null) {
+                                onSave()
+                                onDismiss()
+                            }
+                        },
+                        enabled = value.toDoubleOrNull() != null
+                    ) {
+                        Text("Sačuvaj")
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onSave, enabled = value.toDoubleOrNull() != null) {
-                Text("Sačuvaj")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Otkaži") }
         }
-    )
+    }
+}
+
+// Bez ikonica (Icons.Filled.ArrowDropDown/Up) - vidi napomenu na vrhu fajla. Isti obrazac kao
+// Android-ov GlucoseDropdownMenu.kt, samo bez InsulinkTheme (app-module-specifično) i bez ikonica.
+@Composable
+private fun SharedDropdownMenu(
+    items: List<String>,
+    selectedItem: String,
+    onItemSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(selectedItem, modifier = Modifier.weight(1f))
+            Text(if (expanded) "▴" else "▾")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 private val InsulinkBlue = Color(0xFF4A7BF6)

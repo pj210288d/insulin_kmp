@@ -8,6 +8,10 @@ import com.dj.insulink.shared.core.time.shiftedDayStartMillis
 import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
+import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,24 +28,21 @@ import kotlinx.coroutines.launch
 
 // MVP verzija Glucose ekrana deljena preko Compose Multiplatform-a (Android + iOS) - vidi
 // GlucoseScreen.kt u istom paketu i App.kt (org.example.project) koji je koristi kao iOS root.
-// Namerno manji obim od postojećeg, potpuno funkcionalnog Android-only ekrana
-// (app/.../feature/glucose/ui/viewmodel/GlucoseViewModel.kt): bez insulin/meal povezivanja i
-// bez Wear OS push-a, i bez ručne izmene datuma/vremena očitavanja (nova očitavanja dobijaju
-// currentTimeMillis(), izmena čuva originalni timestamp) - sve da bi prvi iOS build/test
-// ciklus, rađen "na slepo" dok autor ne dobije Mac, ostao što manjeg rizika. Android i dalje
-// prevashodno koristi svoj postojeći ekran; ovaj deljeni je dodatno dostupan i na Android
-// strani (side drawer) da dokaže da isti kod stvarno radi na oba OS-a.
+// Dijalog za dodavanje/izmenu očitavanja je sada u punom paritetu sa Android-ovim ekranom
+// (app/.../feature/glucose/ui/AddGlucoseReadingDialog.kt + GlucoseViewModel.kt) - ručna izmena
+// datuma/vremena, insulin tip, insulinske jedinice, povezan obrok - obrazac i imena polja
+// namerno prate taj kod 1:1. Jedino i dalje izostaje Wear OS push (Android-only hardver, van
+// dosega ove migracije).
 class GlucoseViewModel(
     private val glucoseReadingRepository: GlucoseReadingRepository,
-    private val settingsPreferences: SettingsPreferences
+    private val settingsPreferences: SettingsPreferences,
+    private val insulinTypeRepository: InsulinTypeRepository,
+    private val mealRepository: MealRepository
 ) : ViewModel() {
 
-    // Android-ov ekvivalent ovo pokreće iz GlucoseWrapper.kt (LaunchedEffect(currentUser)) -
-    // ovde isti okidač živi direktno u ViewModel-u da bi radio identično na oba OS-a bez
-    // dodatnog wrapper sloja. Bez ovoga: lokalna Room baza na novom uređaju/instalaciji ostaje
-    // prazna zauvek (getAllGlucoseReadingsForUser čita SAMO lokalno), iako je nalog isti kao na
-    // uređaju gde su podaci uneti - otkriveno kad Google Sign-In na iOS-u nije pokazao ništa od
-    // podataka unetih na Android-u sa istim nalogom (2026-09-06).
+    // Vidi identičan komentar u drugim shared ViewModel-ima (Insulin/Fitness/Reminders/Meals) -
+    // bez ovoga lokalna baza na novom uređaju/instalaciji ostaje prazna, iako je nalog isti kao
+    // na uređaju gde su podaci uneti.
     init {
         viewModelScope.launch {
             UserSession.currentUserId.collect { userId ->
@@ -107,8 +108,24 @@ class GlucoseViewModel(
         .map { it.firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    // Svi korisnikovi insulin tipovi, za dropdown u dijalogu - vidi InsulinViewModel za isti
+    // izvor podataka (Insulin tab).
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allInsulinTypesForUser: StateFlow<List<InsulinType>> = UserSession.currentUserId
+        .flatMapLatest { userId ->
+            if (userId != null) {
+                insulinTypeRepository.getAllInsulinTypesForUser(userId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _showAddDialog = MutableStateFlow(false)
     val showAddDialog: StateFlow<Boolean> = _showAddDialog.asStateFlow()
+
+    private val _newTimestamp = MutableStateFlow(currentTimeMillis())
+    val newTimestamp: StateFlow<Long> = _newTimestamp.asStateFlow()
 
     private val _newValue = MutableStateFlow("")
     val newValue: StateFlow<String> = _newValue.asStateFlow()
@@ -116,8 +133,37 @@ class GlucoseViewModel(
     private val _newComment = MutableStateFlow("")
     val newComment: StateFlow<String> = _newComment.asStateFlow()
 
+    private val _newInsulinTypeId = MutableStateFlow<Long?>(null)
+    val newInsulinTypeId: StateFlow<Long?> = _newInsulinTypeId.asStateFlow()
+
+    private val _newInsulinUnits = MutableStateFlow("")
+    val newInsulinUnits: StateFlow<String> = _newInsulinUnits.asStateFlow()
+
+    private val _newLinkedMealId = MutableStateFlow<Long?>(null)
+    val newLinkedMealId: StateFlow<Long?> = _newLinkedMealId.asStateFlow()
+
     private val _editingReading = MutableStateFlow<GlucoseReading?>(null)
     val editingReading: StateFlow<GlucoseReading?> = _editingReading.asStateFlow()
+
+    // Obroci ISTOG dana kao trenutno uneti datum/vreme u dijalogu (ne izabranog dana na glavnom
+    // ekranu) - isti obrazac kao Android-ov sameDayMealsForNewReading. Mora biti posle
+    // _newTimestamp deklaracije (Kotlin inicijalizuje property-je odozgo na dole).
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val sameDayMealsForNewReading: StateFlow<List<Meal>> = combine(
+        UserSession.currentUserId, _newTimestamp
+    ) { userId, timestamp -> userId to timestamp }
+        .flatMapLatest { (userId, timestamp) ->
+            if (userId != null) {
+                mealRepository.getMealsByDateForUser(userId, timestamp)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setNewTimestamp(timestamp: Long) {
+        _newTimestamp.value = timestamp
+    }
 
     fun setNewValue(value: String) {
         _newValue.value = value
@@ -129,17 +175,37 @@ class GlucoseViewModel(
         }
     }
 
+    fun setNewInsulinTypeId(insulinTypeId: Long?) {
+        _newInsulinTypeId.value = insulinTypeId
+    }
+
+    fun setNewInsulinUnits(units: String) {
+        _newInsulinUnits.value = units.filter { it.isDigit() || it == '.' }
+    }
+
+    fun setNewLinkedMealId(mealId: Long?) {
+        _newLinkedMealId.value = mealId
+    }
+
     fun startAddReading() {
         _editingReading.value = null
+        _newTimestamp.value = currentTimeMillis()
         _newValue.value = ""
         _newComment.value = ""
+        _newInsulinTypeId.value = null
+        _newInsulinUnits.value = ""
+        _newLinkedMealId.value = null
         _showAddDialog.value = true
     }
 
     fun startEditReading(reading: GlucoseReading) {
         _editingReading.value = reading
+        _newTimestamp.value = reading.timestamp
         _newValue.value = _glucoseUnit.value.formatValue(reading.value)
         _newComment.value = reading.comment
+        _newInsulinTypeId.value = reading.insulinTypeId
+        _newInsulinUnits.value = reading.insulinUnits?.toString() ?: ""
+        _newLinkedMealId.value = reading.linkedMealId
         _showAddDialog.value = true
     }
 
@@ -159,12 +225,12 @@ class GlucoseViewModel(
         val reading = GlucoseReading(
             id = editing?.id ?: 0,
             userId = userId,
-            timestamp = editing?.timestamp ?: currentTimeMillis(),
+            timestamp = _newTimestamp.value,
             value = storedValue,
             comment = _newComment.value,
-            insulinTypeId = editing?.insulinTypeId,
-            insulinUnits = editing?.insulinUnits,
-            linkedMealId = editing?.linkedMealId
+            insulinTypeId = _newInsulinTypeId.value,
+            insulinUnits = _newInsulinUnits.value.toDoubleOrNull(),
+            linkedMealId = _newLinkedMealId.value
         )
         viewModelScope.launch {
             if (editing == null) {
