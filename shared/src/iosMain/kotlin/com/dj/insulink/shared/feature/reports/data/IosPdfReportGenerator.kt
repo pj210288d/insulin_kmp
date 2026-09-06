@@ -5,9 +5,11 @@ import com.dj.insulink.shared.core.time.dateTimeLabel
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import kotlinx.cinterop.ExperimentalForeignApi
+import platform.CoreGraphics.CGAffineTransformMakeScale
 import platform.CoreGraphics.CGContextSelectFont
 import platform.CoreGraphics.CGContextSetRGBFillColor
 import platform.CoreGraphics.CGContextSetTextDrawingMode
+import platform.CoreGraphics.CGContextSetTextMatrix
 import platform.CoreGraphics.CGContextShowTextAtPoint
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGTextDrawingMode
@@ -55,6 +57,12 @@ class IosPdfReportGenerator : PdfReportGenerator {
 
             fun newPage() {
                 pdfContext.beginPage()
+                // UIGraphicsPDFRenderer-ov CGContext ima top-left/Y-dole CTM (UIKit konvencija),
+                // ali CGContextShowTextAtPoint (stariji Quartz API) crta glifove u sopstvenoj,
+                // FIKSNOJ tekst-matrici koja pretpostavlja Y-gore orijentaciju bez obzira na CTM -
+                // otud tekst izlazio naopako/flipovano (potvrđeno na fizičkom testu 2026-09-07).
+                // Standardan fix: eksplicitno postaviti tekst-matricu da poništi tu razliku.
+                CGContextSetTextMatrix(cgContext, CGAffineTransformMakeScale(1.0, -1.0))
                 pageOpen = true
                 y = MARGIN
             }
@@ -70,7 +78,10 @@ class IosPdfReportGenerator : PdfReportGenerator {
                 CGContextSetTextDrawingMode(cgContext, CGTextDrawingMode.kCGTextFill)
                 CGContextSetRGBFillColor(cgContext, 0.0, 0.0, 0.0, 1.0)
                 val ascii = transliterate(text)
-                CGContextShowTextAtPoint(cgContext, MARGIN, PAGE_HEIGHT - y - size, ascii, ascii.length.toULong())
+                // NE "PAGE_HEIGHT - y" - UIGraphicsPDFRenderer-ov kontekst je već top-down
+                // (UIKit konvencija), taj dodatni flip je pozicionirao redove u obrnutom
+                // redosledu (potvrđeno na fizičkom testu 2026-09-07 - naslov se pojavio na dnu).
+                CGContextShowTextAtPoint(cgContext, MARGIN, y + size, ascii, ascii.length.toULong())
                 y += size + LINE_SPACING
             }
 
