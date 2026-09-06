@@ -15,7 +15,19 @@ expect fun createCoreHttpClientEngine(): HttpClientEngine
 fun createCoreHttpClient(engine: HttpClientEngine = createCoreHttpClientEngine()): HttpClient {
     return HttpClient(engine) {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            // encodeDefaults = true je BITNO ovde: request telima (npr. EmailPasswordRequest u
+            // FirebaseAuthRestClient) je "returnSecureToken: Boolean = true" default vrednost -
+            // bez ovoga kotlinx.serialization to polje TIHO IZOSTAVLJA sa žice (ne šalje ga
+            // uopšte), a Firebase Identity Toolkit's signInWithPassword bez eksplicitnog
+            // returnSecureToken:true vraća odgovor BEZ refreshToken/expiresIn (200 OK, ali
+            // "krnji" - potvrđeno curl testom 2026-09-06, pravi uzrok "Fields [refreshToken,
+            // expiresIn] required" pucanja na loginu). signUp se slučajno nije lomio jer novi
+            // nalog uvek dobija refresh token bez obzira na to polje - zato se bug primetio tek
+            // na login, ne na registraciju.
+            json(Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            })
         }
     }
 }

@@ -4,18 +4,22 @@ import com.dj.insulink.shared.core.config.FIREBASE_WEB_API_KEY
 import com.dj.insulink.shared.core.network.createCoreHttpClient
 import com.dj.insulink.shared.feature.auth.domain.model.AuthException
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 private const val IDENTITY_TOOLKIT_BASE = "https://identitytoolkit.googleapis.com/v1"
 private const val SECURE_TOKEN_BASE = "https://securetoken.googleapis.com/v1"
@@ -33,6 +37,15 @@ data class FirebaseAuthTokens(
 // arhitektonska odluka: REST umesto GitLive Firebase KMP, da se izbegne CocoaPods i Kotlin/
 // Native ABI rizik - vidi CLAUDE.md gotcha #5). Android i dalje ide preko pravog Firebase GMS
 // SDK-a, nepromenjeno.
+//
+// Odgovori se parsiraju RUČNO (JsonObject + traženo polje po polje), NE preko strogog
+// @Serializable data class-a - otkriveno na fizičkom testu (2026-09-06) da signInWithPassword
+// odgovor na iOS simulatoru ume da stigne bez refreshToken/expiresIn polja iako je HTTP status
+// 200 i iako identičan curl poziv (signUp→update→sendOobCode→signIn sekvenca) protiv istog
+// Identity Toolkit endpoint-a UVEK vraća sva polja - uzrok nije do kraja utvrđen (moguć Ktor
+// Darwin-engine edge slučaj sa čitanjem tela odgovora), ali strogo dekodiranje je tu bacalo
+// kriptičnu kotlinx.serialization grešku umesto da otkaže glatko. Ako se ponovi, poruka će
+// navesti TAČNO koji ključevi jesu prisutni (bez vrednosti - ništa osetljivo se ne loguje).
 class FirebaseAuthRestClient(
     private val httpClient: HttpClient = createCoreHttpClient()
 ) {
@@ -91,35 +104,45 @@ class FirebaseAuthRestClient(
         ) {
             parameter("key", FIREBASE_WEB_API_KEY)
         }
-        requireSuccess(response)
-        val body: RefreshTokenResponse = response.body()
+        val json = parseJsonObject(response)
         return FirebaseAuthTokens(
-            idToken = body.idToken,
-            refreshToken = body.refreshToken,
-            expiresInSeconds = body.expiresIn.toLongOrNull() ?: 3600L,
-            uid = body.userId
+            idToken = requireField(json, "id_token", response),
+            refreshToken = requireField(json, "refresh_token", response),
+            expiresInSeconds = json["expires_in"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 3600L,
+            uid = requireField(json, "user_id", response)
         )
     }
 
     private suspend fun parseAuthResponse(response: HttpResponse): FirebaseAuthTokens {
-        requireSuccess(response)
-        val body: IdentityToolkitAuthResponse = response.body()
+        val json = parseJsonObject(response)
         return FirebaseAuthTokens(
-            idToken = body.idToken,
-            refreshToken = body.refreshToken,
-            expiresInSeconds = body.expiresIn.toLongOrNull() ?: 3600L,
-            uid = body.localId
+            idToken = requireField(json, "idToken", response),
+            refreshToken = requireField(json, "refreshToken", response),
+            expiresInSeconds = json["expiresIn"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 3600L,
+            uid = requireField(json, "localId", response)
         )
     }
 
+    /** Parsira telo odgovora kao JsonObject; ako status nije uspešan, baca AuthException sa Google-ovom porukom. */
+    private suspend fun parseJsonObject(response: HttpResponse): JsonObject {
+        val rawBody = response.bodyAsText()
+        val json = runCatching { Json.parseToJsonElement(rawBody).jsonObject }.getOrNull()
+        if (!response.status.isSuccess()) {
+            val message = json?.get("error")?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
+            throw AuthException(message ?: "Firebase Auth zahtev nije uspeo (${response.status})", code = message)
+        }
+        return json ?: throw AuthException("Firebase Auth odgovor nije validan JSON (status ${response.status})")
+    }
+
+    private fun requireField(json: JsonObject, key: String, response: HttpResponse): String =
+        json[key]?.jsonPrimitive?.contentOrNull ?: throw AuthException(
+            "Firebase Auth odgovor nema očekivano polje '$key' (status ${response.status}, " +
+                "prisutni ključevi: ${json.keys.sorted()})"
+        )
+
     private suspend fun requireSuccess(response: HttpResponse) {
         if (response.status.isSuccess()) return
-        val errorBody = runCatching { response.body<IdentityToolkitErrorResponse>() }.getOrNull()
-        val code = errorBody?.error?.message
-        throw AuthException(
-            message = code ?: "Firebase Auth zahtev nije uspeo (${response.status})",
-            code = code
-        )
+        parseJsonObject(response) // baca AuthException sa porukom iz tela odgovora
     }
 }
 
@@ -143,25 +166,3 @@ private data class OobCodeRequest(
     val idToken: String? = null,
     val email: String? = null
 )
-
-@Serializable
-private data class IdentityToolkitAuthResponse(
-    val idToken: String,
-    val refreshToken: String,
-    val expiresIn: String,
-    val localId: String
-)
-
-@Serializable
-private data class RefreshTokenResponse(
-    @SerialName("id_token") val idToken: String,
-    @SerialName("refresh_token") val refreshToken: String,
-    @SerialName("expires_in") val expiresIn: String,
-    @SerialName("user_id") val userId: String
-)
-
-@Serializable
-private data class IdentityToolkitErrorResponse(val error: IdentityToolkitErrorBody)
-
-@Serializable
-private data class IdentityToolkitErrorBody(val code: Int, val message: String)
