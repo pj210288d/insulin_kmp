@@ -46,6 +46,8 @@ import com.dj.insulink.shared.feature.meals.ui.MealsScreen
 import com.dj.insulink.shared.feature.meals.ui.viewmodel.MealsViewModel
 import com.dj.insulink.shared.feature.reminders.ui.RemindersScreen
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
+import com.dj.insulink.shared.feature.reports.ui.ReportsScreen
+import com.dj.insulink.shared.feature.reports.ui.viewmodel.ReportsViewModel
 import com.dj.insulink.shared.feature.settings.ui.SettingsScreen
 import com.dj.insulink.shared.feature.settings.ui.viewmodel.SettingsViewModel
 import com.dj.insulink.shared.feature.statistics.ui.StatisticsScreen
@@ -187,6 +189,10 @@ private fun MainTabs(authViewModel: AuthViewModel) {
                     val viewModel = remember { KoinPlatform.getKoin().get<FriendsViewModel>() }
                     FriendsScreen(viewModel = viewModel)
                 }
+                SharedTab.REPORTS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<ReportsViewModel>() }
+                    ReportsScreen(viewModel = viewModel)
+                }
             }
         }
     }
@@ -201,7 +207,8 @@ private enum class SharedTab(val label: String) {
     FITNESS("Fitnes"),
     LIBRELINK("LibreLinkUp"),
     MEALS("Obroci"),
-    FRIENDS("Prijatelji")
+    FRIENDS("Prijatelji"),
+    REPORTS("Izveštaji")
 }
 
 @Composable

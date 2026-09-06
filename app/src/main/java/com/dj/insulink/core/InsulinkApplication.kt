@@ -11,6 +11,7 @@ import com.dj.insulink.shared.feature.insulin.di.insulinModule
 import com.dj.insulink.shared.feature.librelink.di.librelinkModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
+import com.dj.insulink.shared.feature.reports.di.reportsModule
 import com.dj.insulink.shared.feature.settings.di.settingsModule
 import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import dagger.hilt.android.HiltAndroidApp
@@ -38,7 +39,8 @@ class InsulinkApplication : Application() {
                 settingsModule,
                 librelinkModule,
                 insulinModule,
-                statisticsModule
+                statisticsModule,
+                reportsModule
             )
         }
     }

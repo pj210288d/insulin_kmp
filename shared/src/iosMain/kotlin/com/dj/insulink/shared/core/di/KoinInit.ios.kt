@@ -7,6 +7,7 @@ import com.dj.insulink.shared.feature.insulin.di.insulinModule
 import com.dj.insulink.shared.feature.librelink.di.librelinkModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
+import com.dj.insulink.shared.feature.reports.di.reportsModule
 import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import org.koin.core.context.startKoin
 
@@ -35,6 +36,7 @@ fun initKoinIOS() {
             fitnessModule,
             librelinkModule,
             friendsModule,
+            reportsModule,
             // LogMeal/USDA/Spoonacular ključevi nisu potrebni - deljeni Meals MVP ekran (vidi
             // MealsViewModel) je namerno samo ručni unos, ne poziva analyzeFoodImage ni
             // searchIngredients.
