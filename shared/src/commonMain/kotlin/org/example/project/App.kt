@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.session.SettingsSession
 import com.dj.insulink.shared.core.ui.sharedRootTopInset
 import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.ui.ForgotPasswordScreen
@@ -97,11 +98,13 @@ fun App() {
         val currentUser by authViewModel.currentUser.collectAsState()
 
         LaunchedEffect(Unit) { authViewModel.restoreSession() }
-        // Vidi LocalizationSession - nav labele (bottom bar/sidebar) treba da odmah odražavaju
-        // već perzistiran jezik, i pre nego što korisnik ikad otvori Settings tab ove sesije.
+        // Vidi LocalizationSession/SettingsSession - nav labele (bottom bar/sidebar) i jedinica
+        // za glukozu treba odmah da odražavaju već perzistiran izbor, i pre nego što korisnik
+        // ikad otvori Settings tab ove sesije.
         LaunchedEffect(Unit) {
             val settingsPreferences = KoinPlatform.getKoin().get<SettingsPreferences>()
             LocalizationSession.restoreFrom(settingsPreferences)
+            SettingsSession.restoreFrom(settingsPreferences)
         }
 
         val user = currentUser

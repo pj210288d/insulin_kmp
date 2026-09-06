@@ -2,6 +2,7 @@ package com.dj.insulink.shared.feature.statistics.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dj.insulink.shared.core.session.SettingsSession
 import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.core.time.currentTimeMillis
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
@@ -32,12 +33,9 @@ class StatisticsViewModel(
     private val settingsPreferences: SettingsPreferences
 ) : ViewModel() {
 
-    private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
-    val glucoseUnit: StateFlow<GlucoseUnit> = _glucoseUnit.asStateFlow()
-
-    fun refreshGlucoseUnit() {
-        _glucoseUnit.value = settingsPreferences.getGlucoseUnit()
-    }
+    // Direktno izloženo iz SettingsSession - vidi SettingsSession za kontekst (bug: promena
+    // jedinice se ranije primenjivala tek posle restarta aplikacije).
+    val glucoseUnit: StateFlow<GlucoseUnit> = SettingsSession.currentGlucoseUnit
 
     private val _selectedRange = MutableStateFlow(StatisticsRange.LAST_7_DAYS)
     val selectedRange: StateFlow<StatisticsRange> = _selectedRange.asStateFlow()

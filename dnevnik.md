@@ -2096,3 +2096,39 @@ navigacionoj ljusci.
   screenshot-om.
 - Poruke grešaka iz ViewModel/network sloja ostaju na srpskom bez obzira na jezik (namerna
   granica, vidi gore).
+
+## 2026-09-07 (nastavak) - Bug fix: promena jedinice za glukozu nije radila uživo
+
+Korisnik prijavio: promena jedinice za glukozu (mmol/L ↔ mg/dL) u Podešavanjima se primenjivala
+tek posle gašenja i ponovnog pokretanja aplikacije, ne odmah na ostalim ekranima.
+
+Uzrok (pronađen u kodu): `GlucoseViewModel`, `StatisticsViewModel` i `FriendsViewModel` su svaki
+imali SOPSTVENI `MutableStateFlow(settingsPreferences.getGlucoseUnit())` inicijalizovan JEDNOM pri
+Koin kreiranju (`single`, živi ceo život aplikacije - App()-ov `when`-blok navigacioni obrazac
+nema lifecycle re-entry event koji bi to osvežio, za razliku od pravih Android ekrana). Svaki je
+imao i MRTVU `refreshGlucoseUnit()` funkciju - postojala je, ali je niko nigde nije pozivao
+(potvrđeno grep-om). `SettingsViewModel.setGlucoseUnit()` je ažurirao SAMO svoju sopstvenu kopiju
+i `SettingsPreferences` (perzistenciju) - nikad tuđe kopije u druga tri ViewModel-a.
+
+Fix: isti obrazac kao `LocalizationSession` (iz ranijeg unosa - taj je već ispravno rađen kao
+globalni observable state). Nov `SettingsSession` (`core/session/SettingsSession.kt`) -
+`currentGlucoseUnit: StateFlow<GlucoseUnit>`. `SettingsViewModel.setGlucoseUnit()` sada ažurira
+`SettingsSession` (ne sopstvenu kopiju). `GlucoseViewModel`/`StatisticsViewModel`/
+`FriendsViewModel` sada DIREKTNO izlažu `SettingsSession.currentGlucoseUnit` (uklonjene sopstvene
+`_glucoseUnit` kopije i mrtve `refreshGlucoseUnit()` funkcije). `App()` inicijalizuje
+`SettingsSession` iz `SettingsPreferences` pri prvoj kompoziciji (isti `LaunchedEffect` koji već
+inicijalizuje `LocalizationSession`). `ReportsViewModel` nije diran - već je čitao
+`settingsPreferences.getGlucoseUnit()` fresh pri svakom generisanju izveštaja (suspend funkcija,
+ne cache-ovana vrednost), taj deo nikad nije imao bug.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - bez crash-a. Nije ručno-interaktivno potvrđeno da promena jedinice
+sada stvarno odmah ažurira sve ekrane (nema tap-automatizacije da otvorim Podešavanja i
+promenim izbor) - arhitektonski identičan, već dokazan obrazac kao LocalizationSession (koji JESTE
+potvrđen uživo screenshot-om u ranijem unosu), pa je rizik nizak, ali korisnik treba ručno da
+proba.
+
+### Šta je ostalo
+- Korisnik da ručno potvrdi: promeni jedinicu u Podešavanjima, pa odmah pogleda Glucose/
+  Statistika/Prijatelji ekrane bez restarta aplikacije - vrednosti bi trebalo odmah da se
+  promene.

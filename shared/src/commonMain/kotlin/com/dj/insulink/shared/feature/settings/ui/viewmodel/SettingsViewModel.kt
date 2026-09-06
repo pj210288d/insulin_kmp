@@ -2,6 +2,7 @@ package com.dj.insulink.shared.feature.settings.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.dj.insulink.shared.core.localization.LocalizationSession
+import com.dj.insulink.shared.core.session.SettingsSession
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
@@ -20,8 +21,9 @@ class SettingsViewModel(
     private val _language = MutableStateFlow(settingsPreferences.getLanguage())
     val language: StateFlow<AppLanguage> = _language.asStateFlow()
 
-    private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
-    val glucoseUnit: StateFlow<GlucoseUnit> = _glucoseUnit.asStateFlow()
+    // Direktno izloženo iz SettingsSession (ne sopstvena kopija) - vidi SettingsSession za bitan
+    // kontekst zašto (bug: promena jedinice se ranije primenjivala tek posle restarta aplikacije).
+    val glucoseUnit: StateFlow<GlucoseUnit> = SettingsSession.currentGlucoseUnit
 
     fun setLanguage(language: AppLanguage) {
         settingsPreferences.setLanguage(language)
@@ -32,6 +34,6 @@ class SettingsViewModel(
 
     fun setGlucoseUnit(unit: GlucoseUnit) {
         settingsPreferences.setGlucoseUnit(unit)
-        _glucoseUnit.value = unit
+        SettingsSession.setCurrentGlucoseUnit(unit)
     }
 }

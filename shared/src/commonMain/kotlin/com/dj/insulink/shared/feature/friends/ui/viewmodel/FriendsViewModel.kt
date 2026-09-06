@@ -3,6 +3,7 @@ package com.dj.insulink.shared.feature.friends.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.shared.core.auth.AuthSession
+import com.dj.insulink.shared.core.session.SettingsSession
 import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
@@ -39,12 +40,9 @@ class FriendsViewModel(
         }
     }
 
-    private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
-    val glucoseUnit: StateFlow<GlucoseUnit> = _glucoseUnit.asStateFlow()
-
-    fun refreshGlucoseUnit() {
-        _glucoseUnit.value = settingsPreferences.getGlucoseUnit()
-    }
+    // Direktno izloženo iz SettingsSession - vidi SettingsSession za kontekst (bug: promena
+    // jedinice se ranije primenjivala tek posle restarta aplikacije).
+    val glucoseUnit: StateFlow<GlucoseUnit> = SettingsSession.currentGlucoseUnit
 
     // Sopstveni friend code korisnika - iz AuthUser profila (vidi core/auth/AuthSession), ne iz
     // lokalne baze - isti podatak koji Android čita sa currentUser.friendCode.

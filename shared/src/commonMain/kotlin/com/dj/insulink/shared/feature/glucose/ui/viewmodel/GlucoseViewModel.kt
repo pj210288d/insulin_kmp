@@ -2,6 +2,7 @@ package com.dj.insulink.shared.feature.glucose.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dj.insulink.shared.core.session.SettingsSession
 import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.core.time.currentTimeMillis
 import com.dj.insulink.shared.core.time.shiftedDayStartMillis
@@ -55,12 +56,10 @@ class GlucoseViewModel(
         }
     }
 
-    private val _glucoseUnit = MutableStateFlow(settingsPreferences.getGlucoseUnit())
-    val glucoseUnit: StateFlow<GlucoseUnit> = _glucoseUnit.asStateFlow()
-
-    fun refreshGlucoseUnit() {
-        _glucoseUnit.value = settingsPreferences.getGlucoseUnit()
-    }
+    // Direktno izloženo iz SettingsSession (ne sopstvena kopija čitana samo jednom pri Koin
+    // kreiranju) - vidi SettingsSession za bitan kontekst (bug: promena jedinice se ranije
+    // primenjivala tek posle restarta aplikacije).
+    val glucoseUnit: StateFlow<GlucoseUnit> = SettingsSession.currentGlucoseUnit
 
     private val _selectedDayStartMillis = MutableStateFlow(startOfDayMillis(currentTimeMillis()))
     val selectedDayStartMillis: StateFlow<Long> = _selectedDayStartMillis.asStateFlow()
@@ -201,7 +200,7 @@ class GlucoseViewModel(
     fun startEditReading(reading: GlucoseReading) {
         _editingReading.value = reading
         _newTimestamp.value = reading.timestamp
-        _newValue.value = _glucoseUnit.value.formatValue(reading.value)
+        _newValue.value = SettingsSession.currentGlucoseUnit.value.formatValue(reading.value)
         _newComment.value = reading.comment
         _newInsulinTypeId.value = reading.insulinTypeId
         _newInsulinUnits.value = reading.insulinUnits?.toString() ?: ""
@@ -216,7 +215,7 @@ class GlucoseViewModel(
     fun submitReading() {
         val userId = UserSession.currentUserId.value ?: return
         val enteredValue = _newValue.value.toDoubleOrNull() ?: return
-        val storedValue = if (_glucoseUnit.value == GlucoseUnit.MMOL_L) {
+        val storedValue = if (SettingsSession.currentGlucoseUnit.value == GlucoseUnit.MMOL_L) {
             GlucoseUnit.convertMmolLToMgDl(enteredValue).toInt()
         } else {
             enteredValue.toInt()
