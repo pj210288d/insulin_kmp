@@ -15,10 +15,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 private const val FIRESTORE_BASE_URL = "https://firestore.googleapis.com/v1"
@@ -96,6 +100,50 @@ class FirestoreRestClient(
     ): List<JsonElement> {
         val fields = getDocumentFields(collection, documentId, idToken)
         return FirestoreValue.arrayElements(fields, fieldName)
+    }
+
+    /**
+     * Firestore `:runQuery` - jednostavan `fieldFilter EQUAL` upit (Faza 3, Friends - pretraga
+     * po friendCode preko cele "users" kolekcije, Android ekvivalent je
+     * `whereEqualTo(...)`). Vraća (documentId, fields) parove - documentId se izvlači iz
+     * dokumentovog punog resursnog imena ("projects/.../documents/users/UID" -> "UID"), pošto
+     * runQuery odgovor ne vraća goli id odvojeno. Potvrđeno curl testom protiv pravog
+     * Firestore-a (2026-09-06) da odgovor ima oblik [{"document": {"name":..., "fields":...},
+     * "readTime":...}, ...] - prazan niz ako nema poklapanja.
+     */
+    suspend fun queryEqual(
+        collection: String,
+        field: String,
+        value: String,
+        idToken: String,
+        limit: Int = 10
+    ): List<Pair<String, JsonObject>> {
+        val response = httpClient.post("$FIRESTORE_BASE_URL/projects/$FIREBASE_PROJECT_ID/databases/(default)/documents:runQuery") {
+            header("Authorization", "Bearer $idToken")
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject {
+                put("structuredQuery", buildJsonObject {
+                    put("from", buildJsonArray { add(buildJsonObject { put("collectionId", collection) }) })
+                    put("where", buildJsonObject {
+                        put("fieldFilter", buildJsonObject {
+                            put("field", buildJsonObject { put("fieldPath", field) })
+                            put("op", "EQUAL")
+                            put("value", buildJsonObject { put("stringValue", value) })
+                        })
+                    })
+                    put("limit", limit)
+                })
+            })
+        }
+        requireSuccess(response) { "Firestore query failed: ${response.status}" }
+        val results = response.body<JsonArray>()
+        return results.mapNotNull { entry ->
+            val doc = entry.jsonObject["document"]?.jsonObject ?: return@mapNotNull null
+            val name = doc["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val docId = name.substringAfterLast('/')
+            val fields = doc["fields"]?.jsonObject ?: JsonObject(emptyMap())
+            docId to fields
+        }
     }
 
     private fun requireSuccess(response: HttpResponse, message: () -> String) {

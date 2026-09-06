@@ -71,6 +71,10 @@ sealed class FirestoreValue {
         fun stringOf(element: JsonElement, key: String): String? = stringOrNull(mapFieldsOf(element), key)
         fun longOf(element: JsonElement, key: String): Long? = longOrNull(mapFieldsOf(element), key)
         fun doubleOf(element: JsonElement, key: String): Double? = doubleOrNull(mapFieldsOf(element), key)
+
+        /** Za nizove golih stringova (npr. "friends" polje - lista uid-ova, ne mapValue objekata). */
+        fun plainStringOf(element: JsonElement): String? =
+            element.jsonObject["stringValue"]?.jsonPrimitive?.contentOrNull
     }
 }
 
