@@ -45,7 +45,6 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
-    val lastSyncMessage by viewModel.lastSyncMessage.collectAsState()
     val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
@@ -102,10 +101,6 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
                     TextButton(onClick = viewModel::disconnect) {
                         Text(tr(language, "Prekini vezu", "Disconnect"))
                     }
-                }
-                lastSyncMessage?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(text = it, style = MaterialTheme.typography.bodySmall)
                 }
             }
             is LibreLinkConnectState.Error -> {
