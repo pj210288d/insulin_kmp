@@ -1985,3 +1985,37 @@ tap-automatizacije za skrolovanje taba) - korisnik treba ručno da skroluje do "
 - Kamera opcija (`takePhoto()`) ostaje neverifikovana do fizičkog uređaja - korisnik je najavio da
   će to probati sutra.
 - Korisnik prelazi na testiranje Android verzije sa drugog laptopa.
+
+## 2026-09-07 (nastavak) - Navigaciona ljuska prepravljena da prati Android 1:1
+
+Korisnik potvrdio da pretraga sastojaka i foto iz galerije rade nakon dodavanja API ključeva, pa
+zatražio da se cela navigaciona ljuska (`App.kt`) preuredi da vizuelno/strukturno prati PRAVI
+Android `AppNavigation.kt`/`SideDrawer.kt` 1:1, umesto dotadašnje proste horizontalno-skrolabilne
+tab-trake:
+- **Bottom bar**: tačno `Screen.bottomBarDestinations` sa Android-a - Obroci, Glukoza, Fitnes.
+- **Sidebar** (`ModalNavigationDrawer`): na vrhu ime+prezime (headlineSmall, bold) i email ispod
+  (isto kao Android-ov `SideDrawer.kt`), pa `HorizontalDivider`, pa stavke - korisnik je tražio
+  Podsetnici/Prijatelji/Izveštaji/Podešavanja; DODATO je i Insulin/Statistika/LibreLinkUp posle te
+  četiri (Android-ov `SideDrawer.kt` STVARNO ima i te stavke - `navigateToInsulinTypes`/
+  `navigateToStatistics` - a ti ekrani već postoje kao deljeni MVP ekrani od ranije; izbacivanje
+  bi bila regresija koju je korisnik eksplicitno zabranio još u Fazi 1 planu), pa "Odjava" na dnu.
+- Zamenjena prosta `Row` tab-traka sa pravim Material3 komponentama: `ModalNavigationDrawer` +
+  `ModalDrawerSheet` + `CenterAlignedTopAppBar` (hamburger "☰" levo, naslov po sredini) +
+  `NavigationBar`/`NavigationBarItem` (dole) + `NavigationDrawerItem` (sidebar stavke) - i dalje
+  bez `Icons.Filled.*` (isti razlog kao ostatak deljenog UI-ja), "icon" slot je prost emoji `Text`.
+
+Dva brza fix-a tokom kompajliranja:
+1. `Smart cast to 'AuthUser' is impossible, because 'currentUser' is a delegated property` -
+   `by collectAsState()` delegat se ne smart-cast-uje direktno; popravljeno hvatanjem u lokalni
+   `val user = currentUser` pre `when` grane.
+2. `ModalNavigationDrawer`/`NavigationDrawerItem` su `@ExperimentalMaterial3Api` u ovoj pinovanoj
+   Material3 verziji - dodat `@OptIn(ExperimentalMaterial3Api::class)` na `MainTabs`.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + pravi `xcodebuild` build (BUILD SUCCEEDED)
++ instalacija/pokretanje na iPhone 16 Pro simulatoru - bez crash-a, screenshot potvrđuje: hamburger
++ centriran naslov u top bar-u, bottom bar sa tačno tri stavke (Obroci/Glukoza/Fitnes, Glukoza
+selektovana i markirana). Sidebar sadržaj (ime/email/lista stavki) nije vizuelno potvrđen - nema
+tap-automatizacije za otvaranje drawer-a u simulatoru, korisnik treba ručno da klikne ☰.
+
+### Šta je ostalo
+- Korisnik da ručno otvori sidebar (☰) i potvrdi ime/prezime/email na vrhu i sve stavke ispod.

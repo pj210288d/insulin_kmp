@@ -1,26 +1,34 @@
 package org.example.project
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.insulink.shared.core.ui.sharedRootTopInset
+import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.ui.ForgotPasswordScreen
 import com.dj.insulink.shared.feature.auth.ui.LoginScreen
 import com.dj.insulink.shared.feature.auth.ui.RegistrationScreen
@@ -52,28 +61,31 @@ import com.dj.insulink.shared.feature.settings.ui.SettingsScreen
 import com.dj.insulink.shared.feature.settings.ui.viewmodel.SettingsViewModel
 import com.dj.insulink.shared.feature.statistics.ui.StatisticsScreen
 import com.dj.insulink.shared.feature.statistics.ui.viewmodel.StatisticsViewModel
+import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
 
 // Root ekran deljen preko Compose Multiplatform-a - koristi ga i iOS (MainViewController.ios.kt
 // poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseDemo route
-// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje osam deljenih MVP
-// ekrana (Glucose, Statistics, Insulin, Settings, Reminders, Fitness, LibreLinkUp, Meals - vidi
-// njihove ViewModel-e za obim) iza proste horizontalno-skrolabilne tab-trake, bez prave
-// navigacione biblioteke - samo lokalni Compose state, dovoljno za par ekrana. Svaki ViewModel
-// je Koin single (vidi glucoseModule/statisticsModule/insulinModule/settingsModule/
-// remindersModule/fitnessModule/librelinkModule), zato se ovde uzimaju direktno preko
-// KoinPlatform-a (multiplatform-bezbedan način da se dođe do trenutne Koin instance - obično
-// GlobalContext, dostupan samo na JVM/Android strani) umesto Compose-Koin integracije - isti
-// obrazac kao postojeći SharedModule.kt most (Hilt -> Koin) na Android strani, samo u
-// suprotnom smeru.
+// u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP.
 //
-// Faza 1 (Auth, vidi plan): pre tab trake se sada nalazi pravi login gate - AuthViewModel.
+// 2026-09-07: navigaciona ljuska prepravljena da vizuelno/strukturno prati PRAVI Android
+// AppNavigation.kt 1:1 (na eksplicitan zahtev korisnika) - `ModalNavigationDrawer` +
+// `CenterAlignedTopAppBar` (hamburger levo, naslov po sredini) + `NavigationBar` na dnu, umesto
+// prethodne proste horizontalno-skrolabilne tab-trake. Bottom bar ima tačno Android-ov
+// `Screen.bottomBarDestinations`: Obroci, Glukoza, Fitnes. Sidebar ima na vrhu ime/prezime +
+// email (isto kao Android-ov SideDrawer.kt), pa Android-ov `SideDrawer.kt` redosled: Podsetnici,
+// Prijatelji, Izveštaji, Podešavanja - plus Insulin/Statistika/LibreLinkUp koji na Android-u ISTO
+// žive u sidebaru (SideDrawer.kt ima i njih, `navigateToInsulinTypes`/`navigateToStatistics`) i
+// koji već postoje kao deljeni ekrani - namerno NISU izbačeni iz navigacije da se ne izgubi
+// postojeća funkcionalnost, samo su na sidebaru posle prve četiri (korisnik ih nije pomenuo, ali
+// "ništa što je radilo ne sme da prestane da radi" iz Faze 1 plana i dalje važi). Bez ikonica
+// (Icons.Filled.*, isti razlog kao ostatak deljenog UI-ja) - "icon" slot u NavigationBarItem/
+// NavigationDrawerItem je prost emoji Text, ne vector ikonica.
+//
+// Faza 1 (Auth, vidi plan): pre svega ovoga se nalazi pravi login gate - AuthViewModel.
 // restoreSession() se zove jednom pri prvoj kompoziciji; dok traje, prikazuje se spinner; ako
 // nema sesije, prikazuju se shared Login/Registration/ForgotPassword ekrani (AuthScreen enum
-// ispod); tek kad AuthSession.currentUser nije null prikazuje se postojeća tab traka. Na
-// Android-u je ovo u praksi uvek trenutno "prijavljeno" - do SharedGlucoseDemo rute se stiže
-// tek posle pravog login-a u glavnoj app (ista FirebaseAuth instanca), pa se shared Login ekran
-// tamo praktično nikad ne vidi (postoji radi dokazivanja da isti kod radi na oba OS-a).
+// ispod); tek kad AuthSession.currentUser nije null prikazuje se navigaciona ljuska iznad.
 @Composable
 fun App() {
     MaterialTheme(colorScheme = insulinkColorScheme()) {
@@ -83,10 +95,11 @@ fun App() {
 
         LaunchedEffect(Unit) { authViewModel.restoreSession() }
 
+        val user = currentUser
         when {
             isRestoringSession -> LoadingScreen()
-            currentUser == null -> AuthFlow(authViewModel)
-            else -> MainTabs(authViewModel)
+            user == null -> AuthFlow(authViewModel)
+            else -> MainTabs(authViewModel, user)
         }
     }
 }
@@ -138,112 +151,186 @@ private fun AuthFlow(authViewModel: AuthViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTabs(authViewModel: AuthViewModel) {
-    var selectedTab by remember { mutableStateOf(SharedTab.GLUCOSE) }
+private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
+    var currentDestination by remember { mutableStateOf(AppDestination.GLUCOSE) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().sharedRootTopInset()) {
-        Row(modifier = Modifier.fillMaxWidth().background(Color.White)) {
-            Box(modifier = Modifier.weight(1f)) {
-                SharedTabBar(selectedTab = selectedTab, onSelect = { selectedTab = it })
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                SideDrawerContent(
+                    currentUser = currentUser,
+                    selected = currentDestination,
+                    onNavigate = { destination ->
+                        currentDestination = destination
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    onSignOut = {
+                        coroutineScope.launch { drawerState.close() }
+                        authViewModel.signOut()
+                    }
+                )
             }
-            TextButton(onClick = { authViewModel.signOut() }) {
-                Text("Odjava", color = Color(0xFF9AA0A6))
+        },
+        modifier = Modifier.fillMaxSize().sharedRootTopInset()
+    ) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text(currentDestination.label) },
+                    navigationIcon = {
+                        TextButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                            Text("☰", style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                BottomNavBar(current = currentDestination, onSelect = { currentDestination = it })
             }
-        }
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (selectedTab) {
-                SharedTab.GLUCOSE -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<GlucoseViewModel>() }
-                    GlucoseScreen(viewModel = viewModel)
-                }
-                SharedTab.STATISTICS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<StatisticsViewModel>() }
-                    StatisticsScreen(viewModel = viewModel)
-                }
-                SharedTab.INSULIN -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<InsulinViewModel>() }
-                    InsulinScreen(viewModel = viewModel)
-                }
-                SharedTab.SETTINGS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<SettingsViewModel>() }
-                    SettingsScreen(viewModel = viewModel)
-                }
-                SharedTab.REMINDERS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<RemindersViewModel>() }
-                    RemindersScreen(viewModel = viewModel)
-                }
-                SharedTab.FITNESS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<FitnessViewModel>() }
-                    FitnessScreen(viewModel = viewModel)
-                }
-                SharedTab.LIBRELINK -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
-                    LibreLinkScreen(viewModel = viewModel)
-                }
-                SharedTab.MEALS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<MealsViewModel>() }
-                    MealsScreen(viewModel = viewModel)
-                }
-                SharedTab.FRIENDS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<FriendsViewModel>() }
-                    FriendsScreen(viewModel = viewModel)
-                }
-                SharedTab.REPORTS -> {
-                    val viewModel = remember { KoinPlatform.getKoin().get<ReportsViewModel>() }
-                    ReportsScreen(viewModel = viewModel)
-                }
+        ) { paddingValues ->
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                ScreenContent(currentDestination)
             }
         }
     }
 }
 
-private enum class SharedTab(val label: String) {
-    GLUCOSE("Glukoza"),
-    STATISTICS("Statistika"),
-    INSULIN("Insulin"),
-    SETTINGS("Podešavanja"),
-    REMINDERS("Podsetnici"),
-    FITNESS("Fitnes"),
-    LIBRELINK("LibreLinkUp"),
-    MEALS("Obroci"),
-    FRIENDS("Prijatelji"),
-    REPORTS("Izveštaji")
+@Composable
+private fun ScreenContent(destination: AppDestination) {
+    when (destination) {
+        AppDestination.MEALS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<MealsViewModel>() }
+            MealsScreen(viewModel = viewModel)
+        }
+        AppDestination.GLUCOSE -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<GlucoseViewModel>() }
+            GlucoseScreen(viewModel = viewModel)
+        }
+        AppDestination.FITNESS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<FitnessViewModel>() }
+            FitnessScreen(viewModel = viewModel)
+        }
+        AppDestination.REMINDERS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<RemindersViewModel>() }
+            RemindersScreen(viewModel = viewModel)
+        }
+        AppDestination.FRIENDS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<FriendsViewModel>() }
+            FriendsScreen(viewModel = viewModel)
+        }
+        AppDestination.REPORTS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<ReportsViewModel>() }
+            ReportsScreen(viewModel = viewModel)
+        }
+        AppDestination.SETTINGS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<SettingsViewModel>() }
+            SettingsScreen(viewModel = viewModel)
+        }
+        AppDestination.INSULIN_TYPES -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<InsulinViewModel>() }
+            InsulinScreen(viewModel = viewModel)
+        }
+        AppDestination.STATISTICS -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<StatisticsViewModel>() }
+            StatisticsScreen(viewModel = viewModel)
+        }
+        AppDestination.LIBRELINK -> {
+            val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
+            LibreLinkScreen(viewModel = viewModel)
+        }
+    }
 }
 
 @Composable
-private fun SharedTabBar(selectedTab: SharedTab, onSelect: (SharedTab) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .horizontalScroll(rememberScrollState())
-    ) {
-        SharedTab.entries.forEach { tab ->
-            SharedTabItem(
-                label = tab.label,
-                selected = tab == selectedTab,
-                onClick = { onSelect(tab) }
+private fun BottomNavBar(current: AppDestination, onSelect: (AppDestination) -> Unit) {
+    NavigationBar {
+        BOTTOM_BAR_DESTINATIONS.forEach { destination ->
+            NavigationBarItem(
+                selected = destination == current,
+                onClick = { onSelect(destination) },
+                icon = { Text(destination.emoji) },
+                label = { Text(destination.label) }
             )
         }
     }
 }
 
 @Composable
-private fun SharedTabItem(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color(0xFF4A7BF6) else Color(0xFF9AA0A6)
-        )
+private fun SideDrawerContent(
+    currentUser: AuthUser,
+    selected: AppDestination,
+    onNavigate: (AppDestination) -> Unit,
+    onSignOut: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(vertical = 24.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+            Text(
+                text = "${currentUser.firstName} ${currentUser.lastName}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = currentUser.email,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+        DRAWER_DESTINATIONS.forEach { destination ->
+            NavigationDrawerItem(
+                label = { Text(destination.label) },
+                icon = { Text(destination.emoji) },
+                selected = destination == selected,
+                onClick = { onNavigate(destination) },
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        TextButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+        ) {
+            Text("Odjava", color = MaterialTheme.colorScheme.error)
+        }
     }
 }
+
+// Isti spisak i redosled kao Android-ov Screen.kt/SideDrawer.kt - vidi komentar iznad App().
+private enum class AppDestination(val label: String, val emoji: String) {
+    MEALS("Obroci", "🍽"),
+    GLUCOSE("Glukoza", "💧"),
+    FITNESS("Fitnes", "🏃"),
+    REMINDERS("Podsetnici", "⏰"),
+    FRIENDS("Prijatelji", "👥"),
+    REPORTS("Izveštaji", "📄"),
+    SETTINGS("Podešavanja", "⚙️"),
+    INSULIN_TYPES("Insulin", "💉"),
+    STATISTICS("Statistika", "📊"),
+    LIBRELINK("LibreLinkUp", "📡")
+}
+
+private val BOTTOM_BAR_DESTINATIONS = listOf(
+    AppDestination.MEALS,
+    AppDestination.GLUCOSE,
+    AppDestination.FITNESS
+)
+
+private val DRAWER_DESTINATIONS = listOf(
+    AppDestination.REMINDERS,
+    AppDestination.FRIENDS,
+    AppDestination.REPORTS,
+    AppDestination.SETTINGS,
+    AppDestination.INSULIN_TYPES,
+    AppDestination.STATISTICS,
+    AppDestination.LIBRELINK
+)
 
 @Composable
 private fun insulinkColorScheme() = lightColorScheme(
