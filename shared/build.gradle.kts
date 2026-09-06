@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -49,6 +50,9 @@ kotlin {
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.auth)
             implementation(libs.ktor.client.okhttp)
+            // Meals foto-picker (galerija/kamera) - Activity Result API, isti obrazac kao
+            // app-ov postojeći AddMealWrapper.kt.
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -154,6 +158,60 @@ val generateFirebaseConfig by tasks.registering {
     }
 }
 
+// Meals feature (Spoonacular/USDA pretraga sastojaka + LogMeal foto-prepoznavanje): Android
+// već čita ova tri ključa iz root `local.properties` preko `BuildConfig` (vidi app/build.gradle.kts)
+// i prosleđuje ih u ISTI `mealsModule(...)` koji koristi i shared UI (org.example.project.App(),
+// i na Android-u i na iOS-u - vidi InsulinkApplication.kt). iOS nema BuildConfig, pa se isti
+// `local.properties` ovde čita direktno i generiše se commonMain-vidljiv fajl - isti princip kao
+// generateFirebaseConfig iznad. Ključevi nisu tajna po API bezbednosnoj postavci ovih servisa na
+// isti način kao Firebase Web API key, ali `local.properties` ostaje gitignore-ovan iz istog
+// razloga (developer-ova odluka, ne naša).
+val generatedMealApiConfigDir =
+    layout.buildDirectory.dir("generated/source/mealApiConfig/commonMain")
+
+val generateMealApiConfig by tasks.registering {
+    val localPropertiesFile = rootProject.file("local.properties")
+    val outputDir = generatedMealApiConfigDir
+
+    inputs.file(localPropertiesFile).optional()
+    outputs.dir(outputDir)
+
+    doLast {
+        val packageDir = outputDir.get().asFile
+            .resolve("com/dj/insulink/shared/feature/meals/config")
+        packageDir.mkdirs()
+        val outputFile = packageDir.resolve("MealApiConfig.kt")
+
+        val localProperties = Properties().apply {
+            if (localPropertiesFile.exists()) {
+                load(localPropertiesFile.inputStream())
+            }
+        }
+        val spoonacularApiKey = localProperties.getProperty("SPOONACULAR_API_KEY", "")
+        val usdaApiKey = localProperties.getProperty("USDA_API_KEY", "")
+        val logMealApiKey = localProperties.getProperty("LOGMEAL_API_KEY", "")
+
+        outputFile.writeText(
+            """
+            |package com.dj.insulink.shared.feature.meals.config
+            |
+            |// Generisano iz root local.properties (SPOONACULAR_API_KEY/USDA_API_KEY/LOGMEAL_API_KEY)
+            |// - vidi :shared:generateMealApiConfig u shared/build.gradle.kts. NE dirati ručno,
+            |// NE commit-ovati (leži u build/). Ako su ključevi prazni, pretraga sastojaka pada
+            |// nazad samo na lokalnu bazu (vidi MealRepository.searchIngredients) i foto-analiza
+            |// baca FoodImageAnalysisException sa jasnom porukom (vidi
+            |// LogMealFoodImageAnalysisRemoteDataSource) - ništa ne puca, samo se ne vraćaju
+            |// rezultati sa servera.
+            |internal const val MEAL_SPOONACULAR_API_KEY = "$spoonacularApiKey"
+            |internal const val MEAL_USDA_API_KEY = "$usdaApiKey"
+            |internal const val MEAL_LOGMEAL_API_KEY = "$logMealApiKey"
+            |
+            """.trimMargin()
+        )
+    }
+}
+
 kotlin.sourceSets.commonMain {
     kotlin.srcDir(generateFirebaseConfig.map { generatedFirebaseConfigDir.get() })
+    kotlin.srcDir(generateMealApiConfig.map { generatedMealApiConfigDir.get() })
 }

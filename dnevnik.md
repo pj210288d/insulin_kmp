@@ -1910,3 +1910,78 @@ Nije menjan kod, samo dokumentacija - bez potrebe za verifikacionim lancem.
 - Meals kamera (Faza 5) ostaje namerno nezavršena.
 - Snimak (screen recording) za oba OS-a - glavni preostali zadatak pred rok (ponedeljak,
   2026-09-08).
+
+## 2026-09-07 (nastavak) - Meals ekran doveden do pune paritetnosti sa Android-om
+
+Korisnik se sprema da testira Android verziju sa drugog laptopa, ali je prvo tražio da se Meals
+ekran (osmi deljeni MVP ekran) dovede do pune funkcionalnosti kao Android-ov `app/feature/meals`,
+pošto je do sada bio namerno osiromašen (samo ručan unos naziva/kalorija/UH, bez pretrage
+sastojaka i bez foto-prepoznavanja - vidi stari komentar u MealsViewModel.kt).
+
+Otkriveno tokom istrage: Spoonacular/USDA pretraga (`KtorFoodApiRemoteDataSource`) i LogMeal
+foto-prepoznavanje (`LogMealFoodImageAnalysisRemoteDataSource`) su VEĆ bili potpuno
+platform-agnostični u `shared/commonMain` - nedostajao je samo (1) shared ViewModel/ekran koji ih
+stvarno pozove i (2) platform-specifičan način da se fotografija uopšte dobavi (kamera/galerija).
+
+Urađeno:
+- **`MealsViewModel.kt` (shared)** - prepravljen po uzoru na Android-ov `feature/meals/ui/viewmodel/
+  MealsViewModel.kt`: `selectedDate`/`mealsForSelectedDate`/`dailyNutrition` (umesto proste "svi
+  obroci" liste), pretraga sastojaka sa debounce-om, `selectedIngredients` sa količinama,
+  create/delete custom ingredient, `userIngredients`, ceo foto-analiza tok
+  (`analyzeMealPhoto`/`acceptMealPhotoAnalysis`/`dismissMealPhotoAnalysis`/`reportMealPhotoError`).
+- **`MealsScreen.kt` (shared)** - prepravljen: lista obroka za izabrani dan + dnevni nutritivni
+  rezime (4 kartice), FAB → Dialog za dodavanje obroka (App() tab-sistem nema push navigaciju, isti
+  princip kao Glucose/Friends) sa datum/vreme picker-om (isti obrazac kao Glucose), pretragom
+  sastojaka, listom dodatih sastojaka sa uređivanjem količine, `CreateIngredientDialog`,
+  `MyIngredientsDialog`, `MealPhotoAnalysisDialog` (uredi prepoznata imena pre dodavanja) - sve
+  portovano iz Android ekvivalenata, bez ikonica/InsulinkTheme (isti princip kao ostatak deljenog
+  UI-ja).
+- **Novi `MealPhotoPickerLauncher` (expect/actual, `feature/meals/photo` paket)** - na eksplicitan
+  zahtev korisnika: pošto trenutno ima samo iOS Simulator (bez fizičkog iPhone-a), MORA postojati
+  opcija iz galerije - kamera se testira tek sutra na fizičkom uređaju.
+  - Android actual: `ActivityResultContracts.PickVisualMedia()` (galerija, Photo Picker, bez
+    potrebne dozvole) + postojeći `TakePicture()`/FileProvider obrazac (kamera, isti kao
+    `AddMealWrapper.kt`), downscale/JPEG-kompresija duplirana (Bitmap je Android-only, ne može u
+    commonMain). `isCameraAvailable` proverava `PackageManager.FEATURE_CAMERA_ANY`.
+  - iOS actual: `UIImagePickerController` (`.photoLibrary` za galeriju, radi na Simulator-u;
+    `.camera` samo ako je `isSourceTypeAvailable` - false na Simulator-u, biće true sutra na
+    fizičkom uređaju) + delegate (`NSObject() + UIImagePickerControllerDelegateProtocol +
+    UINavigationControllerDelegateProtocol`, zadržan kao jaka referenca da ga ARC ne obriše pre
+    callback-a). Downscale preko starijih `UIGraphicsBeginImageContextWithOptions` C-API (isti
+    oprezan izbor kao `CGContextShowTextAtPoint` u PDF generatoru, izbegava rizičniju
+    `NSString`-kategoriju cinterop rezoluciju). NSData→ByteArray preko `memcpy`/`usePinned`
+    (**pažnja**: `memcpy` je `platform.posix.memcpy`, NE `kotlinx.cinterop.memcpy` - prva verzija
+    je pukla na `:shared:compileIosMainKotlinMetadata` sa "Unresolved reference 'memcpy'", brzo
+    ispravljeno).
+  - Dodato u `Info.plist`: `NSPhotoLibraryUsageDescription`/`NSCameraUsageDescription` - bez ovoga
+    bi app pukao čim se pokuša pristup galeriji/kameri.
+- **API ključevi za iOS** - `SPOONACULAR_API_KEY`/`USDA_API_KEY`/`LOGMEAL_API_KEY` su do sada bili
+  hardkodovano prazni u `KoinInit.ios.kt` ("Meals MVP je namerno samo ručni unos"). Dodat
+  `:shared:generateMealApiConfig` Gradle task (identičan obrazac kao već postojeći
+  `generateFirebaseConfig`) koji čita iste ključeve iz root `local.properties` (Android ih već
+  čita odatle preko `BuildConfig`) i generiše `MealApiConfig.kt` (build/, negit-ovan) - iOS sada
+  koristi ISTE ključeve kao Android, bez ikakvog dupliranja/hardkodovanja.
+  **VAŽNO - otvoreno**: `local.properties` na OVOM Mac-u trenutno ima samo `sdk.dir` (dodato ranije
+  ove sesije) - SPOONACULAR_API_KEY/USDA_API_KEY/LOGMEAL_API_KEY nedostaju, pošto je ovo prvi put
+  da se ovaj projekat builduje na ovoj mašini. Dok korisnik ne doda te tri linije (vrednosti
+  postoje na njegovoj staroj Windows mašini), pretraga sastojaka pada nazad SAMO na lokalnu bazu
+  (nema mrežnih rezultata) i foto-analiza baca grešku "LogMeal API key is not configured" - ništa
+  ne puca, samo nema mrežnih rezultata dok se ključevi ne dodaju.
+
+Verifikovano: pun Gradle lanac (`:shared:compileAndroidMain`, `compileIosMainKotlinMetadata`,
+`compileKotlinIosSimulatorArm64`, `compileKotlinIosArm64`, `testAndroidHostTest`,
+`:app:compileDebugKotlin`, `:app:testDebugUnitTest`, `:app:assembleDebug`) - sve BUILD SUCCESSFUL.
+Pun `xcodebuild` build za iPhone 16 Pro simulator (iOS 18.6) - BUILD SUCCEEDED. Instalacija +
+pokretanje na simulatoru - app se pokrenuo, ostao prijavljen (postojeća sesija), učitao Glucose tab
+i uspešno povukao podatke sa Firestore-a (200 OK u logu), nema crash report-a. Nije vizuelno
+provereno kroz sam Meals tab (van vidljivog dela horizontalno-skrolabilne tab trake, nema
+tap-automatizacije za skrolovanje taba) - korisnik treba ručno da skroluje do "Obroci" i proba.
+
+### Šta je ostalo
+- Korisnik treba da doda SPOONACULAR_API_KEY/USDA_API_KEY/LOGMEAL_API_KEY u `local.properties` na
+  ovom Mac-u da bi pretraga/foto-analiza stvarno vraćale mrežne rezultate.
+- Ručna provera Meals ekrana u simulatoru (skrolovanje sastojaka, dodavanje obroka, foto iz
+  galerije, dijalog za prepoznatu hranu).
+- Kamera opcija (`takePhoto()`) ostaje neverifikovana do fizičkog uređaja - korisnik je najavio da
+  će to probati sutra.
+- Korisnik prelazi na testiranje Android verzije sa drugog laptopa.

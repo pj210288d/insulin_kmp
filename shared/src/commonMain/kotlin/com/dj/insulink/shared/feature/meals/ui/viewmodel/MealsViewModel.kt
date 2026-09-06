@@ -5,24 +5,33 @@ import androidx.lifecycle.viewModelScope
 import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.core.time.currentTimeMillis
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
+import com.dj.insulink.shared.feature.meals.domain.model.DailyNutrition
+import com.dj.insulink.shared.feature.meals.domain.model.FoodImageAnalysis
+import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 import com.dj.insulink.shared.feature.meals.domain.model.Meal
+import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// Osmi deljeni Compose Multiplatform MVP ekran - vidi ostale ViewModel-e u shared/commonMain za
-// obrazac. Namerno SAMO ručan unos (naziv/kalorije/ugljeni hidrati) - LogMeal prepoznavanje sa
-// slike (postoji u MealRepository.analyzeFoodImage, mrežni deo je već dokazano platform-
-// agnostičan) namerno nije povezano ovde jer zahteva fotografisanje, što je platform-specifičan
-// UI kod (Android koristi CameraX/Intent u AddMealWrapper.kt - iOS bi trebalo UIImagePicker,
-// nov, nepotvrđen kod bez mogućnosti testiranja pre Mac-a). Sastojci/pretraga takođe van obima -
-// isti princip kao Insulin/Fitness (prost CRUD, ne pun workflow).
+// Osmi deljeni Compose Multiplatform MVP ekran - sada u punom paritetu sa Android-ovim
+// app/feature/meals (vidi feature/meals/ui/viewmodel/MealsViewModel.kt tamo za obrazac po kom je
+// ovo pisano - ista logika, samo UserSession.currentUserId umesto Hilt-ovog AuthRepository).
+// Pretraga sastojaka (Spoonacular/USDA, vidi MealRepository.searchIngredients) i LogMeal
+// foto-prepoznavanje (vidi MealRepository.analyzeFoodImage) su već platform-agnostični u
+// MealRepository - jedino što je nedostajalo je ovaj ViewModel da ih zapravo pozove, i
+// MealPhotoPickerLauncher (photo/ paket) za samo fotografisanje/biranje slike, što JESTE
+// platform-specifično (dodato 2026-09-07).
 class MealsViewModel(
     private val mealRepository: MealRepository
 ) : ViewModel() {
@@ -36,75 +45,266 @@ class MealsViewModel(
                     runCatching {
                         mealRepository.fetchAllMealsForUserAndUpdateDatabase(userId)
                     }
+                    loadDailyNutritionForDate(_selectedDate.value)
                 }
             }
         }
     }
 
+    private val _selectedDate = MutableStateFlow(currentTimeMillis())
+    val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    val meals: StateFlow<List<Meal>> = UserSession.currentUserId
-        .flatMapLatest { userId ->
+    val mealsForSelectedDate: StateFlow<List<Meal>> = combine(
+        UserSession.currentUserId,
+        _selectedDate
+    ) { userId, date -> userId to date }
+        .flatMapLatest { (userId, date) ->
             if (userId != null) {
-                mealRepository.getAllMealsForUser(userId)
+                mealRepository.getMealsByDateForUser(userId, date)
             } else {
                 flowOf(emptyList())
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _newName = MutableStateFlow("")
-    val newName: StateFlow<String> = _newName.asStateFlow()
+    private val _dailyNutrition = MutableStateFlow(DailyNutrition(0, 0, 0, 0, 0, 0.0))
+    val dailyNutrition: StateFlow<DailyNutrition> = _dailyNutrition.asStateFlow()
 
-    private val _newCalories = MutableStateFlow("")
-    val newCalories: StateFlow<String> = _newCalories.asStateFlow()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _newCarbs = MutableStateFlow("")
-    val newCarbs: StateFlow<String> = _newCarbs.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    val searchResults: StateFlow<List<Ingredient>> = _searchQuery
+        .debounce(300)
+        .flatMapLatest { query ->
+            val userId = UserSession.currentUserId.value
+            if (query.isEmpty() || userId == null) {
+                flowOf(emptyList())
+            } else {
+                mealRepository.searchIngredients(query, userId).catch { emit(emptyList()) }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun setNewName(value: String) {
-        _newName.value = value
+    private val _selectedIngredients = MutableStateFlow<List<MealIngredient>>(emptyList())
+    val selectedIngredients: StateFlow<List<MealIngredient>> = _selectedIngredients.asStateFlow()
+
+    private val _newMealName = MutableStateFlow("")
+    val newMealName: StateFlow<String> = _newMealName.asStateFlow()
+
+    private val _newMealComment = MutableStateFlow("")
+    val newMealComment: StateFlow<String> = _newMealComment.asStateFlow()
+
+    private val _newMealTimestamp = MutableStateFlow(currentTimeMillis())
+    val newMealTimestamp: StateFlow<Long> = _newMealTimestamp.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _showAddMealDialog = MutableStateFlow(false)
+    val showAddMealDialog: StateFlow<Boolean> = _showAddMealDialog.asStateFlow()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val userIngredients: StateFlow<List<Ingredient>> = UserSession.currentUserId
+        .flatMapLatest { userId ->
+            if (userId != null) mealRepository.getUserIngredients(userId) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _showCreateIngredientDialog = MutableStateFlow(false)
+    val showCreateIngredientDialog: StateFlow<Boolean> = _showCreateIngredientDialog.asStateFlow()
+
+    private val _showMyIngredientsDialog = MutableStateFlow(false)
+    val showMyIngredientsDialog: StateFlow<Boolean> = _showMyIngredientsDialog.asStateFlow()
+
+    private val _isAnalyzingMealPhoto = MutableStateFlow(false)
+    val isAnalyzingMealPhoto: StateFlow<Boolean> = _isAnalyzingMealPhoto.asStateFlow()
+
+    private val _mealPhotoAnalysis = MutableStateFlow<FoodImageAnalysis?>(null)
+    val mealPhotoAnalysis: StateFlow<FoodImageAnalysis?> = _mealPhotoAnalysis.asStateFlow()
+
+    private val _mealPhotoAnalysisError = MutableStateFlow<String?>(null)
+    val mealPhotoAnalysisError: StateFlow<String?> = _mealPhotoAnalysisError.asStateFlow()
+
+    fun setSelectedDate(date: Long) {
+        _selectedDate.value = date
+        loadDailyNutritionForDate(date)
     }
 
-    fun setNewCalories(value: String) {
-        _newCalories.value = value.filter { it.isDigit() }
-    }
-
-    fun setNewCarbs(value: String) {
-        _newCarbs.value = value.filter { it.isDigit() || it == '.' }
-    }
-
-    fun addMeal() {
+    private fun loadDailyNutritionForDate(date: Long) {
         val userId = UserSession.currentUserId.value ?: return
-        val name = _newName.value.trim()
-        if (name.isEmpty()) return
+        viewModelScope.launch {
+            _dailyNutrition.value = mealRepository.getDailyNutrition(userId, date)
+        }
+    }
+
+    fun setShowAddMealDialog(show: Boolean) {
+        _showAddMealDialog.value = show
+        if (show) {
+            _newMealTimestamp.value = currentTimeMillis()
+        } else {
+            resetAddMealFields()
+        }
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun addIngredient(ingredient: Ingredient, quantity: Double) {
+        _selectedIngredients.value += MealIngredient(mealId = 0L, ingredient = ingredient, quantity = quantity)
+    }
+
+    fun removeIngredient(mealIngredient: MealIngredient) {
+        _selectedIngredients.value = _selectedIngredients.value.filter { it != mealIngredient }
+    }
+
+    fun updateIngredientQuantity(mealIngredient: MealIngredient, newQuantity: Double) {
+        _selectedIngredients.value = _selectedIngredients.value.map {
+            if (it == mealIngredient) it.copy(quantity = newQuantity) else it
+        }
+    }
+
+    fun setNewMealName(name: String) {
+        _newMealName.value = name
+    }
+
+    fun setNewMealComment(comment: String) {
+        _newMealComment.value = comment
+    }
+
+    fun setNewMealTimestamp(timestamp: Long) {
+        _newMealTimestamp.value = timestamp
+    }
+
+    fun setShowCreateIngredientDialog(show: Boolean) {
+        _showCreateIngredientDialog.value = show
+    }
+
+    fun setShowMyIngredientsDialog(show: Boolean) {
+        _showMyIngredientsDialog.value = show
+    }
+
+    fun analyzeMealPhoto(imageBytes: ByteArray) {
+        viewModelScope.launch {
+            _isAnalyzingMealPhoto.value = true
+            _mealPhotoAnalysisError.value = null
+            _mealPhotoAnalysis.value = null
+            try {
+                _mealPhotoAnalysis.value = mealRepository.analyzeFoodImage(imageBytes)
+            } catch (e: Exception) {
+                _mealPhotoAnalysisError.value = e.message ?: e.toString()
+            } finally {
+                _isAnalyzingMealPhoto.value = false
+            }
+        }
+    }
+
+    fun reportMealPhotoError(message: String) {
+        _mealPhotoAnalysisError.value = message
+    }
+
+    fun acceptMealPhotoAnalysis(editedFoodNames: List<String>) {
+        _mealPhotoAnalysis.value?.let { analysis ->
+            val correctedName = editedFoodNames
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .joinToString(", ")
+                .ifEmpty { analysis.estimatedIngredient.name }
+            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0)
+        }
+        dismissMealPhotoAnalysis()
+    }
+
+    fun dismissMealPhotoAnalysis() {
+        _mealPhotoAnalysis.value = null
+        _mealPhotoAnalysisError.value = null
+    }
+
+    fun submitNewMeal() {
+        val userId = UserSession.currentUserId.value ?: return
+        val ingredients = _selectedIngredients.value
+        val name = _newMealName.value.trim()
+        if (name.isEmpty() || ingredients.isEmpty()) return
+
+        val totalCalories = ingredients.sumOf { (it.ingredient.caloriesPer100g * it.quantity / 100).toInt() }
+        val totalCarbs = ingredients.sumOf { it.ingredient.carbsPer100g * it.quantity / 100 }
+        val totalProtein = ingredients.sumOf { it.ingredient.proteinPer100g * it.quantity / 100 }
+        val totalFat = ingredients.sumOf { it.ingredient.fatPer100g * it.quantity / 100 }
+        val totalSugar = ingredients.sumOf { it.ingredient.sugarPer100g * it.quantity / 100 }
+        val totalSalt = ingredients.sumOf { it.ingredient.saltPer100g * it.quantity / 100 }
+
+        val meal = Meal(
+            name = name,
+            timestamp = _newMealTimestamp.value,
+            calories = totalCalories,
+            carbs = totalCarbs,
+            protein = totalProtein,
+            fat = totalFat,
+            sugar = totalSugar,
+            salt = totalSalt,
+            comment = _newMealComment.value.trim().takeIf { it.isNotEmpty() },
+            userId = userId,
+            ingredients = ingredients
+        )
 
         viewModelScope.launch {
-            mealRepository.insert(
-                userId,
-                Meal(
-                    id = 0,
-                    name = name,
-                    timestamp = currentTimeMillis(),
-                    calories = _newCalories.value.toIntOrNull(),
-                    carbs = _newCarbs.value.toDoubleOrNull(),
-                    protein = null,
-                    fat = null,
-                    sugar = null,
-                    salt = null,
-                    comment = null,
-                    userId = userId
-                )
-            )
+            _isLoading.value = true
+            try {
+                mealRepository.insert(userId, meal)
+                loadDailyNutritionForDate(_selectedDate.value)
+                setShowAddMealDialog(false)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
         }
-        _newName.value = ""
-        _newCalories.value = ""
-        _newCarbs.value = ""
     }
 
     fun deleteMeal(meal: Meal) {
         val userId = UserSession.currentUserId.value ?: return
         viewModelScope.launch {
-            mealRepository.delete(userId, meal)
+            try {
+                mealRepository.delete(userId, meal)
+                loadDailyNutritionForDate(_selectedDate.value)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
+    }
+
+    fun createCustomIngredient(ingredient: Ingredient) {
+        val userId = UserSession.currentUserId.value ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                mealRepository.insertIngredient(ingredient.copy(userId = userId))
+                setShowCreateIngredientDialog(false)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteCustomIngredient(ingredient: Ingredient) {
+        viewModelScope.launch {
+            try {
+                mealRepository.deleteIngredient(ingredient)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun resetAddMealFields() {
+        _newMealName.value = ""
+        _newMealComment.value = ""
+        _searchQuery.value = ""
+        _selectedIngredients.value = emptyList()
+        dismissMealPhotoAnalysis()
     }
 }

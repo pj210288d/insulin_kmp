@@ -16,5 +16,13 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Meals foto-prepoznavanje (LogMeal) - UIImagePickerController zahteva ova dva opisa,
+	     inače app puca čim se pokuša pristup galeriji/kameri. Galerija (.photoLibrary) radi na
+	     simulatoru; kamera (.camera) radi samo na fizičkom uređaju - simulator nema kameru pa
+	     UIImagePickerController.isSourceTypeAvailable(.camera) vraća false i dugme se sakriva. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Insulink treba pristup galeriji da dodaš fotografiju obroka radi prepoznavanja hrane.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Insulink treba pristup kameri da fotografišeš obrok radi prepoznavanja hrane.</string>
 </dict>
 </plist>
