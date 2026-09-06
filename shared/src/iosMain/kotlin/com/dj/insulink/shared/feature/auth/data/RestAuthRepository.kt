@@ -1,6 +1,7 @@
 package com.dj.insulink.shared.feature.auth.data
 
 import com.dj.insulink.shared.core.auth.AuthSession
+import com.dj.insulink.shared.core.auth.IosAuthTokenProvider
 import com.dj.insulink.shared.core.crypto.generateFriendCodeFromEmail
 import com.dj.insulink.shared.core.firestore.FirestoreRestClient
 import com.dj.insulink.shared.core.firestore.FirestoreValue
@@ -21,10 +22,13 @@ private const val USERS_COLLECTION = "users"
 // Isto ponašanje kao Android-ov app/auth/data/AuthRepository.kt, ali preko Ktor REST klijenata
 // (FirebaseAuthRestClient + FirestoreRestClient) umesto pravog Firebase GMS SDK-a - arhitektonska
 // odluka iz Faze 1 plana (izbegava CocoaPods/ABI rizik). Google Sign-In namerno izostavljen.
+// Token refresh logika (ensureValidTokens) živi u IosAuthTokenProvider - deljena sa Faza 2
+// FirestoreRestXRemoteDataSource actual-ima, ne duplirana ovde.
 class RestAuthRepository(
     private val authClient: FirebaseAuthRestClient,
     private val firestoreClient: FirestoreRestClient,
-    private val tokenStorage: AuthTokenStorage
+    private val tokenStorage: AuthTokenStorage,
+    private val tokenProvider: IosAuthTokenProvider
 ) : AuthRepository {
 
     private val _currentUserFlow = MutableStateFlow<AuthUser?>(null)
@@ -32,7 +36,7 @@ class RestAuthRepository(
 
     override suspend fun restoreSession(): AuthUser? {
         val stored = tokenStorage.load() ?: return null
-        val valid = ensureValidTokens(stored) ?: run {
+        val valid = runCatching { tokenProvider.ensureValidTokens(stored) }.getOrNull() ?: run {
             tokenStorage.clear()
             return null
         }
@@ -119,19 +123,6 @@ class RestAuthRepository(
         publish(null)
     }
 
-    private suspend fun ensureValidTokens(stored: StoredAuthSession): StoredAuthSession? {
-        val nowPlusBuffer = AuthTokenStorage.nowEpochSeconds() + TOKEN_EXPIRY_BUFFER_SECONDS
-        if (stored.expiresAtEpochSeconds > nowPlusBuffer) return stored
-        return runCatching {
-            val refreshed = authClient.refreshToken(stored.refreshToken)
-            stored.copy(
-                idToken = refreshed.idToken,
-                refreshToken = refreshed.refreshToken,
-                expiresAtEpochSeconds = AuthTokenStorage.nowEpochSeconds() + refreshed.expiresInSeconds
-            ).also(tokenStorage::save)
-        }.getOrNull()
-    }
-
     private fun persistSession(tokens: FirebaseAuthTokens, user: AuthUser) {
         tokenStorage.save(
             StoredAuthSession(
@@ -151,9 +142,5 @@ class RestAuthRepository(
     private fun publish(user: AuthUser?) {
         _currentUserFlow.value = user
         AuthSession.setCurrentUser(user)
-    }
-
-    companion object {
-        private const val TOKEN_EXPIRY_BUFFER_SECONDS = 60.0
     }
 }

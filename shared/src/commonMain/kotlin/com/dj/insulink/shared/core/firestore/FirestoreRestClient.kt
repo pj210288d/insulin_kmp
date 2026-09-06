@@ -7,6 +7,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -14,6 +15,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -59,6 +61,41 @@ class FirestoreRestClient(
             })
         }
         requireSuccess(response) { "Firestore create failed: ${response.status}" }
+    }
+
+    /**
+     * Zamenjuje SAMO jedno polje (`updateMask.fieldPaths=fieldName`) dokumenta poljem tipa niz -
+     * kreira ga ako ne postoji, ne dira ostala polja. Koriste ga svi Faza 2
+     * FirestoreRestXRemoteDataSource actual-i za push/update/delete pojedinačne stavke: pozivalac
+     * pročita trenutni niz preko getArrayField, izmeni ga u memoriji (dodaj/ukloni/zameni
+     * element po id-u - isti neatomski obrazac kao postojeći Android FirebaseXRemoteDataSource
+     * update/delete metode), pa upiše ceo niz nazad.
+     */
+    suspend fun setArrayField(
+        collection: String,
+        documentId: String,
+        fieldName: String,
+        elements: List<JsonElement>,
+        idToken: String
+    ) {
+        val response = httpClient.patch(documentUrl(collection, documentId)) {
+            parameter("updateMask.fieldPaths", fieldName)
+            header("Authorization", "Bearer $idToken")
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject { put("fields", buildJsonObject { put(fieldName, arrayValueJson(elements)) }) })
+        }
+        requireSuccess(response) { "Firestore update failed: ${response.status}" }
+    }
+
+    /** Sirovi elementi niza pod `fieldName`-om (svaki je mapValue) - prazna lista ako polje/dokument ne postoje. */
+    suspend fun getArrayField(
+        collection: String,
+        documentId: String,
+        fieldName: String,
+        idToken: String
+    ): List<JsonElement> {
+        val fields = getDocumentFields(collection, documentId, idToken)
+        return FirestoreValue.arrayElements(fields, fieldName)
     }
 
     private fun requireSuccess(response: HttpResponse, message: () -> String) {
