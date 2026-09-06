@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.time.localTimeOfDay
+import com.dj.insulink.shared.feature.reminders.data.notification.ReminderNotificationScheduler
 import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
@@ -18,13 +20,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 // Peti deljeni Compose Multiplatform MVP ekran - vidi Glucose/Statistics/Insulin/Settings
-// ViewModel-e za obrazac. Namerno SAMO podaci (naslov/tip/vreme/da-li-je-odrađen-danas) -
-// pravo zakazivanje OS notifikacija (AlarmManager na Android-u, danas jedini pravi mehanizam u
-// aplikaciji, vidi ReminderScheduler u :app) ostaje van ovog ekrana; iOS bi za to trebalo
-// UNUserNotificationCenter, van obima ove MVP iteracije - vidi NotImplementedReminderRemoteDataSource
-// za isti princip (lokalno da, cloud/OS integracija ne, za sada).
+// ViewModel-e za obrazac. Faza 4: pravo zakazivanje OS notifikacija dodato preko
+// ReminderNotificationScheduler (stvarna implementacija na iOS-u preko UNUserNotificationCenter,
+// namerno no-op na Android-u - vidi opširan komentar u tom interfejsu za razlog). newTime je
+// sada ručno podesivo preko time picker-a u ekranu (ranije uvek currentTimeMillis() - isti
+// obrazac kao Glucose newTimestamp).
 class RemindersViewModel(
-    private val reminderRepository: ReminderRepository
+    private val reminderRepository: ReminderRepository,
+    private val notificationScheduler: ReminderNotificationScheduler
 ) : ViewModel() {
 
     // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
@@ -58,32 +61,54 @@ class RemindersViewModel(
     private val _newType = MutableStateFlow(ReminderType.MEAL_REMINDER)
     val newType: StateFlow<ReminderType> = _newType.asStateFlow()
 
+    private val _newTime = MutableStateFlow(currentTimeMillis())
+    val newTime: StateFlow<Long> = _newTime.asStateFlow()
+
     fun setNewTitle(title: String) {
-        _newTitle.value = title
+        if (title.length <= TITLE_MAX_LENGTH) {
+            _newTitle.value = title
+        }
     }
 
     fun setNewType(type: ReminderType) {
         _newType.value = type
     }
 
+    fun setNewTime(time: Long) {
+        _newTime.value = time
+    }
+
     fun addReminder() {
         val userId = UserSession.currentUserId.value ?: return
         val title = _newTitle.value.trim()
         if (title.isEmpty()) return
+        val time = _newTime.value
+        val type = _newType.value
         viewModelScope.launch {
-            reminderRepository.insert(
+            val reminderId = reminderRepository.insert(
                 userId,
                 Reminder(
                     id = 0,
                     userId = userId,
                     title = title,
-                    reminderType = _newType.value,
+                    reminderType = type,
                     isDoneForToday = false,
-                    time = currentTimeMillis()
+                    time = time
                 )
             )
+            val timeOfDay = localTimeOfDay(time)
+            runCatching {
+                notificationScheduler.scheduleDaily(
+                    reminderId = reminderId,
+                    title = title,
+                    message = typeMessage(type),
+                    hour = timeOfDay.hour,
+                    minute = timeOfDay.minute
+                )
+            }
         }
         _newTitle.value = ""
+        _newTime.value = currentTimeMillis()
     }
 
     fun toggleDoneForToday(reminder: Reminder) {
@@ -95,8 +120,17 @@ class RemindersViewModel(
 
     fun deleteReminder(reminder: Reminder) {
         val userId = UserSession.currentUserId.value ?: return
+        notificationScheduler.cancelReminder(reminder.id)
         viewModelScope.launch {
             reminderRepository.delete(userId, reminder)
         }
     }
+
+    private fun typeMessage(type: ReminderType): String = when (type) {
+        ReminderType.MEAL_REMINDER -> "Vreme je za obrok"
+        ReminderType.INSULIN_REMINDER -> "Vreme je za insulin"
+        ReminderType.BLOOD_SUGAR_CHECK_REMINDER -> "Vreme je da izmeriš šećer"
+    }
 }
+
+private const val TITLE_MAX_LENGTH = 20

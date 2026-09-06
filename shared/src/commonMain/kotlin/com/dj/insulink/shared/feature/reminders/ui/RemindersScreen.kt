@@ -20,31 +20,44 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.dj.insulink.shared.core.time.combineTimeWithDate
+import com.dj.insulink.shared.core.time.localTimeOfDay
 import com.dj.insulink.shared.core.time.timeOfDayLabel
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 
-// Peti deljeni Compose Multiplatform MVP ekran - vidi RemindersViewModel za obim/odluke.
+// Peti deljeni Compose Multiplatform MVP ekran - vidi RemindersViewModel za obim/odluke. Faza 4:
+// dodato vreme (time picker dugme) - potrebno da bi ReminderNotificationScheduler znao kada
+// stvarno da zvoni, ne samo da čuva vreme kao podatak.
 @Composable
 fun RemindersScreen(viewModel: RemindersViewModel) {
     val reminders by viewModel.reminders.collectAsState()
     val newTitle by viewModel.newTitle.collectAsState()
     val newType by viewModel.newType.collectAsState()
+    val newTime by viewModel.newTime.collectAsState()
 
     Column(
         modifier = Modifier
@@ -64,6 +77,8 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
             }
         }
         Spacer(Modifier.height(8.dp))
+        TimePickerButton(time = newTime, onTimeChange = viewModel::setNewTime)
+        Spacer(Modifier.height(8.dp))
         TypeSelector(selected = newType, onSelect = viewModel::setNewType)
         Spacer(Modifier.height(16.dp))
 
@@ -79,6 +94,46 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
                         onToggleDone = { viewModel.toggleDoneForToday(reminder) },
                         onDelete = { viewModel.deleteReminder(reminder) }
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerButton(time: Long, onTimeChange: (Long) -> Unit) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
+        Text("Vreme: ${timeOfDayLabel(time)}")
+    }
+
+    if (showTimePicker) {
+        val timeOfDay = localTimeOfDay(time)
+        val timePickerState = rememberTimePickerState(
+            initialHour = timeOfDay.hour,
+            initialMinute = timeOfDay.minute,
+            is24Hour = true
+        )
+        Dialog(onDismissRequest = { showTimePicker = false }) {
+            Card(shape = RoundedCornerShape(12.dp)) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Izaberi vreme", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(16.dp))
+                    TimePicker(state = timePickerState)
+                    Spacer(Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showTimePicker = false }) { Text("Otkaži") }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            onTimeChange(combineTimeWithDate(timePickerState.hour, timePickerState.minute, time))
+                            showTimePicker = false
+                        }) { Text("OK") }
+                    }
                 }
             }
         }
