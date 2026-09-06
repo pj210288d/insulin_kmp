@@ -1832,3 +1832,47 @@ Ovim je završen ceo planirani opseg (Faze 1-6) feature-parity migracije. Preost
 ručno proveri Friends/Reminders-notifikacije/Reports UI uživo (i idealno instalacija na fizički
 Android uređaj kad bude dostupan - nijedan nije povezan na ovaj Mac tokom cele ove sesije).
 Meals kamera (Faza 5) namerno preskočena - simulator nema pravu kameru, van obima do roka.
+
+---
+
+## 2026-09-07 - Korisnikovo uživo testiranje: PDF fix + Friends bug namerno ostavljen za betu
+
+### Kontekst
+Korisnik potvrdio: alarmi/notifikacije (Faza 4) rade odlično. Prijavio dva nalaza: (1) PDF
+izveštaj - sav tekst prikazan naopako/flipovano (screenshot priložen), (2) Friends - nema
+uklanjanja prijatelja, i isti prijatelj dodat dva puta pravi duplikat. Za (2) eksplicitno
+tražio da se NAPIŠE fix ali da OSTANE isključen/zakomentarisan - beta testiranje je u toku i
+želi da to ostane kao bug koji beta korisnici sami prijave, ne da nestane pre nego što je
+uopšte viđen.
+
+### PDF flip fix
+Dva odvojena problema koja su se poklopila (oba u `IosPdfReportGenerator.kt`):
+1. Pozicija reda: `UIGraphicsPDFRenderer`-ov `CGContext` VEĆ ima top-left/Y-dole CTM (UIKit
+   konvencija) - ranije dodat ručni "PAGE_HEIGHT - y" flip je bio SUVIŠAN drugi flip, koji je
+   redove postavljao u obrnutom redosledu (naslov, crtan prvi, završavao pri dnu). Ispravljeno -
+   koristi se `y` direktno.
+2. Orijentacija glifova: `CGContextShowTextAtPoint` (stariji Quartz C API) crta u sopstvenoj,
+   fiksnoj tekst-matrici koja pretpostavlja Y-gore orijentaciju BEZ OBZIRA na CTM - poznat Core
+   Graphics gotcha kad se ovaj API koristi u već Y-flipovanom kontekstu. Ispravljeno:
+   `CGContextSetTextMatrix(ctx, CGAffineTransformMakeScale(1.0, -1.0))` jednom po strani.
+
+Nije ponovo vizuelno provereno preko UI-ja (simctl nema tap automatizaciju) - korisnik testira.
+
+### Friends - fix napisan, namerno ISKLJUČEN (beta bug, na zahtev korisnika)
+`FriendDao.deleteFriend` (Room), `FriendRemoteDataSource.removeFriendFromFirestoreForUser`
+(Android preko `arrayRemove`, iOS preko get-filter-set), `FriendRepository.deleteFriend` +
+`isFriendAlready` - sve implementirano i inertno (ništa od ovoga se trenutno ne poziva).
+`FriendsViewModel.addFriend()` ima dedup proveru napisanu kao ZAKOMENTARISAN blok tačno na
+mestu gde bi trebalo da stoji; `removeFriend()` postoji kao potpuno zakomentarisana funkcija;
+`FriendsScreen`-ov dugme za uklanjanje (✕) je takođe zakomentarisano. Trenutno ponašanje
+(duplikat moguć, uklanjanje nedostupno) ostaje NEPROMENJENO - namerno, dok korisnik ne završi
+beta testiranje, kad treba samo otkomentarisati sve navedeno.
+
+### Pouka za ubuduće
+Kad korisnik eksplicitno traži da se bug OSTAVI (npr. radi beta testiranja), najbolji pristup
+je napisati kompletan, ispravan fix ali ga ostaviti zakomentarisanog TAČNO na mestu gde bi
+trebalo da živi (ne u posebnom "future work" fajlu) - sledeći put kad neko treba da ga uključi,
+samo skida komentare, bez ponovnog smišljanja rešenja.
+
+### Šta je ostalo
+Korisnik da vizuelno potvrdi da je PDF sada ispravno orijentisan preko UI-ja.
