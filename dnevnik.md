@@ -1743,10 +1743,92 @@ POVEZAN sa UI-jem" (neko stvarno poziva fetch-and-update na login) su DVE odvoje
 je propustiti drugu ako se prva testira samo preko curl-a/wire-format provere, bez pravog
 login-preko-drugog-naloga scenarija.
 
+### Šta je ostalo (u trenutku pisanja - videti unose ispod, sve je od tada završeno)
+- Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF).
+- Rok je ponedeljak.
+
+---
+
+## 2026-09-06/07 (nastavak) - Glucose dijalog do kraja + Faze 3, 4, 6 (Friends/Reminders/Reports)
+
+### Kontekst
+Korisnik je posle prijave preko Google naloga uživo potvrdio da radi sve kako treba (Google
+Sign-In + cloud sync). Sledeći zahtev: "sredi glucose feature do kraja" - dijalog za dodavanje
+očitavanja da bude pun paritet sa Android-om (datum/vreme, insulin tip+doza, povezan obrok).
+Pročitan direktno pravi Android kod (AddGlucoseReadingDialog.kt, GlucoseViewModel.kt,
+GlucoseDropdownMenu.kt, DateUtils.kt) kao izvor istine. Dodato u core/time:
+combineDateAndTime/combineTimeWithDate (KMP-safe, Android koristi java.util.Calendar) +
+dateOnlyLabel. GlucoseViewModel dobio newTimestamp/newInsulinTypeId/newInsulinUnits/
+newLinkedMealId + allInsulinTypesForUser/sameDayMealsForNewReading (čita iz već postojećih
+Insulin/Meals repozitorijuma). GlucoseScreen dobio pun dijalog - Material3 DatePicker/TimePicker
+(provereno da rade na iOS-u kompajliranjem PRE nego što se pretpostavilo, kao i uvek) + dropdown
+BEZ ikonica (tekstualni glifovi ▾/▴, poznat CMP rizik od ranije). Korisnik uživo potvrdio da radi
+("Novorapid · 13.0 j." ispravno prikazano u listi).
+
+Zatim: "šta ćemo dalje" - predložen i odobren redosled Friends → Reminders notifikacije →
+Reports PDF (Meals kamera namerno izostavljena - simulator nema pravu kameru, ne može se
+pouzdano testirati pre roka).
+
+### Faza 3 - Friends (potpuno nov ekran)
+`FirestoreRestClient.queryEqual` - PRVI :runQuery poziv u projektu (fieldFilter EQUAL po
+friendCode, pretraga cele "users" kolekcije umesto poznatog document id-a) - oblik odgovora
+potvrđen curl testom pre pisanja Kotlin koda. `FirestoreValue.plainStringOf` za "friends" polje
+(niz golih uid stringova, ne mapValue objekata kao svi ostali nizovi u projektu).
+`FirestoreRestFriendRemoteDataSource`: pretraga preko queryEqual, `fetchFriendCandidates` radi N
+pojedinačnih getDocumentFields poziva po prijatelju (ne Android-ov whereIn grupni upit - liste
+prijatelja su male). Novi FriendsViewModel/FriendsScreen (isti obrazac kao ostalih 8 ekrana).
+End-to-end curl test celog toka (dva test naloga, pretraga, obostrano dodavanje, čitanje
+kandidata, cleanup) potvrdio tačnost pre Xcode build-a.
+
+### Faza 4 - Reminders prave OS notifikacije
+`ReminderNotificationScheduler` (commonMain interfejs) - iOS actual preko
+`UNUserNotificationCenter` + `UNCalendarNotificationTrigger(repeats=true)` (jednostavnije od
+Android-ovog AlarmManager re-arm obrasca - iOS sam ponavlja dnevno). Android actual je namerno
+NO-OP: `:shared` ne može zavisiti od `:app` (gde živi pravi, proveren ReminderScheduler/
+NotificationHelper/ReminderReceiver lanac), a dupliranje AlarmManager+BroadcastReceiver-a u
+`:shared` bi tražilo nov unos u `:shared`-ov AndroidManifest (merge rizik, netestabilan bez
+fizičkog uređaja trenutno povezanog) za vrednost koja bi samo dala DODATNO zvonjenje na
+Android-ovom demo ekranu - Android korisnik već ima potpuno funkcionalne notifikacije preko
+svog pravog ekrana. Isti princip prvi put uveden ovde, ponovljen za Reports (ispod). Dodato i
+ručno podesivo vreme u Reminders dijalogu (ranije uvek trenutno vreme dodavanja) - isti
+TimePicker obrazac kao Glucose.
+
+### Faza 6 - Reports PDF (Meals kamera/Faza 5 preskočena - vidi gore)
+Android-ov PDF izvoz (iText7) ostaje netaknut u `:app`, ta zavisnost ne postoji u `:shared`.
+Isti no-op princip kao Reminders: `isPdfReportSupported = false` sakriva ceo tab na Android
+demo ekranu. iOS: `UIGraphicsPDFRenderer` + `UIActivityViewController` za deljenje.
+
+**Značajan cinterop zastoj, rešen sistematski**: `NSString.drawAtPoint(withAttributes:)` i
+`NSData.writeToFile` su dosledno davali "Unresolved reference" i na metadata i na pravom
+`compileKotlinIosSimulatorArm64` target-u, uprkos više pokušaja (drugačiji import-i, `as
+NSString` kast, `NSString.create(...)` fabrika) - uzrok nije do kraja utvrđen. Umesto daljeg
+kopanja (ovo je najniži prioritet cele migracije), pređeno na stariji Core Graphics C API
+(`CGContextShowTextAtPoint`/`CGContextSelectFont`) - proveren `grep` kroz pravi iOS SDK header
+(`CGContext.h`) da POSTOJI (`API_DEPRECATED("No longer supported", ios(2.0,7.0))` - deprecated,
+ali i dalje prisutan i linkuje se, "no longer supported" je samo tekst upozorenja, ne stvarno
+uklonjena funkcija). `CGTextEncoding` enum se pokazao ugnježden (`CGTextEncoding.
+kCGEncodingMacRoman`, ne goli top-level `kCGEncodingMacRoman`) - kad se to ispravilo, ceo fajl
+je prošao kompajliranje iz prve. Cena: MacRoman kodiranje ne pokriva srpske dijakritike
+(č/ć/š/ž/đ) - tekst u PDF-u se transliteruje u ASCII (kozmetički kompromis, dokumentovan u
+kodu). `NSData.writeToFile` zamenjeno POSIX `fopen`/`fwrite` preko `NSData.bytes`/`.length`
+(osnovna Foundation svojstva, ne kategorije - pouzdano razrešena).
+
+**Pouka za ubuduće**: kad neki Kotlin/Native ObjC interop poziv dosledno ne razrešava referencu
+uprkos više razumnih pokušaja, pre daljeg pogađanja imena/potpisa vredi (a) proveriti da li je
+funkcija uopšte DOSTUPNA na iOS-u preko `grep` kroz pravi SDK header
+(`/Applications/Xcode.app/.../SDKs/iPhoneOS.sdk/.../Headers/*.h`) - "no longer supported" u
+deprecation poruci ne znači da je funkcija fizički uklonjena, i (b) razmotriti stariji/niži-nivo
+C API kao siguran fallback umesto više-nivo ObjC kategorija čije se ime/potpis ne može lako
+potvrditi bez dokumentacije.
+
+### Verifikacija (sve tri faze)
+Pun lanac (BUILD SUCCESSFUL) posle svake faze, Xcode build + iOS 18.6 simulator no-crash launch
+posle svake. End-to-end curl test za Friends (jedini sa novim query mehanizmom). NIJE urađeno
+ni za jednu od tri faze: stvaran tap kroz UI (simctl nema tap automatizaciju) - korisnik testira
+sledeće za sve odjednom.
+
 ### Šta je ostalo
-- Ručno probati dodavanje/brisanje stavki kroz UI za svih 5 Faza 2 ekrana (i na Android uređaju
-  kad bude dostupan) - do sada samo curl + no-crash launch provera + potvrđeno čitanje.
-- Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF) - pun plan
-  u `.claude/plans/` ove sesije, rezime u CLAUDE.md ako se prenese.
-- Rok je ponedeljak - realno neće stati sve; Faza 1+2 (gotove, uz Google Sign-In i sync fix) su
-  jezgro za snimak.
+Ovim je završen ceo planirani opseg (Faze 1-6) feature-parity migracije. Preostaje: korisnik da
+ručno proveri Friends/Reminders-notifikacije/Reports UI uživo (i idealno instalacija na fizički
+Android uređaj kad bude dostupan - nijedan nije povezan na ovaj Mac tokom cele ove sesije).
+Meals kamera (Faza 5) namerno preskočena - simulator nema pravu kameru, van obima do roka.
