@@ -3,6 +3,7 @@ package com.dj.insulink.core
 import android.app.Application
 import com.dj.insulink.BuildConfig
 import com.dj.insulink.shared.core.di.firebaseModule
+import com.dj.insulink.shared.feature.auth.di.authModule
 import com.dj.insulink.shared.feature.fitness.di.fitnessModule
 import com.dj.insulink.shared.feature.friends.di.friendsModule
 import com.dj.insulink.shared.feature.glucose.di.glucoseModule
@@ -24,6 +25,7 @@ class InsulinkApplication : Application() {
             androidContext(this@InsulinkApplication)
             modules(
                 firebaseModule,
+                authModule,
                 glucoseModule,
                 mealsModule(
                     usdaApiKey = BuildConfig.USDA_API_KEY ?: "",

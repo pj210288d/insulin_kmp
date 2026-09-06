@@ -10,10 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +28,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.insulink.shared.core.ui.sharedRootTopInset
+import com.dj.insulink.shared.feature.auth.ui.ForgotPasswordScreen
+import com.dj.insulink.shared.feature.auth.ui.LoginScreen
+import com.dj.insulink.shared.feature.auth.ui.RegistrationScreen
+import com.dj.insulink.shared.feature.auth.ui.viewmodel.AuthViewModel
 import com.dj.insulink.shared.feature.fitness.ui.FitnessScreen
 import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 import com.dj.insulink.shared.feature.glucose.ui.GlucoseScreen
@@ -46,55 +54,132 @@ import org.koin.mp.KoinPlatform
 // poziva initKoinIOS() pa ComposeUIViewController { App() }) i Android (SharedGlucoseDemo route
 // u :app poziva ovaj isti App()) - vidi CLAUDE.md, faza 4 MVP. Prikazuje osam deljenih MVP
 // ekrana (Glucose, Statistics, Insulin, Settings, Reminders, Fitness, LibreLinkUp, Meals - vidi
-// njihove ViewModel-e za obim) iza proste horizontalno-skrolabilne tab-trake, bez prijave (vidi
-// UserSession) i bez prave navigacione biblioteke - samo lokalni Compose state, dovoljno za
-// par ekrana. Svaki ViewModel je Koin single (vidi glucoseModule/statisticsModule/
-// insulinModule/settingsModule/remindersModule/fitnessModule/librelinkModule), zato se ovde
-// uzimaju direktno preko KoinPlatform-a (multiplatform-bezbedan način da se dođe do trenutne
-// Koin instance - obično GlobalContext, dostupan samo na JVM/Android strani) umesto
-// Compose-Koin integracije - isti obrazac kao postojeći SharedModule.kt most (Hilt -> Koin) na
-// Android strani, samo u suprotnom smeru.
+// njihove ViewModel-e za obim) iza proste horizontalno-skrolabilne tab-trake, bez prave
+// navigacione biblioteke - samo lokalni Compose state, dovoljno za par ekrana. Svaki ViewModel
+// je Koin single (vidi glucoseModule/statisticsModule/insulinModule/settingsModule/
+// remindersModule/fitnessModule/librelinkModule), zato se ovde uzimaju direktno preko
+// KoinPlatform-a (multiplatform-bezbedan način da se dođe do trenutne Koin instance - obično
+// GlobalContext, dostupan samo na JVM/Android strani) umesto Compose-Koin integracije - isti
+// obrazac kao postojeći SharedModule.kt most (Hilt -> Koin) na Android strani, samo u
+// suprotnom smeru.
+//
+// Faza 1 (Auth, vidi plan): pre tab trake se sada nalazi pravi login gate - AuthViewModel.
+// restoreSession() se zove jednom pri prvoj kompoziciji; dok traje, prikazuje se spinner; ako
+// nema sesije, prikazuju se shared Login/Registration/ForgotPassword ekrani (AuthScreen enum
+// ispod); tek kad AuthSession.currentUser nije null prikazuje se postojeća tab traka. Na
+// Android-u je ovo u praksi uvek trenutno "prijavljeno" - do SharedGlucoseDemo rute se stiže
+// tek posle pravog login-a u glavnoj app (ista FirebaseAuth instanca), pa se shared Login ekran
+// tamo praktično nikad ne vidi (postoji radi dokazivanja da isti kod radi na oba OS-a).
 @Composable
 fun App() {
     MaterialTheme(colorScheme = insulinkColorScheme()) {
-        var selectedTab by remember { mutableStateOf(SharedTab.GLUCOSE) }
+        val authViewModel = remember { KoinPlatform.getKoin().get<AuthViewModel>() }
+        val isRestoringSession by authViewModel.isRestoringSession.collectAsState()
+        val currentUser by authViewModel.currentUser.collectAsState()
 
-        Column(modifier = Modifier.fillMaxSize().sharedRootTopInset()) {
-            SharedTabBar(selectedTab = selectedTab, onSelect = { selectedTab = it })
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (selectedTab) {
-                    SharedTab.GLUCOSE -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<GlucoseViewModel>() }
-                        GlucoseScreen(viewModel = viewModel)
-                    }
-                    SharedTab.STATISTICS -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<StatisticsViewModel>() }
-                        StatisticsScreen(viewModel = viewModel)
-                    }
-                    SharedTab.INSULIN -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<InsulinViewModel>() }
-                        InsulinScreen(viewModel = viewModel)
-                    }
-                    SharedTab.SETTINGS -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<SettingsViewModel>() }
-                        SettingsScreen(viewModel = viewModel)
-                    }
-                    SharedTab.REMINDERS -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<RemindersViewModel>() }
-                        RemindersScreen(viewModel = viewModel)
-                    }
-                    SharedTab.FITNESS -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<FitnessViewModel>() }
-                        FitnessScreen(viewModel = viewModel)
-                    }
-                    SharedTab.LIBRELINK -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
-                        LibreLinkScreen(viewModel = viewModel)
-                    }
-                    SharedTab.MEALS -> {
-                        val viewModel = remember { KoinPlatform.getKoin().get<MealsViewModel>() }
-                        MealsScreen(viewModel = viewModel)
-                    }
+        LaunchedEffect(Unit) { authViewModel.restoreSession() }
+
+        when {
+            isRestoringSession -> LoadingScreen()
+            currentUser == null -> AuthFlow(authViewModel)
+            else -> MainTabs(authViewModel)
+        }
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
+    Box(modifier = Modifier.fillMaxSize().sharedRootTopInset(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+private enum class AuthScreen { LOGIN, REGISTER, FORGOT_PASSWORD }
+
+@Composable
+private fun AuthFlow(authViewModel: AuthViewModel) {
+    var screen by remember { mutableStateOf(AuthScreen.LOGIN) }
+    val isLoading by authViewModel.isLoading.collectAsState()
+    val errorMessage by authViewModel.errorMessage.collectAsState()
+    val infoMessage by authViewModel.infoMessage.collectAsState()
+
+    fun navigate(target: AuthScreen) {
+        authViewModel.clearMessages()
+        screen = target
+    }
+
+    Box(modifier = Modifier.fillMaxSize().sharedRootTopInset()) {
+        when (screen) {
+            AuthScreen.LOGIN -> LoginScreen(
+                viewModel = authViewModel,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                onNavigateToRegister = { navigate(AuthScreen.REGISTER) },
+                onNavigateToForgotPassword = { navigate(AuthScreen.FORGOT_PASSWORD) }
+            )
+            AuthScreen.REGISTER -> RegistrationScreen(
+                viewModel = authViewModel,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                onNavigateToLogin = { navigate(AuthScreen.LOGIN) }
+            )
+            AuthScreen.FORGOT_PASSWORD -> ForgotPasswordScreen(
+                viewModel = authViewModel,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                infoMessage = infoMessage,
+                onNavigateBack = { navigate(AuthScreen.LOGIN) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainTabs(authViewModel: AuthViewModel) {
+    var selectedTab by remember { mutableStateOf(SharedTab.GLUCOSE) }
+
+    Column(modifier = Modifier.fillMaxSize().sharedRootTopInset()) {
+        Row(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+            Box(modifier = Modifier.weight(1f)) {
+                SharedTabBar(selectedTab = selectedTab, onSelect = { selectedTab = it })
+            }
+            TextButton(onClick = { authViewModel.signOut() }) {
+                Text("Odjava", color = Color(0xFF9AA0A6))
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (selectedTab) {
+                SharedTab.GLUCOSE -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<GlucoseViewModel>() }
+                    GlucoseScreen(viewModel = viewModel)
+                }
+                SharedTab.STATISTICS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<StatisticsViewModel>() }
+                    StatisticsScreen(viewModel = viewModel)
+                }
+                SharedTab.INSULIN -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<InsulinViewModel>() }
+                    InsulinScreen(viewModel = viewModel)
+                }
+                SharedTab.SETTINGS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<SettingsViewModel>() }
+                    SettingsScreen(viewModel = viewModel)
+                }
+                SharedTab.REMINDERS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<RemindersViewModel>() }
+                    RemindersScreen(viewModel = viewModel)
+                }
+                SharedTab.FITNESS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<FitnessViewModel>() }
+                    FitnessScreen(viewModel = viewModel)
+                }
+                SharedTab.LIBRELINK -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<LibreLinkViewModel>() }
+                    LibreLinkScreen(viewModel = viewModel)
+                }
+                SharedTab.MEALS -> {
+                    val viewModel = remember { KoinPlatform.getKoin().get<MealsViewModel>() }
+                    MealsScreen(viewModel = viewModel)
                 }
             }
         }
