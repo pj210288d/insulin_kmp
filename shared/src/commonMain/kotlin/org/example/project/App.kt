@@ -190,7 +190,13 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
                 )
             }
         },
-        modifier = Modifier.fillMaxSize().sharedRootTopInset()
+        // Bez sharedRootTopInset() ovde namerno - za razliku od LoadingScreen/AuthFlow (koji
+        // nemaju Scaffold), CenterAlignedTopAppBar ispod već sam primenjuje status-bar inset
+        // (Material3 TopAppBarDefaults.windowInsets). Dodavanje statusBarsPadding() i ovde je
+        // pravilo DUPLI razmak na iOS-u (hamburger/naslov spušteni duboko ispod notch-a/Dynamic
+        // Island-a, viđeno na screenshot-u 2026-09-07) - Android nema ovaj problem jer je
+        // sharedRootTopInset() tamo no-op.
+        modifier = Modifier.fillMaxSize()
     ) {
         Scaffold(
             topBar = {
