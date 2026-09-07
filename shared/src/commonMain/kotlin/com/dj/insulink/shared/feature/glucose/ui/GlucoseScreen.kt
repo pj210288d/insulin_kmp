@@ -55,8 +55,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.dj.insulink.shared.core.localization.LocalizationSession
@@ -362,6 +364,14 @@ private fun ReadingRow(
 
 // Prost Canvas-baziran linijski grafik (bez eksternih biblioteka - Vico, korišćen u Android
 // ekranu, nije Compose Multiplatform kompatibilan) - dovoljan za MVP.
+//
+// 2026-09-07: korisnik prijavio da se na iOS-u ne vide koordinate (grafik je ranije bio "goli"
+// Canvas bez ijedne ose) - dodate Y osa (fiksni opseg 2-25 mmol/L, konvertovan u mg/dL kad je
+// ta jedinica izabrana - isti pravi klinički opseg hipo/hiperglikemije nezavisno od jedinice) i
+// X osa (sati - vreme prve/srednje/poslednje tačke, ispod grafika). Tekst se crta preko
+// `TextMeasurer`/`drawText(textLayoutResult, ...)` - Compose Multiplatform-bezbedan način da se
+// tekst iscrta unutar `Canvas`-a (za razliku od `nativeCanvas`, koji je platform-specifičan tip
+// i ne bi radio na iOS-u).
 @Composable
 private fun SimpleLineChart(readings: List<GlucoseReading>, unit: GlucoseUnit, modifier: Modifier = Modifier) {
     val ordered = remember(readings) { readings.sortedBy { it.timestamp } }
@@ -374,26 +384,94 @@ private fun SimpleLineChart(readings: List<GlucoseReading>, unit: GlucoseUnit, m
             }
         }
     }
+    val fixedMin = remember(unit) {
+        if (unit == GlucoseUnit.MMOL_L) FIXED_MIN_MMOL else GlucoseUnit.convertMmolLToMgDl(FIXED_MIN_MMOL.toDouble()).toFloat()
+    }
+    val fixedMax = remember(unit) {
+        if (unit == GlucoseUnit.MMOL_L) FIXED_MAX_MMOL else GlucoseUnit.convertMmolLToMgDl(FIXED_MAX_MMOL.toDouble()).toFloat()
+    }
+    val textMeasurer = rememberTextMeasurer()
+    val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = axisColor)
+
     Canvas(modifier = modifier) {
-        if (values.size < 2) return@Canvas
-        val minValue = values.min()
-        val maxValue = values.max()
-        val range = (maxValue - minValue).coerceAtLeast(1f)
-        val stepX = size.width / (values.size - 1)
-        val points = values.mapIndexed { index, value ->
-            Offset(
-                x = index * stepX,
-                y = size.height - ((value - minValue) / range) * size.height
+        val leftAxisWidth = 34.dp.toPx()
+        val bottomAxisHeight = 18.dp.toPx()
+        val plotLeft = leftAxisWidth
+        val plotWidth = (size.width - leftAxisWidth).coerceAtLeast(0f)
+        val plotHeight = (size.height - bottomAxisHeight).coerceAtLeast(0f)
+        val range = (fixedMax - fixedMin).coerceAtLeast(1f)
+
+        // Y osa - fiksne linije/labele na 5 podeoka (min, ..., max), ne zavisi od stvarnih
+        // vrednosti očitavanja - uvek isti opseg da bi se grafici različitih dana mogli vizuelno
+        // uporediti.
+        val tickCount = 4
+        for (i in 0..tickCount) {
+            val value = fixedMin + range * i / tickCount
+            val y = plotHeight - ((value - fixedMin) / range) * plotHeight
+            drawLine(
+                color = axisColor.copy(alpha = 0.15f),
+                start = Offset(plotLeft, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1f
+            )
+            val layout = textMeasurer.measure(axisValueLabel(value, unit), style = labelStyle)
+            drawText(
+                textLayoutResult = layout,
+                topLeft = Offset(0f, (y - layout.size.height / 2f).coerceIn(0f, plotHeight - layout.size.height))
             )
         }
-        for (index in 0 until points.size - 1) {
-            drawLine(color = InsulinkBlue, start = points[index], end = points[index + 1], strokeWidth = 6f)
-        }
-        points.forEach { point ->
-            drawCircle(color = InsulinkBlue, radius = 8f, center = point)
+
+        if (values.isNotEmpty()) {
+            val stepX = if (values.size > 1) plotWidth / (values.size - 1) else 0f
+            val points = values.mapIndexed { index, value ->
+                val clamped = value.coerceIn(fixedMin, fixedMax)
+                Offset(
+                    x = plotLeft + index * stepX,
+                    y = plotHeight - ((clamped - fixedMin) / range) * plotHeight
+                )
+            }
+            for (index in 0 until points.size - 1) {
+                drawLine(color = InsulinkBlue, start = points[index], end = points[index + 1], strokeWidth = 6f)
+            }
+            points.forEach { point ->
+                drawCircle(color = InsulinkBlue, radius = 8f, center = point)
+            }
+
+            // X osa - sati, prikazani samo na prvoj/srednjoj/poslednjoj tački (izbegava
+            // pretrpanost kad ima puno očitavanja u danu) - koristi STVARNO vreme te tačke.
+            val labelIndices = listOf(0, points.size / 2, points.size - 1).distinct()
+            labelIndices.forEach { index ->
+                val layout = textMeasurer.measure(timeOfDayLabel(ordered[index].timestamp), style = labelStyle)
+                val x = (points[index].x - layout.size.width / 2f)
+                    .coerceIn(plotLeft, size.width - layout.size.width)
+                drawText(textLayoutResult = layout, topLeft = Offset(x, plotHeight + 2.dp.toPx()))
+            }
         }
     }
 }
+
+// NAPOMENA (bug uhvaćen uživo na screenshot-u pre commit-a): `GlucoseUnit.formatValue(Double)`
+// UVEK očekuje ulaznu vrednost u mg/dL (sam radi konverziju u mmol/L kad treba) - ne sme se
+// pozvati sa vrednošću koja je VEĆ konvertovana u prikazanu jedinicu (kao `value` ovde, koji
+// dolazi iz `fixedMin`/`fixedMax`, već izračunatih po jedinici) jer bi se onda mmol/L vrednost
+// podelila konverzionim faktorom DRUGI PUT (2 mmol/L bi se prikazalo kao "0.1"). Ista logika kao
+// `oneDecimal()` u StatisticsScreen.kt - ručno zaokruživanje bez oslanjanja na Float.toString()
+// (izbegava lokalizaciono/platformsko nekonzistentno formatiranje decimala).
+private fun axisValueLabel(value: Float, unit: GlucoseUnit): String {
+    return when (unit) {
+        GlucoseUnit.MG_DL -> value.toInt().toString()
+        GlucoseUnit.MMOL_L -> {
+            val scaled = kotlin.math.round(value * 10).toLong()
+            val whole = scaled / 10
+            val fraction = kotlin.math.abs(scaled % 10)
+            "$whole.$fraction"
+        }
+    }
+}
+
+private const val FIXED_MIN_MMOL = 2f
+private const val FIXED_MAX_MMOL = 25f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

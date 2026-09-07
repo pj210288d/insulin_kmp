@@ -2181,3 +2181,32 @@ jednostavna i direktno testirana kroz kompajliranje/pokretanje, korisnik može o
   novi podaci pojave u Glucose ekranu bez ručne akcije.
 - Prava OS-nivo pozadinska sinhronizacija (BGTaskScheduler) ostaje neurađena - namerno, van obima
   uoči roka, iskreno navedeno korisniku.
+
+## 2026-09-07 (nastavak) - Dodate ose (koordinate) na Glucose grafiku
+
+Korisnik prijavio da se na iOS-u ne vide koordinate na grafiku (goli Canvas bez ijedne ose) -
+tražio sate na X osi i fiksni Y opseg 2-25 (mmol/L - klinički pun opseg hipo/hiperglikemije).
+
+Urađeno (`SimpleLineChart` u `GlucoseScreen.kt`, deljeni kod - isti fix važi i za Android
+"Shared UI" demo tab, ne samo iOS):
+- Y osa: 5 fiksnih podeoka (2, ..., 25 mmol/L - konvertovano u mg/dL kad je ta jedinica
+  izabrana, isti pravi klinički opseg nezavisno od jedinice) sa horizontalnim linijama i
+  labelama, nezavisno od stvarnih vrednosti očitavanja (za razliku od ranijeg dinamičkog min/max
+  ranga) - grafici različitih dana se sada mogu vizuelno uporediti.
+- X osa: sati (vreme prve/srednje/poslednje tačke) ispod grafika.
+- Tekst iscrtan preko `TextMeasurer`/`drawText(textLayoutResult, ...)` - Compose Multiplatform-
+  bezbedan način (za razliku od `nativeCanvas`, platform-specifičan tip koji ne bi radio na
+  iOS-u).
+
+**Bug uhvaćen uživo na prvom screenshot-u pre commit-a** (ispravljen u istom koraku, nije
+ostavljen): Y-osa labele su prvobitno pozivale `GlucoseUnit.formatValue(value)`, ali ta funkcija
+UVEK očekuje ulaz u mg/dL (sama radi konverziju u mmol/L kad treba) - `value` je ovde već bio u
+prikazanoj jedinici (iz `fixedMin`/`fixedMax`), pa se mmol/L vrednost delila konverzionim
+faktorom DRUGI PUT (2 mmol/L → "0.1" umesto "2.0"). Ispravljeno dodavanjem posebne
+`axisValueLabel(value, unit)` funkcije koja NE radi dodatnu konverziju (ista ručna
+zaokruživanje-bez-Float.toString() tehnika kao `oneDecimal()` u StatisticsScreen.kt).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - **live potvrđeno DVA PUTA screenshot-om**: prvi put uhvaćen bug
+(0.1/0.4/0.7/1.1/1.4 pogrešne labele), drugi put posle fix-a ispravno prikazuje 2.0/7.8/13.5/
+19.2/25.0 na Y osi i 01:42/01:55/01:56 na X osi.
