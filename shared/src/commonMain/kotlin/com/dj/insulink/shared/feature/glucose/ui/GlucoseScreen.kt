@@ -478,7 +478,7 @@ private fun axisValueLabel(value: Float, unit: GlucoseUnit): String {
 
 private const val FIXED_MIN_MMOL = 2f
 private const val FIXED_MAX_MMOL = 25f
-private val Y_AXIS_TICKS_MMOL = listOf(2f, 5f, 10f, 15f, 18f, 25f)
+private val Y_AXIS_TICKS_MMOL = listOf(3f, 6f, 9f, 12f, 15f, 18f, 21f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

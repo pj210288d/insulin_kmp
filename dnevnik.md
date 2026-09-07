@@ -2222,3 +2222,11 @@ princip kao fixedMin/fixedMax).
 Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
 pokretanje na simulatoru - screenshot potvrđuje tačno traženih 6 vrednosti na Y osi
 (25.0/18.0/15.0/10.0/5.0/2.0), linija tačno pozicionirana između 5.0 i 10.0 za očitavanja 6.5-6.9.
+
+## 2026-09-07 (nastavak) - Y-osa: korigovane vrednosti na 3/6/9/12/15/18/21
+
+Korisnik ispravio prethodni izbor - umesto 2/5/10/15/18/25 sada 3, 6, 9, 12, 15, 18, 21
+(ravnomerno na svakih 3). Izmenjen `Y_AXIS_TICKS_MMOL` u `SimpleLineChart` (`GlucoseScreen.kt`).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+screenshot na simulatoru potvrđuje tačno 21.0/18.0/15.0/12.0/9.0/6.0/3.0 na Y osi.
