@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
@@ -59,14 +61,15 @@ import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 // stvarno da zvoni, ne samo da čuva vreme kao podatak.
 // Dodavanje podsetnika je 2026-09-07 prebačeno sa uvek-vidljivog inline reda u FAB + dijalog,
 // isto kao Android-ov app/feature/reminders/ui/RemindersScreen.kt (parity zahtev korisnika).
-// Istom prilikom je uklonjen birač tipa podsetnika (TypeSelector) iz add-toka - novi podsetnici
-// dobijaju podrazumevani tip iz RemindersViewModel._newType (MEAL_REMINDER), koji se i dalje
-// koristi za notifikacionu poruku i prikazuje se (samo informativno, read-only) u listi ispod
-// naslova svakog podsetnika - vidi typeLabel()/ReminderRow.
+// Birač tipa podsetnika je istom prilikom prvo uklonjen pa vraćen (korisnik se predomislio) -
+// sad je u AddReminderDialog-u, kao dropdown (SharedDropdownMenu, isti obrazac kao Android-ov
+// GlucoseDropdownMenu korišćen za ReminderType u app/feature/reminders/ui/RemindersScreen.kt),
+// ne kao stari uvek-vidljivi chip red (TypeSelector, uklonjen).
 @Composable
 fun RemindersScreen(viewModel: RemindersViewModel) {
     val reminders by viewModel.reminders.collectAsState()
     val newTitle by viewModel.newTitle.collectAsState()
+    val newType by viewModel.newType.collectAsState()
     val newTime by viewModel.newTime.collectAsState()
     val language by LocalizationSession.currentLanguage.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -113,6 +116,8 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
         AddReminderDialog(
             title = newTitle,
             onTitleChange = viewModel::setNewTitle,
+            type = newType,
+            onTypeChange = viewModel::setNewType,
             time = newTime,
             onTimeChange = viewModel::setNewTime,
             language = language,
@@ -130,6 +135,8 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
 private fun AddReminderDialog(
     title: String,
     onTitleChange: (String) -> Unit,
+    type: ReminderType,
+    onTypeChange: (ReminderType) -> Unit,
     time: Long,
     onTimeChange: (Long) -> Unit,
     language: AppLanguage,
@@ -151,6 +158,19 @@ private fun AddReminderDialog(
                     onValueChange = onTitleChange,
                     label = { Text(tr(language, "Naslov podsetnika", "Reminder title")) },
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(text = tr(language, "Izaberi tip", "Select type"))
+                Spacer(Modifier.height(4.dp))
+                val typeLabels = ReminderType.entries.map { typeLabel(it, language) }
+                SharedDropdownMenu(
+                    items = typeLabels,
+                    selectedItem = typeLabel(type, language),
+                    onItemSelected = { selected ->
+                        val index = typeLabels.indexOf(selected)
+                        if (index >= 0) onTypeChange(ReminderType.entries[index])
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
@@ -253,6 +273,35 @@ private fun DoneCheckbox(checked: Boolean) {
     ) {
         if (checked) {
             Text(text = "✓", color = Color.White, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+// Bez ikonica (Icons.Filled.ArrowDropDown/Up) - vidi napomenu o material-icons-core u
+// GlucoseScreen.kt. Isti obrazac kao Android-ov GlucoseDropdownMenu.kt.
+@Composable
+private fun SharedDropdownMenu(
+    items: List<String>,
+    selectedItem: String,
+    onItemSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(selectedItem, modifier = Modifier.weight(1f))
+            Text(if (expanded) "▴" else "▾")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

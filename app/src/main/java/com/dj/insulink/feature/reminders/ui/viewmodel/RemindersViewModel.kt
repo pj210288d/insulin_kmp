@@ -112,6 +112,17 @@ class RemindersViewModel @Inject constructor(
         }
     }
 
+    // Klik na podsetnik toggluje da li je odradjen za danas - isti obrazac kao shared
+    // RemindersViewModel.toggleDoneForToday() u :shared (feature/reminders), zahtev korisnika
+    // 2026-09-07 da postoji i na Android real ekranu.
+    fun toggleDoneForToday(userId: String?, reminder: Reminder) {
+        viewModelScope.launch {
+            userId?.let {
+                reminderRepository.insert(userId, reminder.copy(isDoneForToday = !reminder.isDoneForToday))
+            }
+        }
+    }
+
     fun deleteReminder(userId: String?, reminder: Reminder) {
         viewModelScope.launch {
             userId?.let {

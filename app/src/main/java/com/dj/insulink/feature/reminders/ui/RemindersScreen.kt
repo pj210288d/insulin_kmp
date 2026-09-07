@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -91,7 +92,8 @@ fun RemindersScreen(
                 ) {
                     ReminderListItem(
                         reminder = it,
-                        onSwipeFromStartToEnd = params.onSwipeFromStartToEnd
+                        onSwipeFromStartToEnd = params.onSwipeFromStartToEnd,
+                        onToggleDone = params.onToggleDone
                     )
                     Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
                 }
@@ -132,7 +134,8 @@ fun RemindersScreen(
 @Composable
 private fun ReminderListItem(
     reminder: Reminder,
-    onSwipeFromStartToEnd: (Reminder) -> Unit
+    onSwipeFromStartToEnd: (Reminder) -> Unit,
+    onToggleDone: (Reminder) -> Unit
 ) {
     val timeFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     var hasBeenSwiped by remember { mutableStateOf(false) }
@@ -170,6 +173,7 @@ private fun ReminderListItem(
                     ),
                     RoundedCornerShape(InsulinkTheme.dimens.commonButtonRadius12)
                 )
+                .clickable { onToggleDone(reminder) }
         ) {
             Icon(
                 painter = painterResource(reminder.reminderType.icon),
@@ -435,6 +439,7 @@ data class RemindersScreenParams(
     val setReminderType: (ReminderType) -> Unit,
     val setReminderTime: (Long) -> Unit,
     val onSwipeFromStartToEnd: (Reminder) -> Unit,
+    val onToggleDone: (Reminder) -> Unit,
     val onAddReminderClick: () -> Unit
 )
 

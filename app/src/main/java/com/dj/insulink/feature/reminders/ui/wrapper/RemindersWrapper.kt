@@ -46,6 +46,9 @@ fun RemindersWrapper(
                 onSwipeFromStartToEnd = {
                     viewModel.deleteReminder(currentUser.uid, it)
                 },
+                onToggleDone = {
+                    viewModel.toggleDoneForToday(currentUser.uid, it)
+                },
                 onAddReminderClick = {
                     viewModel.addReminder(currentUser.uid)
                 }
