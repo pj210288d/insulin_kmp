@@ -113,15 +113,12 @@ class FriendsViewModel(
         _showAddNewFriendDialog.value = false
     }
 
-    // Poznat bug (namerno OSTAVLJEN - vidi komentar u addFriend()): nema načina da se ukloni
-    // dodat prijatelj iz UI-ja. Implementacija je spremna (FriendRepository.deleteFriend), samo
-    // namerno nepovezana sa UI-jem dok korisnik ne završi beta testiranje:
-    // fun removeFriend(friend: Friend) {
-    //     val userId = UserSession.currentUserId.value ?: return
-    //     viewModelScope.launch {
-    //         friendRepository.deleteFriend(userId, friend.friendId)
-    //     }
-    // }
+    fun removeFriend(friend: Friend) {
+        val userId = UserSession.currentUserId.value ?: return
+        viewModelScope.launch {
+            friendRepository.deleteFriend(userId, friend.friendId)
+        }
+    }
 }
 
 private const val FRIEND_CODE_MAX_LENGTH = 6

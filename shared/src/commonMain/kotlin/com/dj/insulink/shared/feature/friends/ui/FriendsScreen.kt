@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -75,7 +76,7 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
             )
         } else {
             friends.forEach { friend ->
-                FriendRow(friend, unit, language)
+                FriendRow(friend, unit, language, onDelete = viewModel::removeFriend)
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -94,7 +95,7 @@ fun FriendsScreen(viewModel: FriendsViewModel) {
 }
 
 @Composable
-private fun FriendRow(friend: Friend, unit: GlucoseUnit, language: AppLanguage) {
+private fun FriendRow(friend: Friend, unit: GlucoseUnit, language: AppLanguage, onDelete: (Friend) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -115,13 +116,9 @@ private fun FriendRow(friend: Friend, unit: GlucoseUnit, language: AppLanguage) 
                     ?: "--",
                 fontWeight = FontWeight.Bold
             )
-            // Poznat bug (namerno OSTAVLJEN na zahtev korisnika 2026-09-07 - beta testiranje je u
-            // toku): nema dugmeta za uklanjanje prijatelja. viewModel.removeFriend(friend) je
-            // spreman (zakomentarisan u FriendsViewModel.kt) - samo treba dodati onDelete
-            // parametar ovoj funkciji i otkomentarisati dole kad beta period prođe.
-            // IconButton(onClick = { onDelete(friend) }) {
-            //     Text(text = "✕", color = MaterialTheme.colorScheme.error)
-            // }
+            IconButton(onClick = { onDelete(friend) }) {
+                Text(text = "✕", color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

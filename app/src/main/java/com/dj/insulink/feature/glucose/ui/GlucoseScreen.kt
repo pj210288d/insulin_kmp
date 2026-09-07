@@ -160,11 +160,11 @@ fun GlucoseScreen(
 
             if (params.glucoseReadingsForSelectedDay.value.isNotEmpty()) {
                 DynamicLineChart(
-                    xValues = params.glucoseReadingsForSelectedDay.value.map { it.timestamp }.reversed(),
-                    yValues = params.glucoseReadingsForSelectedDay.value.map { it.value }.reversed(),
+                    xValues = params.glucoseReadingsForSelectedDay.value.map { it.timestamp },
+                    yValues = params.glucoseReadingsForSelectedDay.value.map { it.value },
                     modifier = Modifier
-                        .padding(horizontal = InsulinkTheme.dimens.commonPadding12)
-                        .height(289.dp),
+                        .padding(start = InsulinkTheme.dimens.commonPadding4, end = InsulinkTheme.dimens.commonPadding12)
+                        .height(300.dp),
                     glucoseUnit = params.glucoseUnit.value
                 )
             }

@@ -67,13 +67,6 @@ fun SideDrawer(
             )
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
             SideDrawerListItem(
-                title = stringResource(R.string.side_drawer_friends_title),
-                subtitle = stringResource(R.string.side_drawer_friends_subtitle),
-                icon = painterResource(R.drawable.ic_friends),
-                onClick = params.navigateToFriends
-            )
-            Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
-            SideDrawerListItem(
                 title = stringResource(R.string.side_drawer_reports_title),
                 subtitle = stringResource(R.string.side_drawer_reports_subtitle),
                 icon = painterResource(R.drawable.ic_reports),
@@ -81,17 +74,10 @@ fun SideDrawer(
             )
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
             SideDrawerListItem(
-                title = stringResource(R.string.side_drawer_settings_title),
-                subtitle = stringResource(R.string.side_drawer_settings_subtitle),
-                icon = painterResource(R.drawable.ic_settings),
-                onClick = params.navigateToSettings
-            )
-            Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
-            SideDrawerListItem(
-                title = stringResource(R.string.side_drawer_insulin_types_title),
-                subtitle = stringResource(R.string.side_drawer_insulin_types_subtitle),
-                icon = painterResource(R.drawable.ic_syringe),
-                onClick = params.navigateToInsulinTypes
+                title = stringResource(R.string.side_drawer_friends_title),
+                subtitle = stringResource(R.string.side_drawer_friends_subtitle),
+                icon = painterResource(R.drawable.ic_friends),
+                onClick = params.navigateToFriends
             )
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
             SideDrawerListItem(
@@ -102,10 +88,17 @@ fun SideDrawer(
             )
             Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
             SideDrawerListItem(
-                title = stringResource(R.string.side_drawer_shared_glucose_demo_title),
-                subtitle = stringResource(R.string.side_drawer_shared_glucose_demo_subtitle),
-                icon = painterResource(R.drawable.ic_devices),
-                onClick = params.navigateToSharedGlucoseDemo
+                title = stringResource(R.string.side_drawer_insulin_types_title),
+                subtitle = stringResource(R.string.side_drawer_insulin_types_subtitle),
+                icon = painterResource(R.drawable.ic_syringe),
+                onClick = params.navigateToInsulinTypes
+            )
+            Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+            SideDrawerListItem(
+                title = stringResource(R.string.side_drawer_settings_title),
+                subtitle = stringResource(R.string.side_drawer_settings_subtitle),
+                icon = painterResource(R.drawable.ic_settings),
+                onClick = params.navigateToSettings
             )
             Spacer(Modifier.weight(1f))
             Button(
@@ -145,7 +138,6 @@ data class SideDrawerParams(
     val navigateToSettings: () -> Unit,
     val navigateToInsulinTypes: () -> Unit,
     val navigateToStatistics: () -> Unit,
-    val navigateToSharedGlucoseDemo: () -> Unit,
     val onSignOutClick: () -> Unit,
 )
 
