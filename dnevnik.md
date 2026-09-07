@@ -2210,3 +2210,15 @@ Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUIL
 pokretanje na simulatoru - **live potvrđeno DVA PUTA screenshot-om**: prvi put uhvaćen bug
 (0.1/0.4/0.7/1.1/1.4 pogrešne labele), drugi put posle fix-a ispravno prikazuje 2.0/7.8/13.5/
 19.2/25.0 na Y osi i 01:42/01:55/01:56 na X osi.
+
+## 2026-09-07 (nastavak) - Y-osa: tačno određene vrednosti umesto ravnomernih podeoka
+
+Korisnik tražio da Y-osa prikazuje baš 2.0, 5.0, 10.0, 15.0, 18.0, 25.0 (klinički značajni pragovi,
+ne ravnomerno raspoređeno). Zamenjen raniji `tickCount`-baziran petlja (5 ravnomernih podeoka) sa
+eksplicitnom listom `Y_AXIS_TICKS_MMOL = listOf(2f, 5f, 10f, 15f, 18f, 25f)` u `SimpleLineChart`
+(`GlucoseScreen.kt`) - definisano u mmol/L, konvertovano u mg/dL kad je ta jedinica izabrana (isti
+princip kao fixedMin/fixedMax).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - screenshot potvrđuje tačno traženih 6 vrednosti na Y osi
+(25.0/18.0/15.0/10.0/5.0/2.0), linija tačno pozicionirana između 5.0 i 10.0 za očitavanja 6.5-6.9.

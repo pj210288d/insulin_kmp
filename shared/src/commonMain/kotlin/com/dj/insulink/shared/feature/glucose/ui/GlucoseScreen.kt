@@ -390,6 +390,14 @@ private fun SimpleLineChart(readings: List<GlucoseReading>, unit: GlucoseUnit, m
     val fixedMax = remember(unit) {
         if (unit == GlucoseUnit.MMOL_L) FIXED_MAX_MMOL else GlucoseUnit.convertMmolLToMgDl(FIXED_MAX_MMOL.toDouble()).toFloat()
     }
+    // Fiksne Y-osa vrednosti (korisnik tražio baš ove, ne ravnomerne podeoke) - definisane u
+    // mmol/L, konvertovane u mg/dL kad je ta jedinica izabrana (isti pravi klinički prag
+    // nezavisno od jedinice).
+    val yAxisTicks = remember(unit) {
+        Y_AXIS_TICKS_MMOL.map { tick ->
+            if (unit == GlucoseUnit.MMOL_L) tick else GlucoseUnit.convertMmolLToMgDl(tick.toDouble()).toFloat()
+        }
+    }
     val textMeasurer = rememberTextMeasurer()
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = axisColor)
@@ -402,12 +410,10 @@ private fun SimpleLineChart(readings: List<GlucoseReading>, unit: GlucoseUnit, m
         val plotHeight = (size.height - bottomAxisHeight).coerceAtLeast(0f)
         val range = (fixedMax - fixedMin).coerceAtLeast(1f)
 
-        // Y osa - fiksne linije/labele na 5 podeoka (min, ..., max), ne zavisi od stvarnih
-        // vrednosti očitavanja - uvek isti opseg da bi se grafici različitih dana mogli vizuelno
-        // uporediti.
-        val tickCount = 4
-        for (i in 0..tickCount) {
-            val value = fixedMin + range * i / tickCount
+        // Y osa - fiksne linije/labele na tačno određenim vrednostima (2/5/10/15/18/25 mmol/L),
+        // ne zavisi od stvarnih vrednosti očitavanja - uvek isti opseg/podeoci da bi se grafici
+        // različitih dana mogli vizuelno uporediti.
+        yAxisTicks.forEach { value ->
             val y = plotHeight - ((value - fixedMin) / range) * plotHeight
             drawLine(
                 color = axisColor.copy(alpha = 0.15f),
@@ -472,6 +478,7 @@ private fun axisValueLabel(value: Float, unit: GlucoseUnit): String {
 
 private const val FIXED_MIN_MMOL = 2f
 private const val FIXED_MAX_MMOL = 25f
+private val Y_AXIS_TICKS_MMOL = listOf(2f, 5f, 10f, 15f, 18f, 25f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
