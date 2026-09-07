@@ -148,7 +148,7 @@ fun GlucoseScreen(viewModel: GlucoseViewModel) {
                         unit = unit,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
+                            .height(225.dp) // +25% u odnosu na prethodnih 180.dp (zahtev korisnika)
                             .padding(horizontal = 16.dp)
                     )
                 }

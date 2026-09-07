@@ -206,7 +206,11 @@ private fun MainTabs(authViewModel: AuthViewModel, currentUser: AuthUser) {
                         TextButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
                             Text("☰", style = MaterialTheme.typography.titleLarge)
                         }
-                    }
+                    },
+                    // Minimalan razmak od notch-a/Dynamic Island-a (zahtev korisnika) - default
+                    // expandedHeight (64.dp) ostavlja dosta praznog prostora oko naslova jer je
+                    // sadrzaj vertikalno centriran u toj visini; smanjeno na 40.dp.
+                    expandedHeight = 40.dp
                 )
             },
             bottomBar = {
