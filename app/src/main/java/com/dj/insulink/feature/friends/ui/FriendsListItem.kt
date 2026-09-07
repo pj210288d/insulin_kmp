@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +31,8 @@ import java.util.Locale
 @Composable
 fun FriendsListItem(
     friend: Friend,
-    glucoseUnit: GlucoseUnit
+    glucoseUnit: GlucoseUnit,
+    onDelete: (Friend) -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -98,7 +103,14 @@ fun FriendsListItem(
                 Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
             }
         }
-        Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+        Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
+        IconButton(onClick = { onDelete(friend) }) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.friends_screen_remove_friend_label),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
     }
     Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
 }

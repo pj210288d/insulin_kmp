@@ -83,6 +83,7 @@
     <string name="friends_screen_empty_reading_label">Last reading: -</string>
     <string name="friends_screen_reading_label">Last reading: %s</string>
     <string name="friends_screen_dash_label">-</string>
+    <string name="friends_screen_remove_friend_label">Remove friend</string>
 
     <!-- Report screen -->
     <string name="report_screen_title">Glucose report</string>

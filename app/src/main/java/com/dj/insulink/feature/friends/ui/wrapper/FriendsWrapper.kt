@@ -42,6 +42,9 @@ fun FriendsWrapper(
                 onAddFriendClick = {
                     viewModel.onAddFriendClick(userId = it.uid)
                 },
+                onDeleteFriend = { friend ->
+                    viewModel.removeFriend(userId = it.uid, friend = friend)
+                },
                 glucoseUnit = glucoseUnit.value
             )
         )

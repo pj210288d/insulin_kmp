@@ -123,6 +123,7 @@
     <string name="friends_screen_empty_reading_label">Poslednje merenje: -</string>
     <string name="friends_screen_reading_label">Poslednje merenje: %s</string>
     <string name="friends_screen_dash_label">-</string>
+    <string name="friends_screen_remove_friend_label">Ukloni prijatelja</string>
 
     <!-- Report screen -->
     <string name="report_screen_title">Izveštaj o glukozi</string>

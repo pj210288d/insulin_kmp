@@ -90,4 +90,11 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
+    // Isti obrazac kao shared FriendsViewModel.removeFriend() (feature/friends u :shared) - samo
+    // brisanje, bez diranja dedup-na-dodavanje bug-a koji ostaje namerno aktivan (vidi CLAUDE.md).
+    fun removeFriend(userId: String, friend: Friend) {
+        viewModelScope.launch {
+            friendRepository.deleteFriend(userId, friend.friendId)
+        }
+    }
 }

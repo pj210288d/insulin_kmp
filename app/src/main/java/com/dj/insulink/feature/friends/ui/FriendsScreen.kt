@@ -106,8 +106,12 @@ fun FriendsScreen(
                 .fillMaxHeight()
                 .padding(horizontal = InsulinkTheme.dimens.commonPadding12)
         ) {
-            params.friendsList.forEach {
-                FriendsListItem(friend = it, glucoseUnit = params.glucoseUnit)
+            params.friendsList.forEach { friend ->
+                FriendsListItem(
+                    friend = friend,
+                    glucoseUnit = params.glucoseUnit,
+                    onDelete = params.onDeleteFriend
+                )
             }
         }
     }
@@ -245,5 +249,6 @@ data class FriendsScreenParams(
     val setShowAddNewFriendDialog: (Boolean) -> Unit,
     val setEnteredCode: (String) -> Unit,
     val onAddFriendClick: () -> Unit,
+    val onDeleteFriend: (Friend) -> Unit,
     val glucoseUnit: GlucoseUnit
 )
