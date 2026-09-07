@@ -5,6 +5,7 @@ import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate
 
 class FakeFriendRemoteDataSource : FriendRemoteDataSource {
     val pushedPairs = mutableListOf<Pair<String, String>>()
+    val removedPairs = mutableListOf<Pair<String, String>>()
     var findResult: FriendCandidate? = null
     var fetchCandidatesResult: List<FriendCandidate> = emptyList()
 
@@ -12,6 +13,10 @@ class FakeFriendRemoteDataSource : FriendRemoteDataSource {
 
     override suspend fun pushFriendToFirestoreForUser(userId: String, friendId: String) {
         pushedPairs += userId to friendId
+    }
+
+    override suspend fun removeFriendFromFirestoreForUser(userId: String, friendId: String) {
+        removedPairs += userId to friendId
     }
 
     override suspend fun fetchFriendCandidates(userId: String): List<FriendCandidate> = fetchCandidatesResult

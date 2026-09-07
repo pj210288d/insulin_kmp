@@ -14,7 +14,7 @@ import com.dj.insulink.shared.feature.meals.domain.model.FoodImageAnalysis
 import com.dj.insulink.shared.feature.meals.domain.model.Ingredient
 import com.dj.insulink.shared.feature.meals.domain.model.Meal
 import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -47,7 +47,7 @@ class MealRepository(
     }
 
     suspend fun insert(userId: String, meal: Meal) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val mealWithUniqueId = if (meal.id == 0L) {
                     meal.copy(id = currentTimeMillis())
@@ -81,7 +81,7 @@ class MealRepository(
     }
 
     suspend fun delete(userId: String, meal: Meal) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 mealIngredientDao.deleteIngredientsForMeal(meal.id)
                 mealDao.deleteMeal(meal.toEntity())
@@ -93,7 +93,7 @@ class MealRepository(
     }
 
     suspend fun update(userId: String, meal: Meal) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 mealDao.updateMeal(meal.toEntity())
 
@@ -122,7 +122,7 @@ class MealRepository(
     }
 
     suspend fun fetchAllMealsForUserAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val fetchedMeals = mealRemoteDataSource.fetchAllMeals(userId)
             mealDao.deleteAllForUser(userId)
             mealDao.insertAll(fetchedMeals.map { it.toEntity() })
@@ -183,7 +183,7 @@ class MealRepository(
     }
 
     suspend fun analyzeFoodImage(imageBytes: ByteArray): FoodImageAnalysis {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             foodImageAnalysisRemoteDataSource.analyzeFoodImage(imageBytes)
         }
     }

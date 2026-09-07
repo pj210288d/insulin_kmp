@@ -4,6 +4,7 @@ import com.dj.insulink.shared.feature.fitness.data.local.DatabaseFactory
 import com.dj.insulink.shared.feature.fitness.data.local.ExerciseDatabase
 import com.dj.insulink.shared.feature.fitness.data.local.buildExerciseDatabase
 import com.dj.insulink.shared.feature.fitness.data.repository.ExerciseRepository
+import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -14,4 +15,5 @@ val fitnessModule = module {
     single<ExerciseDatabase> { buildExerciseDatabase(get<DatabaseFactory>().create()) }
     single { get<ExerciseDatabase>().exerciseDao() }
     single { ExerciseRepository(get(), get()) }
+    single { FitnessViewModel(get()) }
 }

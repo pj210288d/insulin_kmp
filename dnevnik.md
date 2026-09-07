@@ -1140,3 +1140,1093 @@ otkrila je DVA odvojena, nezavisna problema.
   korisnik mora sam da zna da to uradi kroz Android Settings).
 - Isto što i pre za preostale faze/FZ (FZ-10 svesno preskočen po korisnikovoj odluci, FZ-12,
   faza 3 Compose Multiplatform UI, faza 4 iOS, faza 7 Web, faza 8 testiranje/pisanje rada).
+
+---
+
+## 2026-09-03 — Popravka: LibreLinkUp je povlačio tuđe podatke, ne korisnikove
+
+### Kontekst
+Korisnik je prijavio da se LibreLinkUp vrednosti u Insulink-u ne poklapaju sa zvaničnom
+aplikacijom za isti trenutak (van ranije rešenog timezone buga — vidi 2026-08-05 stavku). Uz
+prijavu je nalepio Claude-ov predlog "alternativa" (neslužbeni LibreLinkUp API preko biblioteka
+kao `pylibrelinkup`) — ispostavilo se da je to TAČNO ono što aplikacija već koristi, pa je pravi
+uzrok tražen dalje u postojećem kodu, ne u zameni API-ja.
+
+### Dijagnostika (dokazima, ne nagađanjem)
+- Umesto da se traže LibreLinkUp email/lozinka (osetljiv medicinski nalog, ne treba da prolazi
+  kroz chat), dodato je PRIVREMENO logovanje sirovog JSON odgovora direktno u
+  `KtorLibreLinkApiClient.fetchGlucoseReadings` (uređaj već ima aktivnu sesiju, ne treba ponovna
+  prijava). Novo "Sync Now" dugme dodato u LibreLink sekciju Settings ekrana (nije postojao
+  nijedan način da se sync ručno okine pre ovoga — samo pri `connect()` ili čekanjem ~15 min
+  periodičnog posla).
+- Sirov odgovor je otkrio: `connection.firstName/lastName` = **"Kristina Milicic"**, ne korisnik
+  (JWT token prijave potvrđuje da je LibreLinkUp nalog prijavljen kao "Jovan Pavlovic"). Takođe
+  `activeSensors: []` i `graphData: []` za tu vezu — očitavanje od 114 mg/dL bilo je zastarelo
+  ~3 nedelje (senzor te osobe trenutno nije aktivan).
+- **Pravi uzrok**: `LibreLinkRepository.connect()` je radio `connections.firstOrNull()` — slepo
+  uzimao PRVU vezu koju LibreLinkUp API vrati, bez ikakve provere da li je to korisnikov
+  sopstveni senzor ili neko drugi koga prati preko istog naloga. Korisnik je objasnio da koristi
+  DVA odvojena Abbott app-a: **LibreLink** (uparen direktno sa njegovim senzorom, nema API) i
+  **LibreLinkUp** (app za pratioce, JEDINI kanal sa API-jem, ali vidi samo osobe koje su
+  EKSPLICITNO podelile podatke sa njim). Njegov sopstveni senzor prvobitno NIJE bio podeljen sa
+  LibreLinkUp nalogom — jedina veza je bila Kristina (koju prati kao pratilac). Ovo nije bug u
+  smislu "loš kod čita loše podatke" nego "kod je čitao JEDINU dostupnu vezu, koja slučajno nije
+  bila korisnikova". Korisnik je sam, van aplikacije, podelio svoj LibreLink senzor sa istim
+  LibreLinkUp nalogom (standardni Abbott "invite a follower" tok) — posle toga je nalog imao DVE
+  veze, i `firstOrNull()` je postao stvaran problem (nedeterministički/nepouzdan izbor između dve
+  validne veze).
+- Privremeni debug log uklonjen odmah posle dijagnoze (nije ostao u kodu).
+
+### Šta smo dodali
+- **`LibreLinkRepository.connect()` razdvojen u dva koraka**:
+  - `login(email, password): Result<LibreLinkLoginResult>` — autentifikuje i vraća SVE
+    konekcije koje nalog vidi, NE upisuje sesiju (nova `LibreLinkLoginResult(email, auth,
+    connections)` domen klasa u `:shared`).
+  - `connect(userId, email, auth, connection): Result<LibreLinkSession>` — upisuje sesiju za
+    IZABRANU konekciju (auth se prenosi iz prvog koraka, nema drugog login poziva).
+- **`LibreLinkViewModel`**: novo `LibreLinkConnectState.ChoosingConnection(connections)` stanje.
+  `connect()` sad poziva `login()`; ako ima tačno 1 konekcija, odmah finalizuje (isto ponašanje
+  kao pre za uobičajen slučaj); ako ima više, prelazi u `ChoosingConnection` i čeka
+  `selectConnection(connection)` poziv iz UI-ja. `pendingLogin` (auth + email) drži se SAMO u
+  memoriji ViewModel-a (nikad ne persistuje) između koraka. Novo `cancelSelectingConnection()`.
+- **UI**: `LibreLinkSection.kt` dobija `LibreLinkChooseConnectionContent` — lista svih konekcija
+  kao klikabilne kartice (ime + radio dugme), sa Cancel dugmetom da se vrati na formu za unos.
+- **"Sync Now" dugme** (trajno zadržano, ne samo za debug): korisno samo po sebi — ranije nije
+  postojao način da se ručno okine sync bez disconnect/reconnect ciklusa.
+- Testovi: `LibreLinkRepositoryTest` prepisan za `login()`/`connect()` dvostepeni API (uključujući
+  test da `login()` sam po sebi ne upisuje sesiju), `LibreLinkViewModelTest` prepisan sa novim
+  scenarijima (jedna konekcija → auto-finalizuj, više konekcija → picker, `selectConnection`,
+  `cancelSelectingConnection`).
+
+### Odluke
+- **Auth se ne traži ponovo pri biranju konekcije**: `LibreLinkAuth` (token) dobijen u `login()`
+  koraku se prenosi kroz `pendingLogin` i ponovo koristi u `connect()` — nema potrebe za drugim
+  network pozivom ka Abbott-u samo zato što korisnik bira IZMEĐU već poznatih konekcija.
+- **Auto-finalizacija za tačno 1 konekciju**: većina korisnika (koji ne prate nikog drugog) neće
+  ni primetiti promenu — ponašanje ostaje identično kao pre (odmah connect, bez ekstra klika).
+  Picker se pojavljuje SAMO kad je stvarno dvosmisleno (2+ konekcije).
+- **Nema automatskog "pogodi koja si ti" pokušaja** (npr. poklapanje imena sa Insulink nalogom)
+  — eksplicitan korisnički izbor je pouzdaniji i jednostavniji od heuristike koja bi mogla
+  pogrešno da pogodi (ime u LibreLinkUp profilu ne mora da se poklapa sa Insulink nalogom).
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`,
+  `:app:testDebugUnitTest`, `:app:assembleDebug` — svi BUILD SUCCESSFUL.
+- Korisnik je uživo podelio svoj LibreLink senzor sa LibreLinkUp nalogom (van aplikacije,
+  standardni Abbott tok), zatim disconnect→reconnect u Insulink-u — pojavio se picker sa dve
+  konekcije, izabrao sebe, **potvrdio da se vrednosti sada tačno poklapaju sa zvaničnom
+  aplikacijom**.
+
+### Šta je ostalo
+- Ako korisnik ikad prestane da prati Kristinu ili doda još neku vezu, picker će se ponovo
+  pojaviti pri sledećem punom re-connect-u (očekivano ponašanje, ne bug).
+- Isto što i pre za preostale faze/FZ.
+
+---
+
+## 2026-09-03 — FZ-12: statistika + Glucose ekran prerađen u dnevni prikaz (van redosleda faza)
+
+### Kontekst i tok
+Korisnik je tražio FZ-12 (statistika): dnevni prosek, prosek za 7/15/30/90 dana, min/max po
+izabranom opsegu, i korelaciju insulin/obrok ↔ šećer (koristeći polja koja `GlucoseReading` već
+ima: `insulinTypeId`/`insulinUnits`/`linkedMealId`, popunjavaju se opciono pri unosu očitavanja).
+Implementacija je prošla kroz nekoliko iteracija na osnovu korisnikovog fidbeka:
+1. Prva verzija: range chip-ovi (Today/7/15/30/90) + statistika + korelacija (Pearson r, scatter
+   grafik preko `Canvas`, pošto Vico 2.2.0 nema prirodnu podršku za scatter prikaz).
+2. Korisnik: ukloni korelaciju sa insulinom/obrocima, i umesto range chip-ova neka GLAVNI EKRAN
+   (ne Statistics — pravi **Glucose** ekran) prikazuje samo TRENUTNI DAN sa swipe navigacijom.
+   Implementirano tako (Statistics privremeno postao dnevni prikaz).
+3. Korisnik: pogrešno sam protumačio — Statistics treba da OSTANE range-based (chip-ovi), samo
+   bez korelacije; dnevni prikaz sa swipe-om ide na pravi Glucose ekran. Vraćeno.
+
+### Šta smo dodali (finalno stanje)
+- **`:shared/commonMain`**: `StatisticsCalculator` (čiste funkcije — prosek/min/max/std.
+  devijacija/broj očitavanja/Time-in-Range, reuse postojećih pragova 70–126 mg/dL),
+  `StatisticsRange` enum (`TODAY`/`LAST_7_DAYS`/`LAST_15_DAYS`/`LAST_30_DAYS`/`LAST_90_DAYS`) sa
+  `startMillis()` ekstenzijom. `LocalTimeOfDay.kt` dobija `startOfDayMillis(epochMillis)`,
+  `shiftedDayStartMillis(epochMillis, days)` (DST-bezbedna aritmetika preko kotlinx-datetime
+  `LocalDate`, ne sirovi millis) i `daysAgoMillis(days)` — koriste ih i Statistics i Glucose.
+- **Statistics ekran** (nov, `side_drawer` unos, sopstvena ikonica `ic_statistics.xml`): chip-ovi
+  perioda, kartice (prosek/min/max/std.dev./broj očitavanja), Time-in-Range traka. Bez ijedne
+  zavisnosti od meals/insulin feature-a — insulin/meal korelacija koda je u potpunosti obrisana
+  (uključujući `CorrelationResult`/`CorrelationPoint` domen modele i scatter chart, koji su
+  postojali kratko pre nego što je korisnik tražio da se uklone).
+- **Glucose ekran** (prerađen): `GlucoseReadingTimespan` enum (All/Last day/3 days/week/month —
+  rolling prozor od "sada") potpuno uklonjen, zamenjen jednim kalendarskim danom (podrazumevano
+  danas). Navigacija: ◀/▶ dugmad + horizontalni swipe gest, ograničen da ne ide u budućnost.
+  `GlucoseViewModel.glucoseReadingsForSelectedDay` sad koristi
+  `getGlucoseReadingsByDateRange(userId, dayStart, dayEnd)` umesto filtriranja cele istorije u
+  memoriji. `latestGlucoseReading` (statusna kartica na vrhu) namerno OSTAJE nezavisna od dana
+  koji se pregleda — uvek prikazuje pravi najnoviji unos (preko `getAllGlucoseReadingsForUser`),
+  da korisnik uvek vidi trenutno stanje čak i dok gleda unazad u istoriju. `DynamicLineChart`-ov
+  x-osa format je sad uvek `HH:mm` (uvek prikazuje tačno jedan dan, `timespan` parametar uklonjen).
+- **Otkriven i izbegnut gest konflikt**: lista očitavanja (`GlucoseReadingItem`) već koristi
+  horizontalni `SwipeToDismissBox` za brisanje. Swipe-za-promenu-dana je namerno OGRANIČEN samo na
+  gornji deo ekrana (statusna kartica + day header + grafik), NE na celu skrolabilnu kolonu — u
+  suprotnom bi dva horizontalna gesta na istom dodiru konkurisala jedno drugom.
+- Testovi: `StatisticsCalculatorTest` (14), `LocalTimeOfDayTest` (5, novo — pokriva DST-bezbednu
+  aritmetiku dana), `GlucoseViewModelTest` prepisan za date-range upit i navigaciju po danu
+  (`goToPreviousDay`/`goToNextDay`/`canGoToNextDay`), ukupno 20 testova u tom fajlu.
+
+### Odluke
+- **Scatter grafik odbačen zajedno sa korelacijom** — nije bilo vredno zadržati mrtav kod
+  (`Canvas`-baziran scatter chart, Pearson koeficijent) kad ga korisnik nije tražio; obrisano u
+  potpunosti umesto ostavljeno "za svaki slučaj", isti princip kao ranije (`NetworkModule.kt`,
+  `InsulinkDatabase.kt` presedani).
+- **`latestGlucoseReading` odvojen od `glucoseReadingsForSelectedDay`**: statusna kartica na vrhu
+  Glucose ekrana namerno ne prati izabrani dan — ovo je svesna UX odluka (prikazuje TRENUTNO
+  stanje korisnika nezavisno od toga koji dan istorije pregleda), ne previd.
+- **Dan-aritmetika preko `kotlinx.datetime.LocalDate`, ne sirovi millis**: `shiftedDayStartMillis`
+  ide kroz `LocalDate.plus(DatePeriod(days = ...))` da ostane tačna preko DST prelaza, gde dan
+  nije uvek tačno 24h. Pokriveno testovima (`LocalTimeOfDayTest`).
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`,
+  `:app:testDebugUnitTest` (uključujući 20/20 u `GlucoseViewModelTest`), `:app:assembleDebug` —
+  svi BUILD SUCCESSFUL, posle svake od tri iteracije.
+- Korisnik potvrdio uživo na fizičkom uređaju: Statistics chip-ovi + statistika rade, Glucose
+  dnevni prikaz + swipe navigacija rade, bez konflikta sa swipe-to-delete na listi.
+
+### Šta je ostalo
+- Isto što i pre za preostale faze/FZ (faza 3 Compose Multiplatform UI, faza 4 iOS, faza 7 Web,
+  faza 8 testiranje/pisanje rada; Health Connect integracija za Samsung Health istražena ali
+  odložena po korisnikovoj odluci — vidi prethodnu sesiju).
+
+---
+
+## 2026-09-04 — Početak faze 4: prvi Compose Multiplatform ekran + iOS build bez Mac-a
+
+### Kontekst i rok
+Korisnik nema Mac do sutra, a rok za snimak aplikacije na Android-u I iOS-u je ponedeljak. Cilj
+danas: napraviti najmanji realan, ali PRAVI (ne toy demo) Compose Multiplatform vertikalni presek
+kroz Glucose feature koji radi na oba OS-a, i proveriti koliko se od iOS build lanca može
+potvrditi BEZ Mac-a, da se sutra ne gubi vreme na iznenađenja.
+
+### Odluka o obimu (dogovoreno sa korisnikom)
+Puna migracija SVIH ekrana na Compose Multiplatform (faza 3 u celosti) nije realna do ponedeljka.
+Umesto toga: jedan feature (Glucose, već najkompletniji u `:shared`) dobija nov, namerno manji
+MVP Compose Multiplatform ekran u `shared/commonMain` — bez insulin/meal povezivanja, bez Wear OS
+push-a, bez ručne izmene datuma/vremena (novi unos dobija trenutno vreme, izmena čuva original) —
+da prvi iOS build/test ciklus, rađen na slepo, ostane što manjeg rizika. Android-ov postojeći,
+potpuno funkcionalan Hilt Glucose ekran NIJE dirat (nulti rizik regresije na već-verifikovanu
+funkcionalnost); umesto toga isti novi deljeni ekran je DODATNO dostupan na Android strani preko
+novog side drawer unosa "Glucose (shared UI)", da se u snimku vidi da isti kod stvarno radi na
+oba OS-a, ne dva odvojena UI-ja koja liče jedan na drugi.
+
+### Šta smo dodali
+- **`UserSession`** (`shared/commonMain/core/session`) — objekat sa `MutableStateFlow<String?>`,
+  zamenjuje direktnu zavisnost od Firebase Auth-a (koji i dalje postoji SAMO na Android strani).
+  Android: `SharedViewModel.getCurrentUser()` upisuje pravi Firebase uid. iOS: `initKoinIOS()`
+  upisuje fiksni lokalni demo id (`"ios-demo-user"`) — nema još prijave na iOS-u, podaci ostaju
+  samo lokalni (Room/SQLite bundled, bez cloud sync-a — isto kao i za sve ostale feature-e na
+  iOS-u za sada, vidi `NotImplemented*RemoteDataSource`).
+- **`shared/commonMain/feature/glucose/ui/viewmodel/GlucoseViewModel.kt`** — nov Koin `single`
+  (ne Hilt), koristi `GlucoseReadingRepository` + `SettingsPreferences` + `UserSession`. Dnevni
+  prikaz + prev/next navigacija (isti obrazac kao Android-ov, iz prošle sesije), add/edit/delete.
+- **`shared/commonMain/feature/glucose/ui/GlucoseScreen.kt`** — status kartica, dan-header sa
+  ‹/› (obična `Text`, ne `Icon` — vidi "Problemi" niže), prost `Canvas`-baziran linijski grafik
+  (Vico, korišćen u Android ekranu, nije Compose Multiplatform kompatibilan), lista očitavanja,
+  add/edit dijalog. Nema zavisnosti od Android string resursa/teme — brend boje su lokalne
+  `Color(0x...)` konstante, tekstovi su hardkodovani (privremeno, dok se ne doda compose-resources
+  i18n — obeleženo kao ostatak posla).
+- **`shared/commonMain/core/dispatcher/IoDispatcher.kt`** (`expect val ioDispatcher`) + android/ios
+  actual — zamenjuje SVAKI direktan poziv `Dispatchers.IO` u `:shared/commonMain` (13 fajlova:
+  svi repozitorijumi i `buildXDatabase()` funkcije). Razlog u sekciji "Problemi" niže.
+- **`shared/commonMain/core/time/LocalTimeOfDay.kt`** — dodato `timeOfDayLabel`/`dateTimeLabel`/
+  `shortWeekdayDateLabel` (ručno građeni iz `LocalDateTime` polja, BEZ `SimpleDateFormat` — taj
+  je JVM-only, ne postoji van Android/JVM strane).
+- **`shared/iosMain/core/di/KoinInit.ios.kt`** — `initKoinIOS()`, poziva se jednom iz
+  `MainViewController.kt` pre prvog Compose ekrana (Android već ima svoj `startKoin` poziv u
+  `InsulinkApplication`, iOS ga do sada nije imao uopšte).
+- **`org.example.project.App()`** (`shared/commonMain`) — prepravljen iz KMP wizard placeholder-a
+  (dugme "Click me!") u pravi root ekran: `MaterialTheme` + `GlucoseScreen`. Koristi ga i iOS
+  (`MainViewController`) i Android (novi `SharedGlucoseDemo` route).
+- **Android strana**: nov `Screen.SharedGlucoseDemo` route, side drawer unos ("Glucose (shared
+  UI)", `ic_devices.xml`), poziva `org.example.project.App()` direktno (bez Hilt-a za taj ekran).
+- **`iosApp/Configuration/Config.xcconfig`**: `PRODUCT_NAME`/`PRODUCT_BUNDLE_IDENTIFIER` sa KMP
+  wizard default-a ("proba kmp" / `org.example.project.probakmp$(TEAM_ID)`) na `Insulink` /
+  `com.dj.insulink.ios`. `TEAM_ID` ostaje prazan do sutra (postavlja se u Xcode-u iz korisnikovog
+  Apple ID naloga).
+
+### Problemi otkriveni BEZ Mac-a (najvažniji deo današnjeg rada)
+Umesto da se čeka Mac da bi se build uopšte probao, korišćeno je da Kotlin/Native ume da
+kompajlira klib-ove (metadata i stvarni `iosArm64`/`iosSimulatorArm64` target kod) i na Windows-u
+— samo link/codesign/Xcode/simulator zahtevaju Mac. Ovim putem otkrivena su tri prava, ozbiljna
+problema koja bi sutra na Mac-u izgledala kao nepoznata, teško-dijagnostikovana greška:
+
+1. **`Dispatchers.IO` ne postoji u `commonMain` API površini koju Kotlin/Native vidi.** Svi
+   repozitorijumi u `:shared` (glucose, meals, insulin, friends, reminders, fitness, librelink)
+   su ga koristili direktno u `commonMain` kodu — radilo je na Android/JVM strani (zato niko nije
+   primetio), ali bi potpuno blokiralo BILO KAKAV iOS build, ne samo Glucose. Otkriveno preko
+   `:shared:compileIosMainKotlinMetadata` ("Unresolved reference 'IO'" na ~30 mesta). Popravljeno
+   uvođenjem `ioDispatcher` (gore) — Android actual i dalje koristi pravi `Dispatchers.IO`
+   (identično ponašanje, nulti rizik za Android), iOS actual koristi `Dispatchers.Default`.
+2. **`GlobalContext` (Koin) nije deo commonMain API površine** — samo JVM/Android varijanta Koin-a
+   ga ima (potvrđeno raspakivanjem `koin-core-jvm-4.1.1.jar` nasuprot `koin-core-metadata-4.1.1.jar`
+   — `GlobalContext`/`KoinPlatformTools` klase postoje samo u JVM jar-u). Popravljeno korišćenjem
+   `org.koin.mp.KoinPlatform.getKoin()` (multiplatform-bezbedan Koin API) u `App.kt`.
+3. **Kotlin/Native ABI verzija ne odgovara** — `composeMultiplatform` 1.11.1 (i uz njega vezan
+   `material3` 1.11.0-alpha07), `androidxLifecycleMultiplatform` 2.11.0-beta01 i `ktor` 3.4.0 su
+   svi objavljeni sa native klib ABI 2.3.0 (Kotlin 2.3.20/2.3.0 kompajlerom), a projekat je
+   pinovan na Kotlin **2.2.20**, čiji Kotlin/Native kompajler ume da učita samo ABI <= 2.2.0.
+   Android/JVM strana ovo ne vidi (JVM classfile nema takvo ograničenje) — `:app:assembleDebug`
+   je i dalje prolazio, pa bi ovo sutra na Mac-u ispalo kao potpuno iznenađenje tek pri
+   `:shared:embedAndSignAppleFrameworkForXcode`/Xcode build-u. CMP-ov zvaničan changelog (GitHub
+   release 1.11.0) eksplicitno kaže "Kotlin 2.3 is required for native and web platforms" — ovaj
+   projekat namerno NE podiže Kotlin na 2.3 ovako blizu roka (veliki, rizičan zahvat — vidi gotcha
+   #5 u CLAUDE.md). Umesto toga vraćeno na poslednje verzije u svakoj liniji potvrđene da rade sa
+   Kotlin 2.2.20 (proveravano jedno po jedno preko zvaničnih JetBrains/Ktor release beleški, isti
+   princip kao ranija material3 gotcha): `composeMultiplatform` → 1.10.0, `composeMaterial3` →
+   1.10.0-alpha05, `androidxLifecycleMultiplatform` → 2.10.0-alpha06, `ktor` → 3.3.3. Detaljan
+   komentar ostavljen u `gradle/libs.versions.toml` i CLAUDE.md (gotcha #5) da se ne ponovi.
+
+### Manje odluke
+- **Bez ikonica** (`Icons.Filled.*`) u novom deljenom ekranu — `androidx.compose.material:material-
+  icons-extended` je Android-only artefakt (ne radi za iOS target), a JetBrains-ov CMP
+  `material-icons-core` artefakt (`org.jetbrains.compose.material:material-icons-core`) se
+  pokazao nedostupan za tačno `composeMultiplatform` verziju koju smo prvo probali (1.11.1) —
+  umesto dodatnog kopanja po još jednoj nezavisnoj verzionoj liniji, dan-navigacija i dugmad
+  koriste obične `Text("‹")`/`Text("+")`/`Text("✕")` glifove. Sasvim dovoljno za MVP, nula
+  dodatnih zavisnosti.
+- **`compileIosMainKotlinMetadata`/`compileKotlinIosArm64`/`compileKotlinIosSimulatorArm64` kao
+  redovan deo provere** — ovi Gradle taskovi rade na Windows-u (samo Kotlin/Native kompajler,
+  bez Apple linker-a/Xcode-a) i otkrivaju gotovo sve greške vezane za iOS pre nego što se uopšte
+  stigne do Mac-a. Vredi ih pokretati posle svake promene u `:shared` do kraja iOS rada.
+
+### Verifikacija
+- `:shared:compileAndroidMain`, `:shared:compileIosMainKotlinMetadata`,
+  `:shared:compileKotlinIosArm64`, `:shared:compileKotlinIosSimulatorArm64`,
+  `:shared:testAndroidHostTest`, `:app:compileDebugKotlin`, `:app:testDebugUnitTest`,
+  `:app:assembleDebug` — svi BUILD SUCCESSFUL.
+- Vizuelna provera novog "Glucose (shared UI)" ekrana na fizičkom Android uređaju NIJE urađena u
+  ovoj sesiji (nijedan uređaj nije bio povezan) — prvo sledeće na listi kad korisnik proba.
+- Xcode build / simulator / uređaj pokretanje ostaju potpuno neverifikovani do sutra (Mac).
+
+### Šta je ostalo
+- Sutra (kad stigne Mac): otvoriti `iosApp.xcodeproj`, postaviti `TEAM_ID` (Signing & Capabilities
+  → Team, besplatan Apple ID nalog je dovoljan za simulator/sopstveni uređaj), pokrenuti build —
+  očekivano da preostanu SAMO Xcode/link-specifične greške (ako ih uopšte bude), pošto je sav
+  Kotlin/Native kod već potvrđeno kompajlira.
+- Vizuelno potvrditi na Android uređaju da novi deljeni ekran radi kako treba pre nego što se
+  osloni na njega kao referencu za iOS izgled.
+- i18n (compose-resources) za deljeni ekran — tekstovi su za sada hardkodovani na srpskom.
+- Ako ostane vremena: isti obrazac (Koin ViewModel + deljeni Compose ekran) ponoviti za još
+  jedan-dva ekrana pre snimka, npr. Statistics — trenutno je iOS ograničen na samo Glucose.
+
+---
+
+## 2026-09-05 — Faza 4 nastavak: još četiri deljena ekrana + priprema za prvi Xcode build
+
+### Kontekst
+Nastavak prethodnog dana, i dalje bez Mac-a. Korisnik je uživo potvrdio da Glucose+tab-bar radi
+na Android uređaju, pa je isti obrazac (Koin ViewModel u `shared/commonMain` + Compose ekran +
+Koin registracija na oba platform-specifična init mesta) ponovljen za još četiri ekrana, svaki
+odmah verifikovan preko `:shared:compileAndroidMain` + `:shared:compileKotlinIosArm64` +
+`:shared:compileKotlinIosSimulatorArm64` + pun `:app` test/assemble ciklus + instalacija na
+fizički Android uređaj (`R5CR92E8BCT`) pre commit-a. Redosled ekrana biran po rastućoj
+složenosti/riziku, svaki potvrđen pre prelaska na sledeći:
+
+1. **Statistics** — range chip-ovi + `StatisticsCalculator`/`StatisticsRange` (već postojali u
+   commonMain bez ikakve Android zavisnosti otkad je FZ-12 rađen ranije), TIR traka.
+2. **Insulin** — najprostiji preostali entitet (`InsulinType` = samo `name`, repository ima
+   samo insert/delete, bez update-a) — add/delete lista.
+3. **Settings** — jezik + jedinica za glukozu, tanak `StateFlow` omotač oko već postojećeg
+   sinhronog `SettingsPreferences` (NSUserDefaults na iOS-u, radi identično). Namerno NE menja
+   stvarni jezik cele aplikacije (to ostaje u pravom Android-only Settings ekranu preko
+   `AppCompatDelegate`) — korisnik je to primetio i potvrđeno je da je to očekivano, ne bug.
+4. **Reminders** — naslov/tip/"odrađeno danas"/vreme, namerno SAMO podaci — pravo zakazivanje OS
+   notifikacija (AlarmManager na Android-u) ostaje van ovog ekrana; iOS bi za to trebalo
+   `UNUserNotificationCenter`, van obima ove MVP iteracije.
+
+`App()` (iOS root, i Android-ov "Shared UI (also on iOS)" side-drawer ekran) sad ima pet
+tabova iza horizontalno-skrolabilne trake (zamenila je fiksnu `weight(1f)` traku iz prve verzije
+— skalira se bez guranja kad se doda još tabova).
+
+### Priprema za sutra (Mac stiže, korisnik pokreće NOVU sesiju sa Claude Code na Mac-u)
+Pošto sutrašnja sesija neće imati memoriju ove konverzacije, urađen je poslednji "pripremni"
+prolaz kroz sve što se moglo proveriti/ispraviti bez Mac-a:
+
+- **`iosApp/iosApp.xcodeproj/project.pbxproj`**: `IPHONEOS_DEPLOYMENT_TARGET` spušten sa
+  **18.2 → 15.0** (Debug i Release config). 18.2 je bio KMP wizard/Xcode default u trenutku
+  generisanja projekta, ne stvarna potreba — Compose Multiplatform 1.10.0 zahteva samo iOS 13+.
+  18.2 bi bio realan rizik za snimak: ako korisnikov iPhone ili prvi dostupan simulator runtime
+  ne bude tačno 18.2+, instalacija/build bi pukli sa nejasnom porukom baš u trenutku kad je
+  najvažnije da sve radi glatko.
+- **Room-na-iOS pregled**: provereno da SVIH 6 `buildXDatabase()` funkcija (glucose, insulin,
+  reminders, settings nema svoju bazu, friends, fitness, meals) ispravno zovu
+  `.setDriver(BundledSQLiteDriver())` + `.setQueryCoroutineContext(ioDispatcher)` pre `.build()`
+  — ovo je zvanično dokumentovan način da Room Multiplatform radi na ne-Android ciljevima
+  (Android ima podrazumevani drajver, iOS/Desktop moraju eksplicitno). Svih 5
+  `DatabaseFactory.ios.kt` fajlova (po jedan po feature-u) prati isti, ispravan obrazac
+  (`NSFileManager` → `NSDocumentDirectory` putanja → `Room.databaseBuilder(name = putanja)`).
+  Ovo je najveći preostali neizvestan deo (compile-time provera ne garantuje runtime uspeh -
+  SQLite bundled + Room na iOS je relativno nova kombinacija), ali kod prati zvaničan obrazac
+  1:1, visoka je verovatnoća da radi.
+- **`SettingsPreferences.ios.kt`**: standardan `NSUserDefaults` kod, nema ničeg neobičnog.
+- Potvrđeno da nijedan od 5 deljenih ekrana ne pravi mrežni poziv na iOS-u (svi
+  `NotImplementedXRemoteDataSource` samo bacaju grešku, bez ikakvog HTTP klijenta) — znači nema
+  potrebe ni za kakvim App Transport Security izuzetkom u Info.plist za ovu MVP iteraciju.
+
+### Šta uraditi na Mac-u (redosled)
+1. `git pull` na `jovan/glucose-shared-migration` grani.
+2. Otvoriti `iosApp/iosApp.xcodeproj` u Xcode-u.
+3. Signing & Capabilities → Team → izabrati Apple ID (besplatan nalog je dovoljan za
+   simulator/sopstveni uređaj, ne treba plaćeni Developer Program).
+4. Build & Run na iOS Simulator-u prvo (bez potrebe za provisioning profilom na uređaju) —
+   `Cmd+R`. Ako pukne na Gradle build fazi (`embedAndSignAppleFrameworkForXcode` script build
+   phase), pokrenuti `./gradlew :shared:embedAndSignAppleFrameworkForXcode` ručno iz terminala
+   prvo da se vidi puna Gradle greška (Xcode-ova konzola je često skraćena/nejasna).
+5. Ako sve radi na simulatoru: probati na fizičkom iPhone-u (potreban USB kabl + "Trust This
+   Computer" + provisioning preko istog Apple ID-a, Xcode to uglavnom automatski ponudi).
+6. Proći kroz svih 5 tabova (Glukoza/Statistika/Insulin/Podešavanja/Podsetnici) - dodati po
+   jedan unos u svakom, obrisati, promeniti podešavanje - potvrditi da ništa ne puca.
+
+### Šta je ostalo
+- Xcode build/link/pokretanje i dalje potpuno neverifikovani do stvarnog Mac-a - sve gore je
+  provereno koliko je moguće bez njega.
+- Ako nešto na Mac-u pukne: najverovatnije mesto je `TEAM_ID`/signing (očekivano, rešava se u
+  Xcode UI-ju) ili neka Room/SQLite-bundled specifičnost na iOS-u koja se ne vidi dok se stvarno
+  ne pokrene (vidi napomenu gore).
+- i18n za deljene ekrane i dalje samo srpski, hardkodovano — nije bitno za funkcionalnost, samo
+  kozmetika.
+
+---
+
+## 2026-09-05 (nastavak) — "Aplikacije moraju da budu iste": Fitness, LibreLinkUp, Meals
+
+### Kontekst
+Korisnik je eksplicitno tražio da se doda SVE što postoji na Android strani, da bi obe
+aplikacije bile iste - ne samo demo par ekrana. Nastavljeno je istim tempom (Koin ViewModel +
+Compose ekran + pun verifikacioni lanac + instalacija na uređaj + commit po ekranu), uz jasnu
+procenu rizika za svaki preostali Android feature pre nego što se krenulo u implementaciju.
+
+### Dodato (isti obrazac kao ranije, sad ukupno 8 deljenih ekrana)
+- **Fitness** — dodavanje + lista sportskih aktivnosti. Nije svesno umanjeno - Android-ov pravi
+  Fitness ekran TAKOĐE nema brisanje (ExerciseDao nema per-item delete metodu), pa je ovo
+  stvarna 1:1 paritetna funkcionalnost.
+- **LibreLinkUp** — pun login → biranje konekcije → povezano/sinhronizacija tok. Takođe nije
+  umanjeno - `LibreLinkRepository` je već bio potpuno platform-agnostičan (Ktor + interface za
+  session storage, iOS actual preko NSUserDefaults već postojao iz ranije sesije) - ovo je
+  realna paritetna funkcionalnost sa Android-ovim LibreLinkSection-om, minus Wear OS push (koji
+  je Android-only i van dosega bilo kog dela ove MVP iteracije).
+- **Meals** — dodavanje (naziv/kalorije/UH) + lista + brisanje. NAMERNO bez LogMeal
+  prepoznavanja sa slike - mrežni deo (`MealRepository.analyzeFoodImage`) je već dokazano
+  platform-agnostičan, ali fotografisanje zahteva platform-specifičan UI (Android koristi
+  CameraX/Intent u `AddMealWrapper.kt`) koji bi za iOS trebalo pisati kao nov, potpuno
+  netestiran `UIImagePickerController` cinterop kod.
+
+### Namerno NIJE urađeno (razlozi, ne propusti)
+- **Prave OS notifikacije za Podsetnike na iOS-u** (`UNUserNotificationCenter`) — razmotreno i
+  odbačeno za sada: zahtevalo bi ili dupliranje postojeće, već ispravne Android notifikacione
+  infrastrukture (`ReminderScheduler`/`ReminderReceiver`/`BootReminderReceiver` u `:app`) da bi
+  deljeni ekran imao PRAVI paritet na oba OS-a, ili asimetričnu implementaciju (samo iOS "zvoni")
+  koja bi bila čudnija nego korisna. Delegate-bazirani UIKit API bi bio potpuno nov, netestiran
+  kod bez ikakve mogućnosti provere pre Mac-a.
+- **Friends** — blokirano na cloud-u: dodavanje prijatelja zahteva Firestore pretragu tuđeg
+  friend code-a da bi se pronašao njihov `friendId`/ime, a cloud sync na iOS-u je svuda
+  namerno `NotImplemented` za sada. Ekran koji nikad ne bi mogao ništa stvarno da doda bi bio
+  gori od izostavljenog za snimak.
+- **Reports (PDF izvoz)** — `GlucoseReportPdfGenerator` koristi Android-specifičnu PDF
+  biblioteku; iOS ekvivalent bi bio nov, netestiran kod, a Statistics ekran već pokriva glavnu
+  vrednost (pregled očitavanja po opsegu) bez PDF izvoza kao specifičnog dodatka.
+- **Prava Firebase Auth prijava na iOS-u** — najveća preostala stavka, namerno NIJE ni
+  pokušana na slepo. Realan put (GitLive Firebase KMP ili slično) zahteva CocoaPods setup u
+  Xcode projektu + `GoogleService-Info.plist` (mora se preuzeti sa Firebase konzole, korisnikov
+  nalog) + inicijalizaciju u iOS app lifecycle-u - sve to su promene na Xcode/CocoaPods nivou
+  koje se ne mogu ni napraviti ni proveriti bez Mac-a, i realan rizik da pokvare postojeći,
+  već proveren `embedAndSignAppleFrameworkForXcode` script-based framework setup. Ovo eksplicitno
+  ostavljeno za zajednički rad na Mac-u.
+
+### Verifikacija
+- Svaki od tri nova ekrana (Fitness, LibreLinkUp, Meals) pojedinačno proveren pre commit-a:
+  `:shared:compileAndroidMain` + `:shared:compileIosMainKotlinMetadata` +
+  `:shared:compileKotlinIosArm64` + `:shared:compileKotlinIosSimulatorArm64` +
+  `:shared:testAndroidHostTest` + `:app:compileDebugKotlin` + `:app:testDebugUnitTest` +
+  `:app:assembleDebug` — sve BUILD SUCCESSFUL, instalirano na `R5CR92E8BCT` posle svakog.
+- Vizuelna provera na uređaju NIJE rađena za ova tri (korisnik je najavio da se javlja tek kad
+  dobije Mac) - kompajlira i instalira se čisto, ali nije uživo isprobano.
+
+### Šta je ostalo
+- Kad korisnik dobije Mac: proći kroz Xcode checklist iz prethodnog unosa, PA zajedno odlučiti
+  da li se ide na Firebase Auth (najveći preostali gap za "iste aplikacije") - to zahteva
+  njegov Firebase nalog/GoogleService-Info.plist, ne može se pripremiti unapred.
+- Friends/Reports/prave notifikacije ostaju otvoreni ako se posle Auth-a ukaže potreba i vremena.
+
+---
+
+## 2026-09-06 — Prvi Mac dan: Xcode build radi, feature-parity plan, Faza 1 (Auth)
+
+### Kontekst
+Mac je stigao. Prva sesija na njemu - Claude Code je radio direktno na Mac-u (Bash pristup),
+ne više "na slepo" preko Windows-a. Korisnik je uživo, korak po korak, prošao kroz Xcode
+Signing & Capabilities (Team → sopstveni Apple ID, `DEVELOPMENT_TEAM = 2D4528U2NJ`) pa tražio
+prvi pravi `Cmd+R`-ekvivalent build/run na iOS 18.6 simulatoru (iPhone 16 Pro).
+
+### Prvi Xcode/simulator build - USPEO iz prve
+`xcodebuild build` za `iphonesimulator18.6` → **BUILD SUCCEEDED**, instalacija + pokretanje na
+simulatoru → proces živ, nema crash reporta, log stream čist (samo sistemski šum). Screenshot
+potvrdio: Glucose tab renderuje karticu/prazno stanje kako treba. Najveći neizvestan rizik iz
+prethodnih unosa (Room/SQLite-bundled na iOS-u, nikad ranije pokrenuto) se pokazao netačnim -
+proradio je iz prve. Jedini vizuelni bug: tab traka se preklapala sa statusbar-om (sat/baterija
+preko "Glukoza" natpisa) - App() root Column nije poštovao top safe area na iOS-u.
+
+### Okolinski gap otkriven usput: nema Android SDK-a na ovom Mac-u
+Prvi pokušaj punog verifikacionog lanca (`:shared:compileAndroidMain`, `:app:*`) je pukao -
+`adb`/`ANDROID_HOME`/`~/Library/Android/sdk` uopšte ne postoje na ovom Mac-u (ceo dosadašnji
+Android build/test/instalacija rađen je na Windows laptopu). Rešeno: `brew install --cask
+android-commandlinetools` + `sdkmanager` (platform-tools, platform 36, build-tools) +
+`local.properties` sa `sdk.dir`. Posle ovoga ceo `:app:*` lanac radi i na ovom Mac-u.
+
+Usput otkriven i drugi okolinski gap: git na ovom Mac-u nije imao podešen `user.name`/
+`user.email`, pa je prvi commit dobio pogrešnog autora (auto-detektovano iz macOS naloga -
+"Maša Memedović" umesto "Jovan"). Ispravljeno (`git config --global` + `commit --amend
+--reset-author`) pre nego što se ponovilo na više commit-ova.
+
+### Faza 0 - ispravka status bar overlap-a
+`expect/actual Modifier.sharedRootTopInset()` (isti obrazac kao `ioDispatcher`): no-op na
+Android-u (SharedGlucoseDemo ruta već dobija Scaffold-ov innerPadding iznad ovog composable-a -
+dodatni inset bi tamo duplo padovao), `statusBarsPadding()` na iOS-u. Verifikovano Xcode
+rebuild + novi screenshot - traka sad čisto ispod status bara.
+
+### Feature-parity plan (korisnikov zahtev: "sve što radi na Android-u mora da radi i na iOS-u")
+Korisnik je eksplicitno tražio da SVAKI feature (login, registracija, LibreLinkUp, sve ostalo)
+radi identično na oba OS-a, sa nultim rizikom regresije na Android-u. Napravljen detaljan plan
+(6 faza: Auth → cloud sync za 5 postojećih ekrana → Friends → Reminders-notifikacije →
+Meals-kamera → Reports-PDF), sačuvan u `.claude/plans/` ove sesije. Ključna arhitektonska
+odluka, potvrđena sa korisnikom: Firebase Auth + Firestore na iOS-u preko **ručno pisanog Ktor
+REST klijenta** (Identity Toolkit + Firestore REST API), NE preko GitLive Firebase KMP - da se
+izbegne prvi CocoaPods setup u ovom projektu + Kotlin/Native ABI rizik sa pinovanim Kotlin
+2.2.20 (isti tip problema kao gotcha #5). Otkriveno usput da Reminders-notifikacije,
+Meals-kamera i Reports-PDF NE trebaju CocoaPods uopšte - Kotlin/Native ima besplatan ugrađen
+ObjC interop ka UIKit/CoreGraphics/UserNotifications (isti mehanizam koji već besplatno
+omogućava NSUserDefaults/NSFileManager) - značajno smanjuje rizik za te tri kasnije faze.
+Wear OS eksplicitno van obima ovog plana (posebna platforma, faza 6 specifikacije).
+
+### Faza 1 - Shared Auth (login/registracija/reset lozinke), urađeno danas
+Novi `shared/commonMain/feature/auth` + `core/network` + `core/crypto` + `core/firestore` +
+`core/auth`:
+- **`FirebaseAuthRestClient`** (Ktor) - Identity Toolkit REST (signIn/signUp/updateProfile/
+  sendOobCode za reset i verifikaciju emaila/refreshToken).
+- **`FirestoreRestClient`** (Ktor) - get/createDocument za `users/{uid}`, typed-value JSON
+  (`FirestoreValue`) - osnova za Fazu 2 (cloud sync ostalih ekrana).
+- **`AuthRepository`** (commonMain interfejs) - androidMain `FirebaseAuthRepository` wrapuje
+  POSTOJEĆI Firebase GMS SDK (nova, nezavisna klasa - `app/auth/data/AuthRepository.kt`
+  netaknut, guardrail iz plana), iosMain `RestAuthRepository` koristi nove REST klijente +
+  `AuthTokenStorage` (NSUserDefaults, isti obrazac kao `SettingsPreferences.ios.kt`).
+- **`AuthSession`** (core) - gate state, sinhronizuje postojeći `UserSession` (svih 8
+  ViewModel-a i dalje čita `UserSession.currentUserId` nepromenjeno - nula regresije).
+- **`App()` root** sada gate-uje: spinner dok `restoreSession()` traje, Login/Registration/
+  ForgotPassword ekrani (novi, Compose Multiplatform-bezbedni) kad nema sesije, postojeća tab
+  traka (8 ekrana, nepromenjeni) posle uspešne prijave. Dodato "Odjava" dugme pored tab trake.
+- **`FirebaseConfig`** (project_id/Web API key) generiše se Gradle task-om
+  (`:shared:generateFirebaseConfig`) direktno iz već-gitignore-ovanog `app/google-services.json`
+  u `build/` - ključ nikad ne ulazi u git, isti princip kao postojeća gitignore odluka za taj
+  fajl. Alternativa (hardkodovan konstantan `.kt` fajl) razmotrena i odbačena iz istog razloga.
+- Friend code na iOS-u NIJE bit-identičan Android-ovom (taj koristi `java.math.BigInteger`,
+  JVM-only) - nova `generateFriendCodeFromEmail` u `core/crypto` koristi isti charset/dužinu ali
+  drugačiji (sha256-bajt-po-bajt) izvod. Nema funkcionalni uticaj - Friends pretraga (Faza 3)
+  upoređuje sačuvan string, ne re-generiše kod.
+- Google Sign-In namerno izostavljen iz v1 (zahteva `ASWebAuthenticationSession` na iOS-u).
+
+### Verifikacija
+- Pun lanac (`:shared:compileAndroidMain/compileIosMainKotlinMetadata/compileKotlinIosArm64/
+  compileKotlinIosSimulatorArm64/testAndroidHostTest`, `:app:compileDebugKotlin/
+  testDebugUnitTest/assembleDebug`) - sve BUILD SUCCESSFUL.
+- Xcode build + iOS 18.6 simulator run - Login ekran se ispravno prikazuje (nema sačuvane
+  sesije → `restoreSession()` vraća null → gate pokazuje Login, ne tab traku), nema crash-a.
+- **End-to-end verifikacija wire formata protiv PRAVOG Firebase backend-a** (curl, van Kotlin
+  koda): Identity Toolkit `signUp` (200), Firestore `createDocument` (200), `getDocument`
+  vraća upisane vrednosti tačno (firstName/friendCode), cleanup (`delete` na oba, 200/200,
+  bez ostatka u bazi) - potvrđuje da su URL-ovi/JSON oblici u `FirebaseAuthRestClient`/
+  `FirestoreRestClient` tačni pre nego što se ikad testiraju kroz stvarni Kotlin/Native kod.
+- **NIJE urađeno**: stvarno kucanje kroz Login/Registration UI u simulatoru (simctl nema tap/
+  type automatizaciju) - vizuelno potvrđeno samo da se ekran ispravno renderuje. Instalacija na
+  fizički Android uređaj takođe nije urađena (nijedan nije povezan na ovaj Mac trenutno).
+
+### Bug uhvaćen uživo: login je pucao, registracija ne (isti dan, posle prvog testa na uređaju)
+Korisnik je ručno probao ceo tok u simulatoru - registracija je prošla, ali login sa ispravnim
+kredencijalima je pucao sa `kotlinx.serialization` greškom ("Fields [refreshToken, expiresIn]
+required..."). Root cause pronađen sistematski (curl protiv pravog Firebase backend-a, ne
+nagađanje): `createCoreHttpClient()` (core/network/HttpClientFactory.kt) nije imao
+`encodeDefaults = true`, pa je kotlinx.serialization TIHO izostavljao `returnSecureToken`
+(default vrednost `true` u `EmailPasswordRequest`) iz tela zahteva - polje nikad nije stiglo do
+Google-a. `accounts:signUp` na to nije osetljiv (nov nalog uvek dobija refresh token bez obzira
+na to polje), zato je registracija radila iz prve; `accounts:signInWithPassword` BEZ eksplicitnog
+`returnSecureToken:true` vraća 200 OK sa idToken-om, ali BEZ refreshToken/expiresIn - otud
+pucanje tačno na login. Popravljeno (`encodeDefaults = true` na Json konfiguraciji + parsiranje
+Auth odgovora prepravljeno sa strogog `@Serializable` dekodiranja na ručno JsonObject čitanje,
+da buduća slična greška ispiše TAČNO koji ključevi nedostaju umesto kriptične poruke).
+Korisnik potvrdio uživo da login sad radi. Vidi commit "Fix: login je pucao..." za pun opis.
+
+**Pouka za ubuduće**: kad se request telo oslanja na Kotlin default vrednost parametra
+(`= true`), OBAVEZNO `encodeDefaults = true` na Json-u koji Ktor koristi za taj klijent - inače
+se polje tiho ne šalje, bez ikakve greške pri kompajliranju ili slanju, samo kad server zavisi
+od te vrednosti da bi vratio pun odgovor.
+
+### Faza 2 - cloud sync za Insulin/Fitness/Glucose/Reminders/Meals (isti dan, posle login fix-a)
+Korisnik: "nastavi dalje". Zamenjeno svih pet `NotImplementedXRemoteDataSource.ios.kt` sa pravim
+`FirestoreRestXRemoteDataSource` implementacijama, redosled po planu (najprostiji payload prvi):
+Insulin → Fitness → Glucose → Reminders → Meals.
+
+- **`FirestoreRestClient`** prošireno sa generičkim `setArrayField`/`getArrayField` - PATCH sa
+  `updateMask.fieldPaths=<polje>` upisuje CEO niz nazad i (potvrđeno curl testom) radi kao
+  upsert - kreira dokument/polje ako ne postoji, bez potrebe za Android-ovim eksplicitnim
+  `snapshot.exists()` grananjem.
+- **`FirestoreValue`** prošireno sa `MapVal` (ugnježdeni objekti u nizu), `DoubleNum`, i `Null`
+  (eksplicitna null vrednost za nullable polja - `GlucoseReading.insulinTypeId/insulinUnits/
+  linkedMealId`, `Meal.calories/carbs/...` - izostavljanje bi na update-u ostavilo staru
+  vrednost iz prethodnog upisa).
+- **`IosAuthTokenProvider`** (core/auth, iOS-only) izdvojen iz `RestAuthRepository` - zajednička
+  "daj mi važeći idToken sa auto-refresh-om" logika, sad je koriste i Auth ekran i svih pet
+  novih Firestore remote data source-a.
+- Svaki feature radi neatomski get-modifikuj-upiši (isti obrazac kao Android-ove
+  update/delete metode - push tamo koristi `arrayUnion`, ovde nema REST field-transform
+  ekvivalent bez dodatnog `:commit` poziva - prihvatljivo, nema konkurentnih pisanja sa više
+  uređaja u ovoj MVP iteraciji).
+- Meals je najsloženiji (ugnježdeni `MealIngredient` → `Ingredient` mapValue), namerno BEZ
+  LogMeal foto prepoznavanja (Faza 5, van obima ovog dela). Fitness nema update/delete
+  (`ExerciseDao` ni na Android-u nema per-item delete - stvarna paritetnost, ne umanjenje).
+
+Verifikovano: pun lanac (BUILD SUCCESSFUL), end-to-end curl test PATCH upsert + append-ciklusa
+protiv pravog Firestore-a, Xcode build + simulator no-crash launch sa postojećom sesijom (Koin
+DI graf se ispravno razrešio za svih pet novih zavisnosti). NIJE urađeno: ručno kucanje/dodavanje
+stavki kroz UI za svaki od pet ekrana (samo no-crash provera + wire-format curl test).
+
+### Google Sign-In na iOS-u (isti dan, korisnikov zahtev - "želim da vidim iste podatke sa Android naloga")
+Korisnik je tražio Google prijavu na iOS-u da bi proverio da li se podaci sa Android naloga
+(kojim je sve dosad testirano) vide i na iOS-u. Nema GoogleSignIn SDK-a (namerno, izbegava
+CocoaPods) - ceo tok ručno preko `ASWebAuthenticationSession` (sistemski framework, besplatan
+preko Kotlin/Native ObjC interop-a):
+
+- Korisnik je registrovao iOS app u Firebase konzoli (isti `insulink-e8caa` projekat) SAMO da bi
+  se dobio iOS OAuth klijent (`GoogleService-Info.plist` -> `CLIENT_ID`/`REVERSED_CLIENT_ID`,
+  javni identifikatori, bezbedno za commit) - ne koristi se Firebase iOS SDK.
+- **`GoogleSignInCoordinator`** (iOS-only) - `ASWebAuthenticationSession` prezentuje Google OAuth
+  ekran. Prvi pokušaj (implicit `response_type=id_token` flow) je pukao uživo sa "Error 400:
+  unsupported_response_type" - Google to više ne podržava za ovaj tip klijenta. Prepravljeno na
+  **Authorization Code + PKCE** (`response_type=code`, `code_challenge`/`code_verifier` preko
+  novog `sha256Bytes` u `core/crypto`) - standardni preporučen tok za native app-ove bez client
+  secret-a.
+- **`GoogleTokenExchangeClient`** (commonMain) - razmenjuje code za Google `id_token` preko
+  Google-ovog sopstvenog token endpoint-a.
+- **`FirebaseAuthRestClient.signInWithGoogleIdToken`** - taj `id_token` ide Firebase-u
+  (`accounts:signInWithIdp`) - poveže postojeći nalog (isti uid kao Android-ov
+  `GoogleAuthProvider`) ili napravi nov.
+- `isGoogleSignInSupported` expect/actual sakriva dugme na Android-u (deljeni demo ekran se
+  tamo u praksi ne prikazuje - pravi Google Sign-In već postoji na drugom mehanizmu).
+
+**Usput primećeno (nerešeno, ne blokira)**: pri prvom testu se pojavio sistemski
+"Insulink Wants to Use google.com to Sign In" dijalog BEZ ijednog tap-a sa moje strane (nemam
+tap automatizaciju) - reprodukovan samo jednom, čist reinstall+launch posle toga nije ga
+ponovio. Verovatno OS-nivo artefakt (leftover ASWebAuthenticationSession sesija preko
+reinstall-a), ne potvrđen kao stvaran bug u kodu.
+
+**project.pbxproj napomena**: Firebase "Add iOS app" čarobnjak je dodao NEPOVEZANU
+(unlinked, ni za jedan target) SPM referencu na `firebase-ios-sdk` - namerno nije dirana
+(kosi se sa "bez SDK-a" arhitekturom, ali ne utiče na build). Korisnik može ukloniti u Xcode-u
+(File → Package Dependencies → minus) ako želi.
+
+### Kritičan fix: sinhronizacija nikad nije povlačila podatke na login
+Korisnik se uspešno prijavio preko Google naloga, ali **ništa** od Android podataka nije se
+videlo na iOS-u iako je isti nalog. Uzrok: svaki repozitorijum ima `fetchXAndUpdateDatabase
+(userId)` metodu (povlači iz Firestore-a, puni lokalnu Room bazu) koja se MORA eksplicitno
+pozvati - Android to radi u svakom feature Wrapper-u (`LaunchedEffect(currentUser)`), ali
+deljeni (shared) ViewModel-i iz ranijih sesija (pre Faze 2) taj poziv nikad nisu imali - lokalna
+baza na svakom novom uređaju/instalaciji ostaje prazna zauvek, čak i uz ispravnu prijavu.
+Popravljeno: dodat `init` blok u svih 5 shared ViewModel-a (Glucose/Insulin/Fitness/Reminders/
+Meals) koji prati `UserSession.currentUserId` i čim postane ne-null zove odgovarajući
+`fetchXAndUpdateDatabase`. Potvrđeno uživo - Glucose tab posle Google prijave sada ispravno
+prikazuje stvarno poslednje očitavanje sa Android naloga (106 mg/dL, 04/09/2026 23:53).
+
+**Pouka za ubuduće**: "cloud sync implementiran" (remote data source radi) i "cloud sync
+POVEZAN sa UI-jem" (neko stvarno poziva fetch-and-update na login) su DVE odvojene stvari - lako
+je propustiti drugu ako se prva testira samo preko curl-a/wire-format provere, bez pravog
+login-preko-drugog-naloga scenarija.
+
+### Šta je ostalo (u trenutku pisanja - videti unose ispod, sve je od tada završeno)
+- Faza 3 (Friends), 4 (Reminders-notifikacije), 5 (Meals-kamera), 6 (Reports-PDF).
+- Rok je ponedeljak.
+
+---
+
+## 2026-09-06/07 (nastavak) - Glucose dijalog do kraja + Faze 3, 4, 6 (Friends/Reminders/Reports)
+
+### Kontekst
+Korisnik je posle prijave preko Google naloga uživo potvrdio da radi sve kako treba (Google
+Sign-In + cloud sync). Sledeći zahtev: "sredi glucose feature do kraja" - dijalog za dodavanje
+očitavanja da bude pun paritet sa Android-om (datum/vreme, insulin tip+doza, povezan obrok).
+Pročitan direktno pravi Android kod (AddGlucoseReadingDialog.kt, GlucoseViewModel.kt,
+GlucoseDropdownMenu.kt, DateUtils.kt) kao izvor istine. Dodato u core/time:
+combineDateAndTime/combineTimeWithDate (KMP-safe, Android koristi java.util.Calendar) +
+dateOnlyLabel. GlucoseViewModel dobio newTimestamp/newInsulinTypeId/newInsulinUnits/
+newLinkedMealId + allInsulinTypesForUser/sameDayMealsForNewReading (čita iz već postojećih
+Insulin/Meals repozitorijuma). GlucoseScreen dobio pun dijalog - Material3 DatePicker/TimePicker
+(provereno da rade na iOS-u kompajliranjem PRE nego što se pretpostavilo, kao i uvek) + dropdown
+BEZ ikonica (tekstualni glifovi ▾/▴, poznat CMP rizik od ranije). Korisnik uživo potvrdio da radi
+("Novorapid · 13.0 j." ispravno prikazano u listi).
+
+Zatim: "šta ćemo dalje" - predložen i odobren redosled Friends → Reminders notifikacije →
+Reports PDF (Meals kamera namerno izostavljena - simulator nema pravu kameru, ne može se
+pouzdano testirati pre roka).
+
+### Faza 3 - Friends (potpuno nov ekran)
+`FirestoreRestClient.queryEqual` - PRVI :runQuery poziv u projektu (fieldFilter EQUAL po
+friendCode, pretraga cele "users" kolekcije umesto poznatog document id-a) - oblik odgovora
+potvrđen curl testom pre pisanja Kotlin koda. `FirestoreValue.plainStringOf` za "friends" polje
+(niz golih uid stringova, ne mapValue objekata kao svi ostali nizovi u projektu).
+`FirestoreRestFriendRemoteDataSource`: pretraga preko queryEqual, `fetchFriendCandidates` radi N
+pojedinačnih getDocumentFields poziva po prijatelju (ne Android-ov whereIn grupni upit - liste
+prijatelja su male). Novi FriendsViewModel/FriendsScreen (isti obrazac kao ostalih 8 ekrana).
+End-to-end curl test celog toka (dva test naloga, pretraga, obostrano dodavanje, čitanje
+kandidata, cleanup) potvrdio tačnost pre Xcode build-a.
+
+### Faza 4 - Reminders prave OS notifikacije
+`ReminderNotificationScheduler` (commonMain interfejs) - iOS actual preko
+`UNUserNotificationCenter` + `UNCalendarNotificationTrigger(repeats=true)` (jednostavnije od
+Android-ovog AlarmManager re-arm obrasca - iOS sam ponavlja dnevno). Android actual je namerno
+NO-OP: `:shared` ne može zavisiti od `:app` (gde živi pravi, proveren ReminderScheduler/
+NotificationHelper/ReminderReceiver lanac), a dupliranje AlarmManager+BroadcastReceiver-a u
+`:shared` bi tražilo nov unos u `:shared`-ov AndroidManifest (merge rizik, netestabilan bez
+fizičkog uređaja trenutno povezanog) za vrednost koja bi samo dala DODATNO zvonjenje na
+Android-ovom demo ekranu - Android korisnik već ima potpuno funkcionalne notifikacije preko
+svog pravog ekrana. Isti princip prvi put uveden ovde, ponovljen za Reports (ispod). Dodato i
+ručno podesivo vreme u Reminders dijalogu (ranije uvek trenutno vreme dodavanja) - isti
+TimePicker obrazac kao Glucose.
+
+### Faza 6 - Reports PDF (Meals kamera/Faza 5 preskočena - vidi gore)
+Android-ov PDF izvoz (iText7) ostaje netaknut u `:app`, ta zavisnost ne postoji u `:shared`.
+Isti no-op princip kao Reminders: `isPdfReportSupported = false` sakriva ceo tab na Android
+demo ekranu. iOS: `UIGraphicsPDFRenderer` + `UIActivityViewController` za deljenje.
+
+**Značajan cinterop zastoj, rešen sistematski**: `NSString.drawAtPoint(withAttributes:)` i
+`NSData.writeToFile` su dosledno davali "Unresolved reference" i na metadata i na pravom
+`compileKotlinIosSimulatorArm64` target-u, uprkos više pokušaja (drugačiji import-i, `as
+NSString` kast, `NSString.create(...)` fabrika) - uzrok nije do kraja utvrđen. Umesto daljeg
+kopanja (ovo je najniži prioritet cele migracije), pređeno na stariji Core Graphics C API
+(`CGContextShowTextAtPoint`/`CGContextSelectFont`) - proveren `grep` kroz pravi iOS SDK header
+(`CGContext.h`) da POSTOJI (`API_DEPRECATED("No longer supported", ios(2.0,7.0))` - deprecated,
+ali i dalje prisutan i linkuje se, "no longer supported" je samo tekst upozorenja, ne stvarno
+uklonjena funkcija). `CGTextEncoding` enum se pokazao ugnježden (`CGTextEncoding.
+kCGEncodingMacRoman`, ne goli top-level `kCGEncodingMacRoman`) - kad se to ispravilo, ceo fajl
+je prošao kompajliranje iz prve. Cena: MacRoman kodiranje ne pokriva srpske dijakritike
+(č/ć/š/ž/đ) - tekst u PDF-u se transliteruje u ASCII (kozmetički kompromis, dokumentovan u
+kodu). `NSData.writeToFile` zamenjeno POSIX `fopen`/`fwrite` preko `NSData.bytes`/`.length`
+(osnovna Foundation svojstva, ne kategorije - pouzdano razrešena).
+
+**Pouka za ubuduće**: kad neki Kotlin/Native ObjC interop poziv dosledno ne razrešava referencu
+uprkos više razumnih pokušaja, pre daljeg pogađanja imena/potpisa vredi (a) proveriti da li je
+funkcija uopšte DOSTUPNA na iOS-u preko `grep` kroz pravi SDK header
+(`/Applications/Xcode.app/.../SDKs/iPhoneOS.sdk/.../Headers/*.h`) - "no longer supported" u
+deprecation poruci ne znači da je funkcija fizički uklonjena, i (b) razmotriti stariji/niži-nivo
+C API kao siguran fallback umesto više-nivo ObjC kategorija čije se ime/potpis ne može lako
+potvrditi bez dokumentacije.
+
+### Verifikacija (sve tri faze)
+Pun lanac (BUILD SUCCESSFUL) posle svake faze, Xcode build + iOS 18.6 simulator no-crash launch
+posle svake. End-to-end curl test za Friends (jedini sa novim query mehanizmom). NIJE urađeno
+ni za jednu od tri faze: stvaran tap kroz UI (simctl nema tap automatizaciju) - korisnik testira
+sledeće za sve odjednom.
+
+### Šta je ostalo
+Ovim je završen ceo planirani opseg (Faze 1-6) feature-parity migracije. Preostaje: korisnik da
+ručno proveri Friends/Reminders-notifikacije/Reports UI uživo (i idealno instalacija na fizički
+Android uređaj kad bude dostupan - nijedan nije povezan na ovaj Mac tokom cele ove sesije).
+Meals kamera (Faza 5) namerno preskočena - simulator nema pravu kameru, van obima do roka.
+
+---
+
+## 2026-09-07 - Korisnikovo uživo testiranje: PDF fix + Friends bug namerno ostavljen za betu
+
+### Kontekst
+Korisnik potvrdio: alarmi/notifikacije (Faza 4) rade odlično. Prijavio dva nalaza: (1) PDF
+izveštaj - sav tekst prikazan naopako/flipovano (screenshot priložen), (2) Friends - nema
+uklanjanja prijatelja, i isti prijatelj dodat dva puta pravi duplikat. Za (2) eksplicitno
+tražio da se NAPIŠE fix ali da OSTANE isključen/zakomentarisan - beta testiranje je u toku i
+želi da to ostane kao bug koji beta korisnici sami prijave, ne da nestane pre nego što je
+uopšte viđen.
+
+### PDF flip fix
+Dva odvojena problema koja su se poklopila (oba u `IosPdfReportGenerator.kt`):
+1. Pozicija reda: `UIGraphicsPDFRenderer`-ov `CGContext` VEĆ ima top-left/Y-dole CTM (UIKit
+   konvencija) - ranije dodat ručni "PAGE_HEIGHT - y" flip je bio SUVIŠAN drugi flip, koji je
+   redove postavljao u obrnutom redosledu (naslov, crtan prvi, završavao pri dnu). Ispravljeno -
+   koristi se `y` direktno.
+2. Orijentacija glifova: `CGContextShowTextAtPoint` (stariji Quartz C API) crta u sopstvenoj,
+   fiksnoj tekst-matrici koja pretpostavlja Y-gore orijentaciju BEZ OBZIRA na CTM - poznat Core
+   Graphics gotcha kad se ovaj API koristi u već Y-flipovanom kontekstu. Ispravljeno:
+   `CGContextSetTextMatrix(ctx, CGAffineTransformMakeScale(1.0, -1.0))` jednom po strani.
+
+Nije ponovo vizuelno provereno preko UI-ja (simctl nema tap automatizaciju) - korisnik testira.
+
+### Friends - fix napisan, namerno ISKLJUČEN (beta bug, na zahtev korisnika)
+`FriendDao.deleteFriend` (Room), `FriendRemoteDataSource.removeFriendFromFirestoreForUser`
+(Android preko `arrayRemove`, iOS preko get-filter-set), `FriendRepository.deleteFriend` +
+`isFriendAlready` - sve implementirano i inertno (ništa od ovoga se trenutno ne poziva).
+`FriendsViewModel.addFriend()` ima dedup proveru napisanu kao ZAKOMENTARISAN blok tačno na
+mestu gde bi trebalo da stoji; `removeFriend()` postoji kao potpuno zakomentarisana funkcija;
+`FriendsScreen`-ov dugme za uklanjanje (✕) je takođe zakomentarisano. Trenutno ponašanje
+(duplikat moguć, uklanjanje nedostupno) ostaje NEPROMENJENO - namerno, dok korisnik ne završi
+beta testiranje, kad treba samo otkomentarisati sve navedeno.
+
+### Pouka za ubuduće
+Kad korisnik eksplicitno traži da se bug OSTAVI (npr. radi beta testiranja), najbolji pristup
+je napisati kompletan, ispravan fix ali ga ostaviti zakomentarisanog TAČNO na mestu gde bi
+trebalo da živi (ne u posebnom "future work" fajlu) - sledeći put kad neko treba da ga uključi,
+samo skida komentare, bez ponovnog smišljanja rešenja.
+
+### Šta je ostalo
+Korisnik da vizuelno potvrdi da je PDF sada ispravno orijentisan preko UI-ja.
+
+## 2026-09-07 (nastavak) - Korisnik potvrdio PDF fix, ažuriran CLAUDE.md
+
+Korisnik potvrdio uživo: "pdf izgleda super, sta nam je ostalo dalje". Status svih 6 planiranih
+faza (Auth+Google Sign-In, Cloud sync, Glucose dijalog parity, Friends, Reminders notifikacije,
+Reports PDF) je sada: sve završeno i uživo potvrđeno OSIM Meals kamere (Faza 5, namerno
+preskočena - simulator nema pravu kameru) i Friends dedup/removal (namerno ostavljeno
+isključeno za beta testiranje, vidi prethodni unos).
+
+Korisnik izabrao sledeći korak: ažuriranje `CLAUDE.md` dokumentacije (umesto npr. fizičkog
+device testiranja ili Meals kamere). Ažurirano:
+- "Trenutno stanje" - prepisano da odražava Mac u aktivnoj upotrebi, Android SDK instaliran
+  preko Homebrew-a, sve 3 arhitektonske odluke (REST umesto GitLive/CocoaPods za Auth+Firestore,
+  isti princip za Google Sign-In/Reminders/Reports), status po fazi sa referencama na tačne
+  fajlove, i "Otvoreno/poznato ograničeno" sekcija (nema fizičkog device testa ove sesije, stray
+  SPM referenca u pbxproj, Wear OS/web van obima).
+- "Rešeni problemi" - dodate stavke #6-10: `encodeDefaults=true` Firebase REST bug (login crash
+  root cause), obavezan `init` sync-trigger blok u svakom ViewModel-u (cross-device sync bug root
+  cause), iOS Core Graphics `NSString.drawAtPoint` cinterop neuspeh + radno rešenje, PDF
+  top-down-CTM + text-matrix flip gotcha (dva odvojena efekta), Mac/Android-SDK/git-author setup
+  napomene za "prvi put na novom Mac-u".
+- "Plan migracije" (specifikacija, poglavlje 9) - koraci 2-4 markirani ✅ (bili su "U TOKU"/prazni
+  jos od Windows perioda), korak 5 delimično sa FZ-9/10/12/14 pojedinačno markiranim.
+- "Napomene o razvojnom okruženju" - uklonjeno zastarelo "Mac stiže uskoro", zamenjeno trenutnim
+  stanjem.
+
+Nije menjan kod, samo dokumentacija - bez potrebe za verifikacionim lancem.
+
+### Šta je ostalo
+- Fizičko device testiranje (ni Android ni iOS) nije rađeno ove sesije - otvoreno pitanje za
+  korisnika pred snimak.
+- Meals kamera (Faza 5) ostaje namerno nezavršena.
+- Snimak (screen recording) za oba OS-a - glavni preostali zadatak pred rok (ponedeljak,
+  2026-09-08).
+
+## 2026-09-07 (nastavak) - Meals ekran doveden do pune paritetnosti sa Android-om
+
+Korisnik se sprema da testira Android verziju sa drugog laptopa, ali je prvo tražio da se Meals
+ekran (osmi deljeni MVP ekran) dovede do pune funkcionalnosti kao Android-ov `app/feature/meals`,
+pošto je do sada bio namerno osiromašen (samo ručan unos naziva/kalorija/UH, bez pretrage
+sastojaka i bez foto-prepoznavanja - vidi stari komentar u MealsViewModel.kt).
+
+Otkriveno tokom istrage: Spoonacular/USDA pretraga (`KtorFoodApiRemoteDataSource`) i LogMeal
+foto-prepoznavanje (`LogMealFoodImageAnalysisRemoteDataSource`) su VEĆ bili potpuno
+platform-agnostični u `shared/commonMain` - nedostajao je samo (1) shared ViewModel/ekran koji ih
+stvarno pozove i (2) platform-specifičan način da se fotografija uopšte dobavi (kamera/galerija).
+
+Urađeno:
+- **`MealsViewModel.kt` (shared)** - prepravljen po uzoru na Android-ov `feature/meals/ui/viewmodel/
+  MealsViewModel.kt`: `selectedDate`/`mealsForSelectedDate`/`dailyNutrition` (umesto proste "svi
+  obroci" liste), pretraga sastojaka sa debounce-om, `selectedIngredients` sa količinama,
+  create/delete custom ingredient, `userIngredients`, ceo foto-analiza tok
+  (`analyzeMealPhoto`/`acceptMealPhotoAnalysis`/`dismissMealPhotoAnalysis`/`reportMealPhotoError`).
+- **`MealsScreen.kt` (shared)** - prepravljen: lista obroka za izabrani dan + dnevni nutritivni
+  rezime (4 kartice), FAB → Dialog za dodavanje obroka (App() tab-sistem nema push navigaciju, isti
+  princip kao Glucose/Friends) sa datum/vreme picker-om (isti obrazac kao Glucose), pretragom
+  sastojaka, listom dodatih sastojaka sa uređivanjem količine, `CreateIngredientDialog`,
+  `MyIngredientsDialog`, `MealPhotoAnalysisDialog` (uredi prepoznata imena pre dodavanja) - sve
+  portovano iz Android ekvivalenata, bez ikonica/InsulinkTheme (isti princip kao ostatak deljenog
+  UI-ja).
+- **Novi `MealPhotoPickerLauncher` (expect/actual, `feature/meals/photo` paket)** - na eksplicitan
+  zahtev korisnika: pošto trenutno ima samo iOS Simulator (bez fizičkog iPhone-a), MORA postojati
+  opcija iz galerije - kamera se testira tek sutra na fizičkom uređaju.
+  - Android actual: `ActivityResultContracts.PickVisualMedia()` (galerija, Photo Picker, bez
+    potrebne dozvole) + postojeći `TakePicture()`/FileProvider obrazac (kamera, isti kao
+    `AddMealWrapper.kt`), downscale/JPEG-kompresija duplirana (Bitmap je Android-only, ne može u
+    commonMain). `isCameraAvailable` proverava `PackageManager.FEATURE_CAMERA_ANY`.
+  - iOS actual: `UIImagePickerController` (`.photoLibrary` za galeriju, radi na Simulator-u;
+    `.camera` samo ako je `isSourceTypeAvailable` - false na Simulator-u, biće true sutra na
+    fizičkom uređaju) + delegate (`NSObject() + UIImagePickerControllerDelegateProtocol +
+    UINavigationControllerDelegateProtocol`, zadržan kao jaka referenca da ga ARC ne obriše pre
+    callback-a). Downscale preko starijih `UIGraphicsBeginImageContextWithOptions` C-API (isti
+    oprezan izbor kao `CGContextShowTextAtPoint` u PDF generatoru, izbegava rizičniju
+    `NSString`-kategoriju cinterop rezoluciju). NSData→ByteArray preko `memcpy`/`usePinned`
+    (**pažnja**: `memcpy` je `platform.posix.memcpy`, NE `kotlinx.cinterop.memcpy` - prva verzija
+    je pukla na `:shared:compileIosMainKotlinMetadata` sa "Unresolved reference 'memcpy'", brzo
+    ispravljeno).
+  - Dodato u `Info.plist`: `NSPhotoLibraryUsageDescription`/`NSCameraUsageDescription` - bez ovoga
+    bi app pukao čim se pokuša pristup galeriji/kameri.
+- **API ključevi za iOS** - `SPOONACULAR_API_KEY`/`USDA_API_KEY`/`LOGMEAL_API_KEY` su do sada bili
+  hardkodovano prazni u `KoinInit.ios.kt` ("Meals MVP je namerno samo ručni unos"). Dodat
+  `:shared:generateMealApiConfig` Gradle task (identičan obrazac kao već postojeći
+  `generateFirebaseConfig`) koji čita iste ključeve iz root `local.properties` (Android ih već
+  čita odatle preko `BuildConfig`) i generiše `MealApiConfig.kt` (build/, negit-ovan) - iOS sada
+  koristi ISTE ključeve kao Android, bez ikakvog dupliranja/hardkodovanja.
+  **VAŽNO - otvoreno**: `local.properties` na OVOM Mac-u trenutno ima samo `sdk.dir` (dodato ranije
+  ove sesije) - SPOONACULAR_API_KEY/USDA_API_KEY/LOGMEAL_API_KEY nedostaju, pošto je ovo prvi put
+  da se ovaj projekat builduje na ovoj mašini. Dok korisnik ne doda te tri linije (vrednosti
+  postoje na njegovoj staroj Windows mašini), pretraga sastojaka pada nazad SAMO na lokalnu bazu
+  (nema mrežnih rezultata) i foto-analiza baca grešku "LogMeal API key is not configured" - ništa
+  ne puca, samo nema mrežnih rezultata dok se ključevi ne dodaju.
+
+Verifikovano: pun Gradle lanac (`:shared:compileAndroidMain`, `compileIosMainKotlinMetadata`,
+`compileKotlinIosSimulatorArm64`, `compileKotlinIosArm64`, `testAndroidHostTest`,
+`:app:compileDebugKotlin`, `:app:testDebugUnitTest`, `:app:assembleDebug`) - sve BUILD SUCCESSFUL.
+Pun `xcodebuild` build za iPhone 16 Pro simulator (iOS 18.6) - BUILD SUCCEEDED. Instalacija +
+pokretanje na simulatoru - app se pokrenuo, ostao prijavljen (postojeća sesija), učitao Glucose tab
+i uspešno povukao podatke sa Firestore-a (200 OK u logu), nema crash report-a. Nije vizuelno
+provereno kroz sam Meals tab (van vidljivog dela horizontalno-skrolabilne tab trake, nema
+tap-automatizacije za skrolovanje taba) - korisnik treba ručno da skroluje do "Obroci" i proba.
+
+### Šta je ostalo
+- Korisnik treba da doda SPOONACULAR_API_KEY/USDA_API_KEY/LOGMEAL_API_KEY u `local.properties` na
+  ovom Mac-u da bi pretraga/foto-analiza stvarno vraćale mrežne rezultate.
+- Ručna provera Meals ekrana u simulatoru (skrolovanje sastojaka, dodavanje obroka, foto iz
+  galerije, dijalog za prepoznatu hranu).
+- Kamera opcija (`takePhoto()`) ostaje neverifikovana do fizičkog uređaja - korisnik je najavio da
+  će to probati sutra.
+- Korisnik prelazi na testiranje Android verzije sa drugog laptopa.
+
+## 2026-09-07 (nastavak) - Navigaciona ljuska prepravljena da prati Android 1:1
+
+Korisnik potvrdio da pretraga sastojaka i foto iz galerije rade nakon dodavanja API ključeva, pa
+zatražio da se cela navigaciona ljuska (`App.kt`) preuredi da vizuelno/strukturno prati PRAVI
+Android `AppNavigation.kt`/`SideDrawer.kt` 1:1, umesto dotadašnje proste horizontalno-skrolabilne
+tab-trake:
+- **Bottom bar**: tačno `Screen.bottomBarDestinations` sa Android-a - Obroci, Glukoza, Fitnes.
+- **Sidebar** (`ModalNavigationDrawer`): na vrhu ime+prezime (headlineSmall, bold) i email ispod
+  (isto kao Android-ov `SideDrawer.kt`), pa `HorizontalDivider`, pa stavke - korisnik je tražio
+  Podsetnici/Prijatelji/Izveštaji/Podešavanja; DODATO je i Insulin/Statistika/LibreLinkUp posle te
+  četiri (Android-ov `SideDrawer.kt` STVARNO ima i te stavke - `navigateToInsulinTypes`/
+  `navigateToStatistics` - a ti ekrani već postoje kao deljeni MVP ekrani od ranije; izbacivanje
+  bi bila regresija koju je korisnik eksplicitno zabranio još u Fazi 1 planu), pa "Odjava" na dnu.
+- Zamenjena prosta `Row` tab-traka sa pravim Material3 komponentama: `ModalNavigationDrawer` +
+  `ModalDrawerSheet` + `CenterAlignedTopAppBar` (hamburger "☰" levo, naslov po sredini) +
+  `NavigationBar`/`NavigationBarItem` (dole) + `NavigationDrawerItem` (sidebar stavke) - i dalje
+  bez `Icons.Filled.*` (isti razlog kao ostatak deljenog UI-ja), "icon" slot je prost emoji `Text`.
+
+Dva brza fix-a tokom kompajliranja:
+1. `Smart cast to 'AuthUser' is impossible, because 'currentUser' is a delegated property` -
+   `by collectAsState()` delegat se ne smart-cast-uje direktno; popravljeno hvatanjem u lokalni
+   `val user = currentUser` pre `when` grane.
+2. `ModalNavigationDrawer`/`NavigationDrawerItem` su `@ExperimentalMaterial3Api` u ovoj pinovanoj
+   Material3 verziji - dodat `@OptIn(ExperimentalMaterial3Api::class)` na `MainTabs`.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + pravi `xcodebuild` build (BUILD SUCCEEDED)
++ instalacija/pokretanje na iPhone 16 Pro simulatoru - bez crash-a, screenshot potvrđuje: hamburger
++ centriran naslov u top bar-u, bottom bar sa tačno tri stavke (Obroci/Glukoza/Fitnes, Glukoza
+selektovana i markirana). Sidebar sadržaj (ime/email/lista stavki) nije vizuelno potvrđen - nema
+tap-automatizacije za otvaranje drawer-a u simulatoru, korisnik treba ručno da klikne ☰.
+
+### Šta je ostalo
+- Korisnik da ručno otvori sidebar (☰) i potvrdi ime/prezime/email na vrhu i sve stavke ispod.
+
+## 2026-09-07 (nastavak) - Jezik i jedinica za šećer u Podešavanjima
+
+Korisnik pitao šta je sa Podešavanjima - da li rade promena jezika i jedinice za merenje šećera.
+Provera koda: **jedinica za glukozu (mmol/L ↔ mg/dL) je već potpuno funkcionalna** - persistira
+se preko `SettingsPreferences` i menja formatiranje vrednosti svuda gde se šećer prikazuje
+(Glucose, Friends, ...) - ništa nije trebalo dodati. **Promena jezika** je pre ove izmene samo
+persistirala izbor (`AppLanguage`), ali UI je ostajao hardkodovan na srpskom bez obzira na izbor -
+ceo deljeni UI (Glucose, Meals, Fitness, Reminders, Friends, Reports, Settings, Insulin,
+Statistics, LibreLink, Auth ekrani) ima string literale direktno u kodu, nema Android-ov
+strings.xml/values-en sistem.
+
+Pitan korisnik koliko duboko da ide prevod s obzirom na rok (snimak sutra) - izabrao "Samo
+navigacija + Settings ekran". Urađeno:
+- Nov `LocalizationSession` (`shared/core/localization`) - globalno posmatran trenutni jezik, isti
+  obrazac kao `AuthSession`/`UserSession`. `App()` ga inicijalizuje iz `SettingsPreferences` pri
+  prvoj kompoziciji (da nav labele odmah odražavaju već perzistiran izbor i pre nego što korisnik
+  ikad otvori Settings tab), `SettingsViewModel.setLanguage()` ga ažurira uživo.
+- `App.kt`: `AppDestination.label` promenjen iz fiksnog stringa u `label(language: AppLanguage)`
+  funkciju sa sr/en parovima za svih 10 destinacija (bottom bar + sidebar), "Odjava"/"Sign out" na
+  dnu sidebar-a takođe reaguje.
+- `SettingsScreen.kt`: naslovi sekcija "Jezik"/"Language" i "Jedinica za glukozu"/"Glucose unit"
+  sada prate `viewModel.language`.
+- Namerno OSTAJE nepromenjeno (van obima po dogovoru): sav ostatak deljenog UI-ja (sadržaj
+  Glucose/Meals/Fitness/... ekrana) ostaje na srpskom bez obzira na izbor jezika - puna
+  lokalizacija svakog stringa na svakom ekranu je van obima večeras.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - **live potvrda screenshot-om**: app je učitao ranije izabran engleski
+jezik iz persistencije i prikazao "Glucose" u naslovu + "Meals/Glucose/Fitness" u bottom baru, i
+"104 mg/dL" umesto "5.8 mmol/L" (jedinica takođe persistirana iz ranije) - oba dela rade
+end-to-end bez ijedne ručne akcije korisnika (samo restart app-a).
+
+### Šta je ostalo
+- Korisnik da ručno otvori Settings ekran i proba oba prekidača uživo (bio je već implicitno
+  potvrđen kroz persistenciju od ranije, ali nije direktno testiran ovaj put).
+
+## 2026-09-07 (nastavak) - Puna lokalizacija svih deljenih ekrana (sr/en)
+
+Korisnik potvrdio da prethodni minimalni obim (samo navigacija + Settings) radi, pa zatražio da
+se lokalizacija proširi na sve deljene ekrane - "ima vremena".
+
+Urađeno: nov `tr(language, sr, en)` helper (`shared/core/localization/Translate.kt`) - čist
+top-level Kotlin fun (ne @Composable), namerno BEZ Compose Multiplatform composeResources
+sistema (runtime override jezika nije proveren u ovoj pinovanoj CMP 1.10 verziji - isti oprezan
+princip kao ostale "izbegavaj neproveren noviji API" odluke u CLAUDE.md). Svaki string na svakom
+od preostalih 12 deljenih ekrana zamenjen pozivom `tr(language, "srpski", "english")` na mestu
+upotrebe - `language` se čita JEDNOM po ekranu (`LocalizationSession.currentLanguage.
+collectAsState()`, isti `LocalizationSession` iz prethodnog unosa) i prosleđuje dalje kroz
+parametre u privatne sub-composable funkcije koje ga trebaju.
+
+Prevedeni ekrani (svi u `shared/commonMain`): GlucoseScreen (najveći - status kartica, day
+header, dijalog za dodavanje/izmenu očitavanja sa insulin/obrok dropdown-ovima), MealsScreen
+(drugi najveći - dijalog za dodavanje obroka, CreateIngredientDialog, MyIngredientsDialog,
+MealPhotoAnalysisDialog), FitnessScreen, InsulinScreen, RemindersScreen (+ typeLabel funkcija),
+LibreLinkScreen, StatisticsScreen (+ rangeLabel funkcija), ReportsScreen, FriendsScreen,
+LoginScreen, RegistrationScreen, ForgotPasswordScreen. SettingsScreen je već delimično bio
+pokriven od ranije (samo naslovi sekcija) - ostao nepromenjen.
+
+Namerno OSTAJE neprevedeno (van obima i ove proširene lokalizacije): poruke greške koje dolaze
+iz ViewModel-a/mreže (npr. `errorMessage: String?` iz `AuthViewModel`, exception `.message` u
+Reports/Meals) - te poruke se generišu duboko u data/repository sloju, ne u UI Compose kodu, i
+njihov prevod bi zahtevao menjanje logike bacanja grešaka na desetinama mesta, mnogo veći i
+rizičniji zahvat od prevoda UI literala. Ovo je namerna granica, ne previd.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - screenshot potvrđuje da je Glucose ekran (sadržaj, ne samo
+navigacija) sada na engleskom: "Latest reading", "In target", "Today", "No readings for this
+day" - potpuna promena jezika radi end-to-end na stvarnom sadržaju ekrana, ne samo na
+navigacionoj ljusci.
+
+### Šta je ostalo
+- Ručna provera preostalih ekrana (Meals dijalog, Fitness, Insulin, Reminders, LibreLink,
+  Statistics, Reports, Friends, Auth ekrani) - Glucose je jedini vizuelno potvrđen ovim
+  screenshot-om.
+- Poruke grešaka iz ViewModel/network sloja ostaju na srpskom bez obzira na jezik (namerna
+  granica, vidi gore).
+
+## 2026-09-07 (nastavak) - Bug fix: promena jedinice za glukozu nije radila uživo
+
+Korisnik prijavio: promena jedinice za glukozu (mmol/L ↔ mg/dL) u Podešavanjima se primenjivala
+tek posle gašenja i ponovnog pokretanja aplikacije, ne odmah na ostalim ekranima.
+
+Uzrok (pronađen u kodu): `GlucoseViewModel`, `StatisticsViewModel` i `FriendsViewModel` su svaki
+imali SOPSTVENI `MutableStateFlow(settingsPreferences.getGlucoseUnit())` inicijalizovan JEDNOM pri
+Koin kreiranju (`single`, živi ceo život aplikacije - App()-ov `when`-blok navigacioni obrazac
+nema lifecycle re-entry event koji bi to osvežio, za razliku od pravih Android ekrana). Svaki je
+imao i MRTVU `refreshGlucoseUnit()` funkciju - postojala je, ali je niko nigde nije pozivao
+(potvrđeno grep-om). `SettingsViewModel.setGlucoseUnit()` je ažurirao SAMO svoju sopstvenu kopiju
+i `SettingsPreferences` (perzistenciju) - nikad tuđe kopije u druga tri ViewModel-a.
+
+Fix: isti obrazac kao `LocalizationSession` (iz ranijeg unosa - taj je već ispravno rađen kao
+globalni observable state). Nov `SettingsSession` (`core/session/SettingsSession.kt`) -
+`currentGlucoseUnit: StateFlow<GlucoseUnit>`. `SettingsViewModel.setGlucoseUnit()` sada ažurira
+`SettingsSession` (ne sopstvenu kopiju). `GlucoseViewModel`/`StatisticsViewModel`/
+`FriendsViewModel` sada DIREKTNO izlažu `SettingsSession.currentGlucoseUnit` (uklonjene sopstvene
+`_glucoseUnit` kopije i mrtve `refreshGlucoseUnit()` funkcije). `App()` inicijalizuje
+`SettingsSession` iz `SettingsPreferences` pri prvoj kompoziciji (isti `LaunchedEffect` koji već
+inicijalizuje `LocalizationSession`). `ReportsViewModel` nije diran - već je čitao
+`settingsPreferences.getGlucoseUnit()` fresh pri svakom generisanju izveštaja (suspend funkcija,
+ne cache-ovana vrednost), taj deo nikad nije imao bug.
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - bez crash-a. Nije ručno-interaktivno potvrđeno da promena jedinice
+sada stvarno odmah ažurira sve ekrane (nema tap-automatizacije da otvorim Podešavanja i
+promenim izbor) - arhitektonski identičan, već dokazan obrazac kao LocalizationSession (koji JESTE
+potvrđen uživo screenshot-om u ranijem unosu), pa je rizik nizak, ali korisnik treba ručno da
+proba.
+
+### Šta je ostalo
+- Korisnik da ručno potvrdi: promeni jedinicu u Podešavanjima, pa odmah pogleda Glucose/
+  Statistika/Prijatelji ekrane bez restarta aplikacije - vrednosti bi trebalo odmah da se
+  promene.
+
+## 2026-09-07 (nastavak) - Automatska LibreLinkUp sinhronizacija (iOS) + uklonjene prikazane vrednosti
+
+Korisnik tražio: automatsku sinhronizaciju sa LibreLinkUp nalogom za iOS, da se "sve LibreLinkUp
+vrednosti" ne prikazuju, i interval od 10 minuta ako je moguće.
+
+Otkriveno pri proveri Android-ovog pravog ekrana (`app/feature/librelink/ui/viewmodel/
+LibreLinkViewModel.kt`): Android NEMA prikaz broja sinhronizovanih očitavanja ("Sinhronizovano: X
+novih očitavanja") - to je bio dodatak koji je postojao SAMO u deljenom iOS MVP ekranu iz ranije
+faze. Korisnikov zahtev "izbaci sve LibreLinkUp vrednosti da se ne prikazuju" se poklapa sa
+usklađivanjem na Android-ovo pravo ponašanje - uklonjen `_lastSyncMessage`
+(`LibreLinkViewModel.kt`) i njegov prikaz u `LibreLinkScreen.kt` u potpunosti (ni broj očitavanja
+ni poruka o grešci se više ne prikazuju posle sinhronizacije, ni ručne ni automatske).
+
+Dodata automatska periodična sinhronizacija: `LibreLinkViewModel` sada pokreće coroutine petlju
+(`startPeriodicSync(userId)`) čim je nalog povezan (i pri restauraciji postojeće sesije u
+`init`-u, i odmah posle uspešnog `connect()`-a), zaustavlja je pri `disconnect()`-u. Petlja poziva
+ISTU `libreLinkRepository.syncLatestReadings(userId)` logiku koju Android pokreće preko
+WorkManager-a (`core/sync/LibreLinkSyncScheduler.kt`/`LibreLinkSyncWorker.kt`).
+
+**Bitno, iskreno navedeno ograničenje** (korisnik tražio 10 min "ako je moguće" - nije bilo
+moguće garantovano, ali je urađeno najbolje moguće rešenje): Android-ov `PeriodicWorkRequest` ima
+OS-nametnut pod od 15 minuta (potvrđeno komentarom u postojećem `LibreLinkSyncScheduler.kt` -
+"cannot go below a 15-minute interval regardless of the value passed in"). Na iOS-u prava
+OS-nivo pozadinska sinhronizacija (radi i kad je app ugašen/suspendovan) zahteva
+`BGTaskScheduler` - Swift-side registraciju (mora se desiti PRE završetka lansiranja app-a, u
+`iOSApp.swift`) plus novu "Background Modes" Xcode capability, i čak i tada iOS SAM bira kada će
+zadatak stvarno pokrenuti (opportunistic scheduling, bez garantovanog intervala - isto ograničenje
+kao Android-ov WorkManager pod Doze/lošom baterijom). Ovo bi bio poseban, veći i rizičniji zahvat
+(nov framework, Swift kod, nova Xcode capability) van bezbednog obima uoči roka.
+
+Umesto toga: implementirana je foreground coroutine petlja koja garantovano radi na TAČNO 10
+minuta DOK JE APP AKTIVAN NA EKRANU (bolje od Android-ovog 15-minutnog OS poda, pošto ne prolazi
+kroz WorkManager/BGTaskScheduler ograničenja) - dovoljno da se u snimku pokaže automatska
+sinhronizacija bez ijedne ručne akcije. Ne radi dok je app zatvoren/u pozadini - ako zatreba prava
+pozadinska sinhronizacija i posle roka, to je poseban zahvat (BGTaskScheduler + Xcode capability +
+Swift kod).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - bez crash-a. Nije vremenski-praktično potvrđeno da se sinhronizacija
+stvarno okine posle tačno 10 minuta unutar ove sesije (zahtevalo bi čekanje) - logika je
+jednostavna i direktno testirana kroz kompajliranje/pokretanje, korisnik može ostaviti app otvoren
+10+ minuta da potvrdi.
+
+### Šta je ostalo
+- Korisnik da ostavi app otvoren 10+ minuta sa povezanim LibreLinkUp nalogom da potvrdi da se
+  novi podaci pojave u Glucose ekranu bez ručne akcije.
+- Prava OS-nivo pozadinska sinhronizacija (BGTaskScheduler) ostaje neurađena - namerno, van obima
+  uoči roka, iskreno navedeno korisniku.
+
+## 2026-09-07 (nastavak) - Dodate ose (koordinate) na Glucose grafiku
+
+Korisnik prijavio da se na iOS-u ne vide koordinate na grafiku (goli Canvas bez ijedne ose) -
+tražio sate na X osi i fiksni Y opseg 2-25 (mmol/L - klinički pun opseg hipo/hiperglikemije).
+
+Urađeno (`SimpleLineChart` u `GlucoseScreen.kt`, deljeni kod - isti fix važi i za Android
+"Shared UI" demo tab, ne samo iOS):
+- Y osa: 5 fiksnih podeoka (2, ..., 25 mmol/L - konvertovano u mg/dL kad je ta jedinica
+  izabrana, isti pravi klinički opseg nezavisno od jedinice) sa horizontalnim linijama i
+  labelama, nezavisno od stvarnih vrednosti očitavanja (za razliku od ranijeg dinamičkog min/max
+  ranga) - grafici različitih dana se sada mogu vizuelno uporediti.
+- X osa: sati (vreme prve/srednje/poslednje tačke) ispod grafika.
+- Tekst iscrtan preko `TextMeasurer`/`drawText(textLayoutResult, ...)` - Compose Multiplatform-
+  bezbedan način (za razliku od `nativeCanvas`, platform-specifičan tip koji ne bi radio na
+  iOS-u).
+
+**Bug uhvaćen uživo na prvom screenshot-u pre commit-a** (ispravljen u istom koraku, nije
+ostavljen): Y-osa labele su prvobitno pozivale `GlucoseUnit.formatValue(value)`, ali ta funkcija
+UVEK očekuje ulaz u mg/dL (sama radi konverziju u mmol/L kad treba) - `value` je ovde već bio u
+prikazanoj jedinici (iz `fixedMin`/`fixedMax`), pa se mmol/L vrednost delila konverzionim
+faktorom DRUGI PUT (2 mmol/L → "0.1" umesto "2.0"). Ispravljeno dodavanjem posebne
+`axisValueLabel(value, unit)` funkcije koja NE radi dodatnu konverziju (ista ručna
+zaokruživanje-bez-Float.toString() tehnika kao `oneDecimal()` u StatisticsScreen.kt).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - **live potvrđeno DVA PUTA screenshot-om**: prvi put uhvaćen bug
+(0.1/0.4/0.7/1.1/1.4 pogrešne labele), drugi put posle fix-a ispravno prikazuje 2.0/7.8/13.5/
+19.2/25.0 na Y osi i 01:42/01:55/01:56 na X osi.
+
+## 2026-09-07 (nastavak) - Y-osa: tačno određene vrednosti umesto ravnomernih podeoka
+
+Korisnik tražio da Y-osa prikazuje baš 2.0, 5.0, 10.0, 15.0, 18.0, 25.0 (klinički značajni pragovi,
+ne ravnomerno raspoređeno). Zamenjen raniji `tickCount`-baziran petlja (5 ravnomernih podeoka) sa
+eksplicitnom listom `Y_AXIS_TICKS_MMOL = listOf(2f, 5f, 10f, 15f, 18f, 25f)` u `SimpleLineChart`
+(`GlucoseScreen.kt`) - definisano u mmol/L, konvertovano u mg/dL kad je ta jedinica izabrana (isti
+princip kao fixedMin/fixedMax).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+pokretanje na simulatoru - screenshot potvrđuje tačno traženih 6 vrednosti na Y osi
+(25.0/18.0/15.0/10.0/5.0/2.0), linija tačno pozicionirana između 5.0 i 10.0 za očitavanja 6.5-6.9.
+
+## 2026-09-07 (nastavak) - Y-osa: korigovane vrednosti na 3/6/9/12/15/18/21
+
+Korisnik ispravio prethodni izbor - umesto 2/5/10/15/18/25 sada 3, 6, 9, 12, 15, 18, 21
+(ravnomerno na svakih 3). Izmenjen `Y_AXIS_TICKS_MMOL` u `SimpleLineChart` (`GlucoseScreen.kt`).
+
+Verifikovano: pun Gradle lanac (sve BUILD SUCCESSFUL) + `xcodebuild` build (BUILD SUCCEEDED) +
+screenshot na simulatoru potvrđuje tačno 21.0/18.0/15.0/12.0/9.0/6.0/3.0 na Y osi.

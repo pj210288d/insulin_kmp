@@ -7,7 +7,7 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.dj.insulink.shared.feature.insulin.data.local.dao.InsulinTypeDao
 import com.dj.insulink.shared.feature.insulin.data.local.entity.InsulinTypeEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val INSULIN_DATABASE_FILE_NAME = "insulin_types.db"
 
@@ -26,6 +26,6 @@ expect object InsulinDatabaseConstructor : RoomDatabaseConstructor<InsulinDataba
 fun buildInsulinDatabase(builder: RoomDatabase.Builder<InsulinDatabase>): InsulinDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .build()
 }

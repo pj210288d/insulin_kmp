@@ -7,7 +7,7 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.dj.insulink.shared.feature.reminders.data.local.dao.ReminderDao
 import com.dj.insulink.shared.feature.reminders.data.local.entity.ReminderEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val REMINDER_DATABASE_FILE_NAME = "reminders.db"
 
@@ -26,6 +26,6 @@ expect object ReminderDatabaseConstructor : RoomDatabaseConstructor<ReminderData
 fun buildReminderDatabase(builder: RoomDatabase.Builder<ReminderDatabase>): ReminderDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .build()
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.auth.domain.models.User
+import com.dj.insulink.shared.core.session.UserSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +27,12 @@ class SharedViewModel @Inject constructor(
 
     fun getCurrentUser() {
         viewModelScope.launch {
-            _currentUser.value = authRepository.getCurrentUser()
+            val user = authRepository.getCurrentUser()
+            _currentUser.value = user
+            // Puni UserSession u :shared - vidi taj fajl. Deljeni Compose Multiplatform Glucose
+            // ekran (GlucoseViewModel u shared/.../glucose/ui/viewmodel) čita odatle koji je
+            // korisnik trenutno prijavljen umesto da direktno zavisi od Firebase Auth-a.
+            UserSession.setCurrentUserId(user?.uid)
         }
     }
 

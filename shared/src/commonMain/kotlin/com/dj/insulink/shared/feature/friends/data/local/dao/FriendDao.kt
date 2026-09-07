@@ -22,6 +22,13 @@ interface FriendDao {
     @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
     suspend fun insertAll(friends: List<FriendEntity>)
 
+    // Dodato 2026-09-07 na zahtev korisnika (uklanjanje prijatelja + sprečavanje duplikata) - vidi
+    // FriendsViewModel.removeFriend/addFriend komentare zašto poziv iz UI-ja ostaje isključen
+    // (namerno, do kraja beta testiranja - korisnik želi da ovo bude bug koji beta korisnici sami
+    // otkriju). DAO metoda sama po sebi je inertna dok se ne pozove.
+    @Query("DELETE FROM friends WHERE userId = :userId AND friendId = :friendId")
+    suspend fun deleteFriend(userId: String, friendId: String)
+
     @Query("""
         UPDATE friends
         SET friendLastGlucoseReadingValue = :readingValue,

@@ -15,3 +15,8 @@ build/
 .cxx
 local.properties
 app/google-services.json
+
+# Xcode user-specific state (ne treba na drugim mašinama)
+xcuserdata/
+*.xcuserstate
+project.xcworkspace/xcuserdata/

@@ -4,5 +4,25 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Google Sign-In OAuth redirect (ASWebAuthenticationSession) - REVERSED_CLIENT_ID iz
+	     GoogleService-Info.plist, iOS OAuth klijent registrovan u istom Firebase projektu
+	     (insulink-e8caa) samo radi ovog OAuth toka, ne koristimo Firebase iOS SDK. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.846271429991-hr3eu5bnqf995kl361be02e1huhcbj3q</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Meals foto-prepoznavanje (LogMeal) - UIImagePickerController zahteva ova dva opisa,
+	     inače app puca čim se pokuša pristup galeriji/kameri. Galerija (.photoLibrary) radi na
+	     simulatoru; kamera (.camera) radi samo na fizičkom uređaju - simulator nema kameru pa
+	     UIImagePickerController.isSourceTypeAvailable(.camera) vraća false i dugme se sakriva. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Insulink treba pristup galeriji da dodaš fotografiju obroka radi prepoznavanja hrane.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Insulink treba pristup kameri da fotografišeš obrok radi prepoznavanja hrane.</string>
 </dict>
 </plist>

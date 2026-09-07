@@ -93,6 +93,20 @@ fun SideDrawer(
                 icon = painterResource(R.drawable.ic_syringe),
                 onClick = params.navigateToInsulinTypes
             )
+            Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+            SideDrawerListItem(
+                title = stringResource(R.string.side_drawer_statistics_title),
+                subtitle = stringResource(R.string.side_drawer_statistics_subtitle),
+                icon = painterResource(R.drawable.ic_statistics),
+                onClick = params.navigateToStatistics
+            )
+            Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
+            SideDrawerListItem(
+                title = stringResource(R.string.side_drawer_shared_glucose_demo_title),
+                subtitle = stringResource(R.string.side_drawer_shared_glucose_demo_subtitle),
+                icon = painterResource(R.drawable.ic_devices),
+                onClick = params.navigateToSharedGlucoseDemo
+            )
             Spacer(Modifier.weight(1f))
             Button(
                 onClick = {
@@ -130,6 +144,8 @@ data class SideDrawerParams(
     val navigateToReports: () -> Unit,
     val navigateToSettings: () -> Unit,
     val navigateToInsulinTypes: () -> Unit,
+    val navigateToStatistics: () -> Unit,
+    val navigateToSharedGlucoseDemo: () -> Unit,
     val onSignOutClick: () -> Unit,
 )
 

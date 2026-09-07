@@ -3,6 +3,9 @@ package com.dj.insulink.feature.glucose.ui.viewmodel
 import app.cash.turbine.test
 import com.dj.insulink.auth.data.AuthRepository
 import com.dj.insulink.core.wear.WearSyncManager
+import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.time.shiftedDayStartMillis
+import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
@@ -39,11 +42,13 @@ class GlucoseViewModelTest {
     private fun buildViewModel(
         unit: GlucoseUnit = GlucoseUnit.MG_DL,
         readings: List<GlucoseReading> = emptyList(),
+        readingsForDay: List<GlucoseReading> = emptyList(),
         userId: String? = "u1"
     ): GlucoseViewModel {
         every { settingsPreferences.getGlucoseUnit() } returns unit
         every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
         every { repository.getAllGlucoseReadingsForUser(any()) } returns flowOf(readings)
+        every { repository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns flowOf(readingsForDay)
         return GlucoseViewModel(
             repository,
             authRepository,
@@ -60,12 +65,10 @@ class GlucoseViewModelTest {
         vm.setNewGlucoseReadingValue("123")
         vm.setNewGlucoseReadingTimestamp(5000L)
         vm.setShowAddGlucoseReadingDialog(true)
-        vm.setSelectedTimespan(GlucoseReadingTimespan.LAST_WEEK)
 
         assertEquals("123", vm.newGlucoseReadingValue.value)
         assertEquals(5000L, vm.newGlucoseReadingTimestamp.value)
         assertEquals(true, vm.showAddGlucoseReadingDialog.value)
-        assertEquals(GlucoseReadingTimespan.LAST_WEEK, vm.selectedTimespan.value)
 
         vm.setNewGlucoseReadingComment("short comment")
         assertEquals("short comment", vm.newGlucoseReadingComment.value)
@@ -170,32 +173,65 @@ class GlucoseViewModelTest {
     }
 
     @Test
-    fun `allGlucoseReadings returns all readings for the ALL_READINGS timespan`() = runTest(mainDispatcherRule.dispatcher) {
-        val now = System.currentTimeMillis()
-        val readings = listOf(
-            GlucoseReading(1, "u1", now, 100, ""),
-            GlucoseReading(2, "u1", now - 10L * 24 * 60 * 60 * 1000, 90, "")
-        )
-        val vm = buildViewModel(readings = readings)
+    fun `glucoseReadingsForSelectedDay reflects the repository's date-range query`() = runTest(mainDispatcherRule.dispatcher) {
+        val readingsForDay = listOf(GlucoseReading(1, "u1", System.currentTimeMillis(), 100, ""))
+        val vm = buildViewModel(readingsForDay = readingsForDay)
 
-        vm.allGlucoseReadings.test {
+        vm.glucoseReadingsForSelectedDay.test {
             val items = awaitUntil { it.isNotEmpty() }
-            assertEquals(2, items.size)
+            assertEquals(listOf(1L), items.map { it.id })
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `allGlucoseReadings filters out readings older than the selected timespan`() = runTest(mainDispatcherRule.dispatcher) {
-        val now = System.currentTimeMillis()
-        val recent = GlucoseReading(1, "u1", now, 100, "")
-        val old = GlucoseReading(2, "u1", now - 10L * 24 * 60 * 60 * 1000, 90, "")
-        val vm = buildViewModel(readings = listOf(recent, old))
-        vm.setSelectedTimespan(GlucoseReadingTimespan.LAST_DAY)
+    fun `selectedDayStartMillis defaults to the start of today`() {
+        val vm = buildViewModel()
 
-        vm.allGlucoseReadings.test {
-            val items = awaitUntil { it.isNotEmpty() }
-            assertEquals(listOf(1L), items.map { it.id })
+        assertEquals(startOfDayMillis(currentTimeMillis()), vm.selectedDayStartMillis.value)
+    }
+
+    @Test
+    fun `goToPreviousDay moves the selected day back by one`() {
+        val vm = buildViewModel()
+        val today = vm.selectedDayStartMillis.value
+
+        vm.goToPreviousDay()
+
+        assertEquals(shiftedDayStartMillis(today, -1), vm.selectedDayStartMillis.value)
+    }
+
+    @Test
+    fun `goToNextDay is a no-op once the selected day is already today`() {
+        val vm = buildViewModel()
+        val today = vm.selectedDayStartMillis.value
+
+        vm.goToNextDay()
+
+        assertEquals(today, vm.selectedDayStartMillis.value)
+    }
+
+    @Test
+    fun `goToNextDay moves forward after going back, but never past today`() {
+        val vm = buildViewModel()
+        val today = vm.selectedDayStartMillis.value
+        vm.goToPreviousDay()
+
+        vm.goToNextDay()
+
+        assertEquals(today, vm.selectedDayStartMillis.value)
+    }
+
+    @Test
+    fun `canGoToNextDay is false on today and true after going to an earlier day`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+
+        vm.canGoToNextDay.test {
+            assertEquals(false, awaitItem()) // initial value, still today
+
+            vm.goToPreviousDay()
+
+            assertEquals(true, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

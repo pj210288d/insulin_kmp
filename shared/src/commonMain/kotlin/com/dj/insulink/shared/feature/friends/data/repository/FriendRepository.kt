@@ -6,7 +6,7 @@ import com.dj.insulink.shared.feature.friends.data.mapper.toEntity
 import com.dj.insulink.shared.feature.friends.data.remote.FriendRemoteDataSource
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -27,19 +27,35 @@ class FriendRepository(
     }
 
     suspend fun addFriend(friend: Friend) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             friendDao.insert(friend.toEntity())
         }
     }
 
+    /** true ako je friendId već u korisnikovoj listi prijatelja - vidi FriendsViewModel.addFriend(). */
+    suspend fun isFriendAlready(userId: String, friendId: String): Boolean {
+        return withContext(ioDispatcher) {
+            friendDao.getAllFriendsForUserOnce(userId).any { it.friendId == friendId }
+        }
+    }
+
+    // Dodato 2026-09-07 na zahtev korisnika (uklanjanje prijatelja) - vidi FriendsViewModel za
+    // razlog zašto poziv iz UI-ja ostaje isključen za sada (namerno, do kraja beta testiranja).
+    suspend fun deleteFriend(userId: String, friendId: String) {
+        withContext(ioDispatcher) {
+            friendDao.deleteFriend(userId, friendId)
+            remoteDataSource.removeFriendFromFirestoreForUser(userId, friendId)
+        }
+    }
+
     suspend fun pushFriendToFirestoreForUser(userId: String, friendId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             remoteDataSource.pushFriendToFirestoreForUser(userId, friendId)
         }
     }
 
     suspend fun fetchFriendDataAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val friendsList = friendDao.getAllFriendsForUserOnce(userId)
             val friendCandidates = remoteDataSource.fetchFriendCandidates(userId)
 

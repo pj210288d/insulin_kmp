@@ -3,6 +3,7 @@ package com.dj.insulink.core
 import android.app.Application
 import com.dj.insulink.BuildConfig
 import com.dj.insulink.shared.core.di.firebaseModule
+import com.dj.insulink.shared.feature.auth.di.authModule
 import com.dj.insulink.shared.feature.fitness.di.fitnessModule
 import com.dj.insulink.shared.feature.friends.di.friendsModule
 import com.dj.insulink.shared.feature.glucose.di.glucoseModule
@@ -10,7 +11,9 @@ import com.dj.insulink.shared.feature.insulin.di.insulinModule
 import com.dj.insulink.shared.feature.librelink.di.librelinkModule
 import com.dj.insulink.shared.feature.meals.di.mealsModule
 import com.dj.insulink.shared.feature.reminders.di.remindersModule
+import com.dj.insulink.shared.feature.reports.di.reportsModule
 import com.dj.insulink.shared.feature.settings.di.settingsModule
+import com.dj.insulink.shared.feature.statistics.di.statisticsModule
 import dagger.hilt.android.HiltAndroidApp
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -23,6 +26,7 @@ class InsulinkApplication : Application() {
             androidContext(this@InsulinkApplication)
             modules(
                 firebaseModule,
+                authModule,
                 glucoseModule,
                 mealsModule(
                     usdaApiKey = BuildConfig.USDA_API_KEY ?: "",
@@ -34,7 +38,9 @@ class InsulinkApplication : Application() {
                 friendsModule,
                 settingsModule,
                 librelinkModule,
-                insulinModule
+                insulinModule,
+                statisticsModule,
+                reportsModule
             )
         }
     }

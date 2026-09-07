@@ -6,7 +6,7 @@ import com.dj.insulink.shared.feature.insulin.data.mapper.toDomain
 import com.dj.insulink.shared.feature.insulin.data.mapper.toEntity
 import com.dj.insulink.shared.feature.insulin.data.remote.InsulinRemoteDataSource
 import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -21,7 +21,7 @@ class InsulinTypeRepository(
     }
 
     suspend fun insert(userId: String, insulinType: InsulinType) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val insulinTypeWithUniqueId = if (insulinType.id == 0L) {
                     insulinType.copy(id = currentTimeMillis())
@@ -38,7 +38,7 @@ class InsulinTypeRepository(
     }
 
     suspend fun delete(userId: String, insulinType: InsulinType) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 insulinTypeDao.delete(insulinType.toEntity())
                 remoteDataSource.deleteInsulinType(userId, insulinType)
@@ -49,7 +49,7 @@ class InsulinTypeRepository(
     }
 
     suspend fun fetchAllInsulinTypesForUserAndUpdateDatabase(userId: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val fetchedInsulinTypes = remoteDataSource.fetchAllInsulinTypes(userId)
             insulinTypeDao.deleteAllForUser(userId)
             insulinTypeDao.insertAll(fetchedInsulinTypes.map { it.toEntity() })

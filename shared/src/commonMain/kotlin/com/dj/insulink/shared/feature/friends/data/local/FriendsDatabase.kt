@@ -7,7 +7,7 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.dj.insulink.shared.feature.friends.data.local.dao.FriendDao
 import com.dj.insulink.shared.feature.friends.data.local.entity.FriendEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val FRIENDS_DATABASE_FILE_NAME = "friends.db"
 
@@ -26,6 +26,6 @@ expect object FriendsDatabaseConstructor : RoomDatabaseConstructor<FriendsDataba
 fun buildFriendsDatabase(builder: RoomDatabase.Builder<FriendsDatabase>): FriendsDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .build()
 }

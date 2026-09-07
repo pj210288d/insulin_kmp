@@ -15,13 +15,14 @@ fun GlucoseWrapper(
 ) {
     val viewModel: GlucoseViewModel = hiltViewModel()
 
-    val allGlucoseReadings = viewModel.allGlucoseReadings.collectAsStateWithLifecycle()
+    val glucoseReadingsForSelectedDay = viewModel.glucoseReadingsForSelectedDay.collectAsStateWithLifecycle()
     val latestGlucoseReading = viewModel.latestGlucoseReading.collectAsStateWithLifecycle()
     val newGlucoseReadingTimestamp = viewModel.newGlucoseReadingTimestamp.collectAsStateWithLifecycle()
     val newGlucoseReadingValue = viewModel.newGlucoseReadingValue.collectAsStateWithLifecycle()
     val newGlucoseReadingComment = viewModel.newGlucoseReadingComment.collectAsStateWithLifecycle()
     val showAddGlucoseReadingDialog = viewModel.showAddGlucoseReadingDialog.collectAsStateWithLifecycle()
-    val selectedTimespan = viewModel.selectedTimespan.collectAsStateWithLifecycle()
+    val selectedDayStartMillis = viewModel.selectedDayStartMillis.collectAsStateWithLifecycle()
+    val canGoToNextDay = viewModel.canGoToNextDay.collectAsStateWithLifecycle()
     val glucoseUnit = viewModel.glucoseUnit.collectAsStateWithLifecycle()
     val allInsulinTypesForUser = viewModel.allInsulinTypesForUser.collectAsStateWithLifecycle()
     val allMealsForUser = viewModel.allMealsForUser.collectAsStateWithLifecycle()
@@ -41,10 +42,12 @@ fun GlucoseWrapper(
 
     GlucoseScreen(
         params = GlucoseScreenParams(
-            allGlucoseReadings = allGlucoseReadings,
+            glucoseReadingsForSelectedDay = glucoseReadingsForSelectedDay,
             latestGlucoseReading = latestGlucoseReading,
-            selectedTimespan = selectedTimespan,
-            setSelectedTimespan = viewModel::setSelectedTimespan,
+            selectedDayStartMillis = selectedDayStartMillis,
+            canGoToNextDay = canGoToNextDay,
+            onPreviousDay = viewModel::goToPreviousDay,
+            onNextDay = viewModel::goToNextDay,
             newGlucoseReadingTimestamp = newGlucoseReadingTimestamp,
             setNewGlucoseReadingTimestamp = viewModel::setNewGlucoseReadingTimestamp,
             newGlucoseReadingValue = newGlucoseReadingValue,

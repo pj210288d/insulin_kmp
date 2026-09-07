@@ -10,7 +10,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import com.dj.insulink.shared.feature.glucose.data.local.dao.GlucoseReadingDao
 import com.dj.insulink.shared.feature.glucose.data.local.entity.GlucoseReadingEntity
-import kotlinx.coroutines.Dispatchers
+import com.dj.insulink.shared.core.dispatcher.ioDispatcher
 
 internal const val GLUCOSE_DATABASE_FILE_NAME = "glucose_readings.db"
 
@@ -40,7 +40,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 fun buildGlucoseDatabase(builder: RoomDatabase.Builder<GlucoseDatabase>): GlucoseDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(ioDispatcher)
         .addMigrations(MIGRATION_1_2)
         .build()
 }
