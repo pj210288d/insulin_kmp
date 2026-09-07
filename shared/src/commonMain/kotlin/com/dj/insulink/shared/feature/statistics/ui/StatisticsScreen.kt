@@ -139,12 +139,6 @@ private fun StatisticsSummary(statistics: GlucoseStatistics, unit: GlucoseUnit, 
                 modifier = Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(8.dp))
-        StatCard(
-            label = tr(language, "Standardna devijacija", "Standard deviation"),
-            value = oneDecimal(statistics.standardDeviation),
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 

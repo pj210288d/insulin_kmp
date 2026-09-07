@@ -116,23 +116,12 @@ private fun StatisticsSummary(statistics: GlucoseStatistics, glucoseUnit: Glucos
 
     Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing8))
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(InsulinkTheme.dimens.commonSpacing8)
-    ) {
-        StatCard(
-            stringResource(R.string.statistics_std_dev_label),
-            glucoseUnit.formatValue(statistics.standardDeviation),
-            InsulinkTheme.colors.insulinkPurple,
-            Modifier.weight(1f)
-        )
-        StatCard(
-            stringResource(R.string.statistics_reading_count_label),
-            statistics.readingCount.toString(),
-            InsulinkTheme.colors.glucoseNormal,
-            Modifier.weight(1f)
-        )
-    }
+    StatCard(
+        stringResource(R.string.statistics_reading_count_label),
+        statistics.readingCount.toString(),
+        InsulinkTheme.colors.glucoseNormal,
+        Modifier.fillMaxWidth()
+    )
 
     Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing16))
 

@@ -160,7 +160,6 @@
     <string name="statistics_average_label">Prosek</string>
     <string name="statistics_min_label">Min</string>
     <string name="statistics_max_label">Max</string>
-    <string name="statistics_std_dev_label">Std. dev.</string>
     <string name="statistics_reading_count_label">Očitavanja</string>
     <string name="statistics_time_in_range_title">Vreme u opsegu</string>
     <string name="statistics_below_label">Ispod %1$s</string>

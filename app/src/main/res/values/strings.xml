@@ -120,7 +120,6 @@
     <string name="statistics_average_label">Average</string>
     <string name="statistics_min_label">Min</string>
     <string name="statistics_max_label">Max</string>
-    <string name="statistics_std_dev_label">Std. Dev.</string>
     <string name="statistics_reading_count_label">Readings</string>
     <string name="statistics_time_in_range_title">Time in Range</string>
     <string name="statistics_below_label">Below %1$s</string>
