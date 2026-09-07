@@ -44,6 +44,8 @@ import com.dj.insulink.feature.fitness.ui.wrapper.FitnessWrapper
 import com.dj.insulink.feature.friends.ui.wrapper.FriendsWrapper
 import com.dj.insulink.feature.glucose.ui.wrapper.GlucoseWrapper
 import com.dj.insulink.feature.insulin.ui.wrapper.InsulinWrapper
+import com.dj.insulink.feature.librelink.ui.LibreLinkHelpScreen
+import com.dj.insulink.feature.librelink.ui.wrapper.LibreLinkWrapper
 import com.dj.insulink.feature.reminders.ui.wrapper.RemindersWrapper
 import com.dj.insulink.feature.reports.ui.wrapper.ReportsWrapper
 import com.dj.insulink.feature.settings.ui.wrapper.SettingsWrapper
@@ -101,6 +103,10 @@ fun AppNavigation() {
                     },
                     navigateToStatistics = {
                         navController.navigateTo(Screen.Statistics.route)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    navigateToLibreLink = {
+                        navController.navigateTo(Screen.LibreLink.route)
                         coroutineScope.launch { drawerState.close() }
                     },
                     onSignOutClick = {
@@ -239,6 +245,14 @@ fun AppNavigation() {
                 }
                 composable(Screen.Statistics.route) {
                     StatisticsWrapper()
+                }
+                composable(Screen.LibreLink.route) {
+                    LibreLinkWrapper(
+                        navigateToHelp = { navController.navigateTo(Screen.LibreLinkHelp.route) }
+                    )
+                }
+                composable(Screen.LibreLinkHelp.route) {
+                    LibreLinkHelpScreen(onClose = { navController.popBackStack() })
                 }
             }
         }

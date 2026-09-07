@@ -26,6 +26,10 @@ sealed class Screen(
     object Settings : Screen("settings", titleRes = R.string.nav_title_settings)
     object InsulinTypes : Screen("insulin_types", titleRes = R.string.nav_title_insulin_types)
     object Statistics : Screen("statistics", titleRes = R.string.nav_title_statistics)
+    object LibreLink : Screen("librelink", titleRes = R.string.nav_title_librelink)
+    // Van topBarAndSideDrawerDestinations namerno - tutorial ekran ima sopstveni back/finish tok
+    // (LibreLinkHelpScreen), ne standardni hamburger top bar/bottom bar.
+    object LibreLinkHelp : Screen("librelink_help")
 
     companion object {
         val allDestinations: List<Screen> = listOf(
@@ -41,7 +45,9 @@ sealed class Screen(
             Report,
             Settings,
             InsulinTypes,
-            Statistics
+            Statistics,
+            LibreLink,
+            LibreLinkHelp
         )
 
         val bottomBarDestinations: List<Screen> = listOf(
@@ -56,7 +62,8 @@ sealed class Screen(
             Report,
             Settings,
             InsulinTypes,
-            Statistics
+            Statistics,
+            LibreLink
         )
 
         fun findDestinationByRoute(route: String?): Screen? {

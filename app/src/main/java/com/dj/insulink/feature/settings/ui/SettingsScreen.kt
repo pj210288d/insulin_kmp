@@ -20,8 +20,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
-import com.dj.insulink.feature.librelink.ui.LibreLinkSection
-import com.dj.insulink.feature.librelink.ui.LibreLinkSectionParams
 import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
@@ -84,14 +82,6 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.size(InsulinkTheme.dimens.commonSpacing24))
-
-        SettingsSection(
-            title = stringResource(R.string.settings_librelink_title),
-            description = stringResource(R.string.settings_librelink_description)
-        ) {
-            LibreLinkSection(params = params.libreLink)
-        }
     }
 }
 
@@ -137,5 +127,4 @@ data class SettingsScreenParams(
     val selectedGlucoseUnit: GlucoseUnit,
     val onLanguageSelected: (AppLanguage) -> Unit,
     val onGlucoseUnitSelected: (GlucoseUnit) -> Unit,
-    val libreLink: LibreLinkSectionParams,
 )

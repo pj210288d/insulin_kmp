@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -88,6 +89,31 @@ fun AddMealWrapper(
         }
     }
 
+    // Galerija je dodata pored kamere (zahtev korisnika) - isti obrazac kao shared
+    // MealPhotoPickerLauncher.android.kt (koji shared/iOS strana koristi), namerno dupliran ovde
+    // jer android.graphics.Bitmap ne može u commonMain, a shared modul ne zavisi od app modula.
+    val pickPhotoFromGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val imageBytes = try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input)
+                }?.let { downscaleAndCompressBitmap(it) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read meal photo from gallery", e)
+                null
+            }
+            Log.d(TAG, "Compressed gallery meal photo size: ${imageBytes?.size ?: "null"} bytes")
+            if (imageBytes != null) {
+                viewModel.analyzeMealPhoto(imageBytes)
+            } else {
+                viewModel.reportMealPhotoReadError()
+            }
+        }
+    }
+
     AddMealScreen(
         params = AddMealScreenParams(
             mealName = newMealName,
@@ -128,6 +154,11 @@ fun AddMealWrapper(
                 )
                 pendingPhotoPath = photoFile.absolutePath
                 takePhotoLauncher.launch(photoUri)
+            },
+            onPickMealPhotoFromGallery = {
+                pickPhotoFromGalleryLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             },
             isAnalyzingMealPhoto = isAnalyzingMealPhoto,
             mealPhotoAnalysis = mealPhotoAnalysis,
@@ -172,16 +203,27 @@ private fun downscaleAndCompressPhoto(file: File): ByteArray? {
         return null
     }
 
-    val scale = MAX_MEAL_PHOTO_DIMENSION_PX.toFloat() / maxOf(decodedBitmap.width, decodedBitmap.height)
+    return downscaleAndCompressBitmap(decodedBitmap)
+}
+
+/**
+ * Downscales [decoded] to [MAX_MEAL_PHOTO_DIMENSION_PX] on its longer side and JPEG-compresses
+ * it, stepping the quality down further if needed to stay under [MAX_MEAL_PHOTO_BYTES]. Shared by
+ * both the camera path above (after an initial sample-size decode for large full-res photos) and
+ * the gallery picker path (gallery images are typically already screen-resolution, so no separate
+ * sample-size pass is needed there).
+ */
+private fun downscaleAndCompressBitmap(decoded: Bitmap): ByteArray {
+    val scale = MAX_MEAL_PHOTO_DIMENSION_PX.toFloat() / maxOf(decoded.width, decoded.height)
     val bitmap = if (scale < 1f) {
         Bitmap.createScaledBitmap(
-            decodedBitmap,
-            (decodedBitmap.width * scale).toInt().coerceAtLeast(1),
-            (decodedBitmap.height * scale).toInt().coerceAtLeast(1),
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
             true
         )
     } else {
-        decodedBitmap
+        decoded
     }
 
     var quality = 90

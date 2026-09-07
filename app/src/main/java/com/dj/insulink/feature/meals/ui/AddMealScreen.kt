@@ -29,12 +29,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +91,7 @@ data class AddMealScreenParams(
     val createCustomIngredient: (Ingredient) -> Unit,
     val deleteCustomIngredient: (Ingredient) -> Unit,
     val onTakeMealPhoto: () -> Unit,
+    val onPickMealPhotoFromGallery: () -> Unit,
     val isAnalyzingMealPhoto: State<Boolean>,
     val mealPhotoAnalysis: State<FoodImageAnalysis?>,
     val mealPhotoAnalysisError: State<String?>,
@@ -154,19 +158,49 @@ fun AddMealScreen(params: AddMealScreenParams) {
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "") },
                 trailingIcon = {
                     Row {
-                        IconButton(
-                            onClick = params.onTakeMealPhoto,
-                            enabled = !params.isAnalyzingMealPhoto.value
-                        ) {
-                            if (params.isAnalyzingMealPhoto.value) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(InsulinkTheme.dimens.textFieldIconSize),
-                                    strokeWidth = InsulinkTheme.dimens.commonButtonBorder1
+                        var showPhotoSourceMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(
+                                onClick = { showPhotoSourceMenu = true },
+                                enabled = !params.isAnalyzingMealPhoto.value
+                            ) {
+                                if (params.isAnalyzingMealPhoto.value) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(InsulinkTheme.dimens.textFieldIconSize),
+                                        strokeWidth = InsulinkTheme.dimens.commonButtonBorder1
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.PhotoCamera,
+                                        contentDescription = stringResource(R.string.meals_screen_analyze_photo_content_description)
+                                    )
+                                }
+                            }
+                            // Foto obroka se analizira preko LogMeal-a kao CELO jelo (jedan
+                            // kombinovani "sastojak" čije per100g vrednosti zapravo predstavljaju
+                            // ukupnu ishranu cele fotografisane porcije - vidi FoodImageAnalysis.kt
+                            // i MealsViewModel.acceptMealPhotoAnalysis), ne kao pojedinačan sastojak
+                            // koji se dodaje uz ostale. Meni nudi kameru ili galeriju kao izvor te
+                            // fotografije.
+                            DropdownMenu(
+                                expanded = showPhotoSourceMenu,
+                                onDismissRequest = { showPhotoSourceMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.meals_screen_take_photo)) },
+                                    leadingIcon = { Icon(Icons.Default.PhotoCamera, contentDescription = "") },
+                                    onClick = {
+                                        showPhotoSourceMenu = false
+                                        params.onTakeMealPhoto()
+                                    }
                                 )
-                            } else {
-                                Icon(
-                                    Icons.Default.PhotoCamera,
-                                    contentDescription = stringResource(R.string.meals_screen_analyze_photo_content_description)
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.meals_screen_choose_from_gallery)) },
+                                    leadingIcon = { Icon(Icons.Default.PhotoLibrary, contentDescription = "") },
+                                    onClick = {
+                                        showPhotoSourceMenu = false
+                                        params.onPickMealPhotoFromGallery()
+                                    }
                                 )
                             }
                         }
@@ -601,30 +635,38 @@ private fun AddedIngredientItem(
                 )
             }
 
-            BasicTextField(
-                value = quantityText,
-                onValueChange = { newValue ->
-                    quantityText = newValue
-                    newValue.toDoubleOrNull()?.let { onQuantityChange(it) }
-                },
-                modifier = Modifier
-                    .width(InsulinkTheme.dimens.quantityFieldWidth)
-                    .border(
-                        InsulinkTheme.dimens.commonButtonBorder1,
-                        MaterialTheme.colorScheme.outline,
-                        RoundedCornerShape(InsulinkTheme.dimens.commonButtonRadius8)
-                    )
-                    .padding(
-                        horizontal = InsulinkTheme.dimens.commonPadding8,
-                        vertical = InsulinkTheme.dimens.commonPadding8
+            // Sastojci dobijeni analizom fotografije (kamera/galerija) nemaju editabilno polje za
+            // količinu - quantity=100 je tehnički trik da LogMeal-ove ukupne vrednosti za CELU
+            // sliku prođu nepromenjene kroz caloriesPer100g*quantity/100 računicu (vidi
+            // FoodImageAnalysis.kt/MealIngredient.isFromPhotoAnalysis), ne stvarna izmerena
+            // gramaža - prikazivanje kao editabilan broj grama bi sugerisalo preciznost koja ne
+            // postoji.
+            if (!mealIngredient.isFromPhotoAnalysis) {
+                BasicTextField(
+                    value = quantityText,
+                    onValueChange = { newValue ->
+                        quantityText = newValue
+                        newValue.toDoubleOrNull()?.let { onQuantityChange(it) }
+                    },
+                    modifier = Modifier
+                        .width(InsulinkTheme.dimens.quantityFieldWidth)
+                        .border(
+                            InsulinkTheme.dimens.commonButtonBorder1,
+                            MaterialTheme.colorScheme.outline,
+                            RoundedCornerShape(InsulinkTheme.dimens.commonButtonRadius8)
+                        )
+                        .padding(
+                            horizontal = InsulinkTheme.dimens.commonPadding8,
+                            vertical = InsulinkTheme.dimens.commonPadding8
+                        ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface
                     ),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
 
             IconButton(
                 onClick = onRemove,

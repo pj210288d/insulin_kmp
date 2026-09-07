@@ -562,20 +562,27 @@ private fun AddedIngredientItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            BasicTextField(
-                value = quantityText,
-                onValueChange = { newValue ->
-                    quantityText = newValue
-                    newValue.toDoubleOrNull()?.let(onQuantityChange)
-                },
-                modifier = Modifier
-                    .width(56.dp)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    .padding(8.dp),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+            // Sastojci dobijeni analizom fotografije (kamera/galerija) nemaju editabilno polje za
+            // količinu - quantity=100 je tehnički trik da LogMeal-ove ukupne vrednosti za CELU
+            // sliku prođu nepromenjene kroz caloriesPer100g*quantity/100 računicu (vidi
+            // FoodImageAnalysis.kt/MealIngredient.isFromPhotoAnalysis), ne stvarna izmerena
+            // gramaža - isti razlog kao Android-ov AddMealScreen.kt.
+            if (!mealIngredient.isFromPhotoAnalysis) {
+                BasicTextField(
+                    value = quantityText,
+                    onValueChange = { newValue ->
+                        quantityText = newValue
+                        newValue.toDoubleOrNull()?.let(onQuantityChange)
+                    },
+                    modifier = Modifier
+                        .width(56.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                        .padding(8.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
             IconButton(onClick = onRemove) {
                 Text("✕", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

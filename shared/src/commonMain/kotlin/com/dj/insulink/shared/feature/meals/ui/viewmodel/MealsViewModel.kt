@@ -152,8 +152,13 @@ class MealsViewModel(
         _searchQuery.value = query
     }
 
-    fun addIngredient(ingredient: Ingredient, quantity: Double) {
-        _selectedIngredients.value += MealIngredient(mealId = 0L, ingredient = ingredient, quantity = quantity)
+    fun addIngredient(ingredient: Ingredient, quantity: Double, isFromPhotoAnalysis: Boolean = false) {
+        _selectedIngredients.value += MealIngredient(
+            mealId = 0L,
+            ingredient = ingredient,
+            quantity = quantity,
+            isFromPhotoAnalysis = isFromPhotoAnalysis
+        )
     }
 
     fun removeIngredient(mealIngredient: MealIngredient) {
@@ -212,7 +217,7 @@ class MealsViewModel(
                 .filter { it.isNotEmpty() }
                 .joinToString(", ")
                 .ifEmpty { analysis.estimatedIngredient.name }
-            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0)
+            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0, isFromPhotoAnalysis = true)
         }
         dismissMealPhotoAnalysis()
     }

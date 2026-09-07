@@ -47,6 +47,10 @@
     <string name="side_drawer_settings_title">Podešavanja</string>
     <string name="side_drawer_settings_subtitle">Podešavanja aplikacije</string>
 
+    <!-- Side drawer - LibreLinkUp -->
+    <string name="side_drawer_librelink_title">LibreLinkUp</string>
+    <string name="side_drawer_librelink_subtitle">Poveži nalog senzora</string>
+
     <!-- Settings screen -->
     <string name="settings_language_title">Jezik</string>
     <string name="settings_language_description">Izaberite jezik aplikacije</string>
@@ -67,6 +71,17 @@
     <string name="librelink_never_synced">Još nije sinhronizovano</string>
     <string name="librelink_sync_error">Sinhronizacija nije uspela: %1$s</string>
     <string name="librelink_connect_error">Povezivanje nije uspelo: %1$s</string>
+    <string name="librelink_help_button">Pomoć</string>
+    <string name="librelink_help_close">Zatvori</string>
+    <string name="librelink_help_next">Dalje</string>
+    <string name="librelink_help_previous">Nazad</string>
+    <string name="librelink_help_finish">Završi</string>
+    <string name="librelink_help_step1">U Vašoj LibreLink aplikaciji kliknite na Connected Apps</string>
+    <string name="librelink_help_step2">Izaberite opciju Connect za LibreLinkUp</string>
+    <string name="librelink_help_step3">Kliknite na Add Connection</string>
+    <string name="librelink_help_step4">Unesite e-mail preko kog ste ulogovani na LibreLinkUp aplikaciju</string>
+    <string name="librelink_help_step5">Otvorite LibreLinkUp aplikaciju i prihvatite poziv</string>
+    <string name="librelink_help_step6">U Insulink aplikaciji izaberite vaše ime ukoliko pratite više korisnika</string>
 
     <!-- Glucose screen -->
     <string name="glucose_screen_latest_reading_label">Poslednje merenje</string>
@@ -182,6 +197,8 @@
     <string name="meals_screen_add_ingredients_label">Dodaj sastojke</string>
     <string name="meals_screen_search_ingredients_placeholder">Pretraži sastojke…</string>
     <string name="meals_screen_analyze_photo_content_description">Analiziraj sliku obroka</string>
+    <string name="meals_screen_take_photo">Uslikaj</string>
+    <string name="meals_screen_choose_from_gallery">Izaberi iz galerije</string>
     <string name="meals_screen_analyze_photo_error">Analiza slike nije uspela: %1$s</string>
     <string name="meals_screen_photo_analysis_title">Analiza slike</string>
     <string name="meals_screen_photo_analysis_edit_hint">Prepoznate namirnice — ispravite ono što ne izgleda tačno:</string>
@@ -222,6 +239,7 @@
     <string name="nav_title_friends">Prijatelji</string>
     <string name="nav_title_report">Generiši izveštaj</string>
     <string name="nav_title_settings">Podešavanja</string>
+    <string name="nav_title_librelink">LibreLinkUp</string>
 
     <!-- Glucose level tags -->
     <string name="glucose_level_low">NIZAK</string>

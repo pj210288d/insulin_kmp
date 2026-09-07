@@ -153,11 +153,12 @@ class MealsViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun addIngredient(ingredient: Ingredient, quantity: Double) {
+    fun addIngredient(ingredient: Ingredient, quantity: Double, isFromPhotoAnalysis: Boolean = false) {
         val mealIngredient = MealIngredient(
             mealId = 0L,
             ingredient = ingredient,
-            quantity = quantity
+            quantity = quantity,
+            isFromPhotoAnalysis = isFromPhotoAnalysis
         )
         _selectedIngredients.value += mealIngredient
     }
@@ -228,7 +229,7 @@ class MealsViewModel @Inject constructor(
                 .filter { it.isNotEmpty() }
                 .joinToString(", ")
                 .ifEmpty { analysis.estimatedIngredient.name }
-            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0)
+            addIngredient(analysis.estimatedIngredient.copy(name = correctedName), 100.0, isFromPhotoAnalysis = true)
         }
         dismissMealPhotoAnalysis()
     }
