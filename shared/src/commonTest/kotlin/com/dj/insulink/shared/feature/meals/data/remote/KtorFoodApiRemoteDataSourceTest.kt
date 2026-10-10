@@ -54,7 +54,7 @@ class KtorFoodApiRemoteDataSourceTest {
         assertEquals(22.8, ingredient.carbsPer100g, 0.0001)
         assertEquals(0.3, ingredient.fatPer100g, 0.0001)
         assertEquals(12.2, ingredient.sugarPer100g, 0.0001)
-        assertEquals(1.0, ingredient.saltPer100g, 0.0001) // 1000 mg -> 1.0 g
+        assertEquals(1.0, ingredient.saltPer100g, 0.0001) 
     }
 
     @Test
@@ -100,7 +100,7 @@ class KtorFoodApiRemoteDataSourceTest {
         val ingredient = result.first()
         assertEquals("Egg", ingredient.name)
         assertEquals(155.0, ingredient.caloriesPer100g, 0.0001)
-        assertEquals(0.124, ingredient.saltPer100g, 0.0001) // 124 mg -> 0.124 g
+        assertEquals(0.124, ingredient.saltPer100g, 0.0001) 
     }
 
     @Test

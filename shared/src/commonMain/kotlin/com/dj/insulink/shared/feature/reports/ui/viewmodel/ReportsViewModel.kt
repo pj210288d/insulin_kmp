@@ -14,11 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-// Deseti (i poslednji planirani) deljeni Compose Multiplatform MVP ekran - Faza 6, najniži
-// prioritet (Statistics tab već pokriva glavnu vrednost bez PDF izvoza). Isti obim kao
-// Android-ov app/feature/reports (period + statistika + lista očitavanja), samo bez preview
-// dugmeta (samo generiši + podeli - vidi PdfShareCoordinator). Reports tab se ne prikazuje
-// uopšte na Android strani - vidi isPdfReportSupported.
 class ReportsViewModel(
     private val glucoseRepository: GlucoseReadingRepository,
     private val settingsPreferences: SettingsPreferences,

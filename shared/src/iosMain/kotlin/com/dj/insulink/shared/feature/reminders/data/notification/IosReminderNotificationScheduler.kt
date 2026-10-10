@@ -12,11 +12,6 @@ import platform.UserNotifications.UNNotificationRequest
 import platform.UserNotifications.UNUserNotificationCenter
 import kotlin.coroutines.resume
 
-// Faza 4 (Reminders notifikacije) - vidi opširan komentar u commonMain
-// ReminderNotificationScheduler.kt. UNCalendarNotificationTrigger sa repeats=true je zapravo
-// JEDNOSTAVNIJI od Android-ovog AlarmManager/ReminderScheduler.kt obrasca (taj mora ručno da
-// re-arm-uje sutrašnji alarm iz ReminderReceiver-a, jer setExactAndAllowWhileIdle uvek puca samo
-// jednom) - iOS kalendarski trigger sam ponavlja dnevno, bez ikakvog ručnog re-arm-ovanja.
 @OptIn(ExperimentalForeignApi::class)
 class IosReminderNotificationScheduler : ReminderNotificationScheduler {
 

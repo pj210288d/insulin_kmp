@@ -12,8 +12,6 @@ import com.dj.insulink.wear.data.LatestReadingStore
 import com.dj.insulink.wear.data.WearDataListener
 import com.google.android.gms.wearable.Wearable
 
-// Combines the on-watch cached value (for an instant result on cold start) with live
-// DataClient updates while this composable is in the composition.
 @Composable
 fun rememberLatestReadingState(): State<LatestReading?> {
     val context = LocalContext.current

@@ -13,8 +13,6 @@ expect fun platformFriendsModule(): Module
 
 val friendsModule = module {
     includes(platformFriendsModule())
-    // settingsModule se ovde eksplicitno uključuje jer FriendsViewModel (deljeni Compose
-    // Multiplatform MVP ekran) zavisi od SettingsPreferences - isti obrazac kao glucoseModule.
     includes(settingsModule)
     single<FriendsDatabase> { buildFriendsDatabase(get<DatabaseFactory>().create()) }
     single { get<FriendsDatabase>().friendDao() }

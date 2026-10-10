@@ -20,15 +20,11 @@ abstract class GlucoseDatabase : RoomDatabase() {
     abstract fun glucoseReadingDao(): GlucoseReadingDao
 }
 
-// Room's KSP compiler generates the platform `actual` for this object.
 @Suppress("NO_ACTUAL_FOR_EXPECT")
 expect object GlucoseDatabaseConstructor : RoomDatabaseConstructor<GlucoseDatabase> {
     override fun initialize(): GlucoseDatabase
 }
 
-// Adds optional insulin-dose/meal-link fields to existing readings — purely additive nullable
-// columns, so a real migration (instead of destructive fallback) is cheap and preserves
-// on-device data.
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE glucose_readings ADD COLUMN insulinTypeId INTEGER")

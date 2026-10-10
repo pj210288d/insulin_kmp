@@ -18,12 +18,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,14 +42,23 @@ import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkConnectState
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkViewModel
 
-// Sedmi deljeni Compose Multiplatform MVP ekran - vidi LibreLinkViewModel za obim/odluke.
 @Composable
-fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
+fun LibreLinkScreen(viewModel: LibreLinkViewModel, onHelpClick: (() -> Unit)? = null) {
     val state by viewModel.connectState.collectAsState()
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val language by LocalizationSession.currentLanguage.collectAsState()
+    // "Pomoć" step-po-step wizard za povezivanje - isti sadržaj kao Android-ov app/feature/
+    // librelink/ui/LibreLinkHelpScreen.kt (dodato na zahtev korisnika 2026-09-07 da postoji i
+    // na iOS-u). Bez nav controller-a na ovom ekranu, pa je najjednostavnije/najmanje-rizično
+    // rešenje lokalni toggle koji zameni sadržaj ekrana celim wizard-om.
+    var showHelp by remember { mutableStateOf(false) }
+
+    if (showHelp) {
+        LibreLinkHelpScreen(onClose = { showHelp = false })
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -53,6 +66,13 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
+        OutlinedButton(
+            onClick = onHelpClick ?: { showHelp = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(tr(language, "Pomoć oko povezivanja", "Connection help"))
+        }
+        Spacer(Modifier.height(16.dp))
         when (val current = state) {
             is LibreLinkConnectState.Disconnected -> {
                 LoginForm(

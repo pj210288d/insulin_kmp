@@ -3,8 +3,6 @@ package com.dj.insulink.shared.feature.librelink.data.local
 import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkSession
 import platform.Foundation.NSUserDefaults
 
-// Unencrypted for now, matching SettingsPreferences' iOS actual — iOS work is unverified
-// project-wide (no Mac access yet). Should move to Keychain before real iOS device use.
 class IosLibreLinkSessionStorage : LibreLinkSessionStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
 
@@ -33,8 +31,6 @@ class IosLibreLinkSessionStorage : LibreLinkSessionStorage {
     }
 
     override fun clearSession(userId: String) {
-        // Deliberately keeps KEY_LAST_SYNCED_TIMESTAMP — see the Android actual's clearSession
-        // for why: wiping it here caused reconnects to re-insert already-synced readings.
         defaults.removeObjectForKey(key(userId, KEY_TOKEN))
         defaults.removeObjectForKey(key(userId, KEY_EMAIL))
         defaults.removeObjectForKey(key(userId, KEY_REGION_HOST))
@@ -62,8 +58,6 @@ class IosLibreLinkSessionStorage : LibreLinkSessionStorage {
         }
     }
 
-    // Namespaces every key by the Insulink userId so multiple Google accounts signed into
-    // the same install never see each other's LibreLinkUp connection.
     private fun key(userId: String, key: String) = "${userId}_$key"
 
     companion object {

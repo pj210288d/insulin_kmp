@@ -23,18 +23,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-// Deljeni Compose Multiplatform MVP ekran - drugi po redu posle Glucose-a (vidi
-// feature/glucose/ui/viewmodel/GlucoseViewModel za obim/odluke, isti obrazac je ponovljen
-// ovde). Statistika je svesno biran drugi ekran jer StatisticsCalculator/StatisticsRange već
-// žive u commonMain bez ikakve Android zavisnosti (postojali su i pre ovog MVP-a), pa ovaj
-// ekran ne dodaje novi rizik za iOS build - samo Koin ViewModel + Compose UI sloj.
 class StatisticsViewModel(
     private val glucoseReadingRepository: GlucoseReadingRepository,
     private val settingsPreferences: SettingsPreferences
 ) : ViewModel() {
 
-    // Direktno izloženo iz SettingsSession - vidi SettingsSession za kontekst (bug: promena
-    // jedinice se ranije primenjivala tek posle restarta aplikacije).
     val glucoseUnit: StateFlow<GlucoseUnit> = SettingsSession.currentGlucoseUnit
 
     private val _selectedRange = MutableStateFlow(StatisticsRange.LAST_7_DAYS)

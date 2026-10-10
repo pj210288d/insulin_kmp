@@ -36,10 +36,6 @@ class AndroidLibreLinkSessionStorage(context: Context) : LibreLinkSessionStorage
     }
 
     override fun clearSession(userId: String) {
-        // Deliberately keeps KEY_LAST_SYNCED_TIMESTAMP: LibreLinkUp's /graph endpoint
-        // returns recent history (not just points since last sync), so wiping the cursor
-        // here made a reconnect to the same account re-insert readings already in Room
-        // (no dedup exists below the cursor check in LibreLinkRepository.syncLatestReadings).
         prefs.edit()
             .remove(key(userId, KEY_TOKEN))
             .remove(key(userId, KEY_EMAIL))
@@ -65,8 +61,6 @@ class AndroidLibreLinkSessionStorage(context: Context) : LibreLinkSessionStorage
         prefs.edit().putString(key(userId, KEY_LAST_SYNC_ERROR), message).apply()
     }
 
-    // Namespaces every key by the Insulink userId so multiple Google accounts signed into
-    // the same install never see each other's LibreLinkUp connection.
     private fun key(userId: String, key: String) = "${userId}_$key"
 
     companion object {

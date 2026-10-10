@@ -11,7 +11,6 @@ import org.koin.dsl.module
 
 expect fun platformRemindersModule(): Module
 
-/** Platformi obezbeđuju konkretan ReminderNotificationScheduler preko platformRemindersModule(). */
 val remindersModule = module {
     includes(platformRemindersModule())
     single<ReminderDatabase> { buildReminderDatabase(get<DatabaseFactory>().create()) }

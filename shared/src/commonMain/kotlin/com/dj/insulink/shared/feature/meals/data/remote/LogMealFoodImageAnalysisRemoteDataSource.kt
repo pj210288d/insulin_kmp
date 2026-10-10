@@ -21,19 +21,13 @@ import io.ktor.http.isSuccess
 private const val SEGMENTATION_URL = "https://api.logmeal.com/v2/image/segmentation/complete"
 private const val NUTRITIONAL_INFO_URL = "https://api.logmeal.com/v2/nutrition/recipe/nutritionalInfo"
 
-// LogMeal's totalNutrients keys, confirmed against a live response (see dnevnik.md).
 private const val NUTRIENT_CALORIES = "ENERC_KCAL"
 private const val NUTRIENT_PROTEIN = "PROCNT"
 private const val NUTRIENT_CARBS = "CHOCDF"
 private const val NUTRIENT_FAT = "FAT"
 private const val NUTRIENT_SUGAR = "SUGAR"
-private const val NUTRIENT_SODIUM = "NA" // sodium, in mg
+private const val NUTRIENT_SODIUM = "NA" 
 
-/**
- * Recognizes food in a photo and estimates its nutritional content using the LogMeal API
- * (https://logmeal.com/api/). Two calls are required: image segmentation/recognition first
- * returns an `imageId`, which is then used to fetch the nutritional breakdown.
- */
 class LogMealFoodImageAnalysisRemoteDataSource(
     private val httpClient: HttpClient,
     private val apiKey: String
@@ -97,7 +91,7 @@ class LogMealFoodImageAnalysisRemoteDataSource(
             carbsPer100g = nutrients[NUTRIENT_CARBS]?.quantity ?: 0.0,
             fatPer100g = nutrients[NUTRIENT_FAT]?.quantity ?: 0.0,
             sugarPer100g = nutrients[NUTRIENT_SUGAR]?.quantity ?: 0.0,
-            saltPer100g = (nutrients[NUTRIENT_SODIUM]?.quantity ?: 0.0) / 1000.0, // mg -> g
+            saltPer100g = (nutrients[NUTRIENT_SODIUM]?.quantity ?: 0.0) / 1000.0, 
             userId = null,
             firebaseId = null,
             createdAt = currentTimeMillis()

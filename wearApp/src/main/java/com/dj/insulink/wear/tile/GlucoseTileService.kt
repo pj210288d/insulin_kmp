@@ -19,11 +19,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 
-// Shows the latest glucose reading as a glanceable tile. Reads straight from the on-watch
-// Data Layer cache (LatestReadingStore) - the same source the "latest reading" screen uses -
-// so it works even if the watch app hasn't been opened since the phone last pushed a value.
-// Tapping the tile opens MainActivity (which lands on the "latest reading" screen, with the
-// "Add" button leading to quick add - a dedicated tile-only quick-add action is left for later).
 class GlucoseTileService : TileService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

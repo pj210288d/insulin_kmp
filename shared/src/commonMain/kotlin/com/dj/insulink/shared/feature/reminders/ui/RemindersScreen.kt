@@ -2,10 +2,10 @@ package com.dj.insulink.shared.feature.reminders.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -46,15 +49,13 @@ import com.dj.insulink.shared.core.localization.LocalizationSession
 import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.core.time.combineTimeWithDate
+import com.dj.insulink.shared.core.time.currentTimeMillis
 import com.dj.insulink.shared.core.time.localTimeOfDay
 import com.dj.insulink.shared.core.time.timeOfDayLabel
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 
-// Peti deljeni Compose Multiplatform MVP ekran - vidi RemindersViewModel za obim/odluke. Faza 4:
-// dodato vreme (time picker dugme) - potrebno da bi ReminderNotificationScheduler znao kada
-// stvarno da zvoni, ne samo da čuva vreme kao podatak.
 @Composable
 fun RemindersScreen(viewModel: RemindersViewModel) {
     val reminders by viewModel.reminders.collectAsState()
@@ -62,36 +63,22 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
     val newType by viewModel.newType.collectAsState()
     val newTime by viewModel.newTime.collectAsState()
     val language by LocalizationSession.currentLanguage.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = newTitle,
-                onValueChange = viewModel::setNewTitle,
-                label = { Text(tr(language, "Naslov podsetnika", "Reminder title")) },
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = viewModel::addReminder, enabled = newTitle.isNotBlank()) {
-                Text(tr(language, "Dodaj", "Add"))
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        TimePickerButton(time = newTime, language = language, onTimeChange = viewModel::setNewTime)
-        Spacer(Modifier.height(8.dp))
-        TypeSelector(selected = newType, language = language, onSelect = viewModel::setNewType)
-        Spacer(Modifier.height(16.dp))
-
         if (reminders.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Text(text = tr(language, "Nema dodatih podsetnika", "No reminders added"), color = MaterialTheme.colorScheme.onBackground)
             }
         } else {
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
                 items(items = reminders, key = { it.id }) { reminder ->
                     ReminderRow(
                         reminder = reminder,
@@ -99,19 +86,98 @@ fun RemindersScreen(viewModel: RemindersViewModel) {
                         onToggleDone = { viewModel.toggleDoneForToday(reminder) },
                         onDelete = { viewModel.deleteReminder(reminder) }
                     )
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
+
+        FloatingActionButton(
+            onClick = {
+                viewModel.setNewTime(currentTimeMillis())
+                showAddDialog = true
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            containerColor = InsulinkBlue
+        ) {
+            Text(text = "+", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+        }
+    }
+
+    if (showAddDialog) {
+        AddReminderDialog(
+            title = newTitle,
+            onTitleChange = viewModel::setNewTitle,
+            type = newType,
+            onTypeChange = viewModel::setNewType,
+            time = newTime,
+            onTimeChange = viewModel::setNewTime,
+            language = language,
+            onDismiss = { showAddDialog = false },
+            onAdd = {
+                viewModel.addReminder()
+                showAddDialog = false
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerButton(time: Long, language: AppLanguage, onTimeChange: (Long) -> Unit) {
+private fun AddReminderDialog(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    type: ReminderType,
+    onTypeChange: (ReminderType) -> Unit,
+    time: Long,
+    onTimeChange: (Long) -> Unit,
+    language: AppLanguage,
+    onDismiss: () -> Unit,
+    onAdd: () -> Unit
+) {
     var showTimePicker by remember { mutableStateOf(false) }
 
-    OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
-        Text("${tr(language, "Vreme", "Time")}: ${timeOfDayLabel(time)}")
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(12.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = tr(language, "Novi podsetnik", "New reminder"),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    label = { Text(tr(language, "Naslov podsetnika", "Reminder title")) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(text = tr(language, "Izaberi tip", "Select type"))
+                Spacer(Modifier.height(4.dp))
+                val typeLabels = ReminderType.entries.map { typeLabel(it, language) }
+                SharedDropdownMenu(
+                    items = typeLabels,
+                    selectedItem = typeLabel(type, language),
+                    onItemSelected = { selected ->
+                        val index = typeLabels.indexOf(selected)
+                        if (index >= 0) onTypeChange(ReminderType.entries[index])
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("${tr(language, "Vreme", "Time")}: ${timeOfDayLabel(time)}")
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text(tr(language, "Otkaži", "Cancel")) }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = onAdd, enabled = title.isNotBlank()) {
+                        Text(tr(language, "Sačuvaj", "Save"))
+                    }
+                }
+            }
+        }
     }
 
     if (showTimePicker) {
@@ -145,32 +211,6 @@ private fun TimePickerButton(time: Long, language: AppLanguage, onTimeChange: (L
     }
 }
 
-@Composable
-private fun TypeSelector(selected: ReminderType, language: AppLanguage, onSelect: (ReminderType) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        ReminderType.entries.forEach { type ->
-            val isSelected = type == selected
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = if (isSelected) InsulinkBlue else MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .clickable { onSelect(type) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = typeLabel(type, language),
-                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
 private fun typeLabel(type: ReminderType, language: AppLanguage): String = when (type) {
     ReminderType.MEAL_REMINDER -> tr(language, "Obrok", "Meal")
     ReminderType.INSULIN_REMINDER -> "Insulin"
@@ -179,7 +219,7 @@ private fun typeLabel(type: ReminderType, language: AppLanguage): String = when 
 
 @Composable
 private fun ReminderRow(reminder: Reminder, language: AppLanguage, onToggleDone: () -> Unit, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -224,6 +264,35 @@ private fun DoneCheckbox(checked: Boolean) {
     ) {
         if (checked) {
             Text(text = "✓", color = Color.White, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+// Bez ikonica (Icons.Filled.ArrowDropDown/Up) - vidi napomenu o material-icons-core u
+// GlucoseScreen.kt. Isti obrazac kao Android-ov GlucoseDropdownMenu.kt.
+@Composable
+private fun SharedDropdownMenu(
+    items: List<String>,
+    selectedItem: String,
+    onItemSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(selectedItem, modifier = Modifier.weight(1f))
+            Text(if (expanded) "▴" else "▾")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

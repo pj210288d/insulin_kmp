@@ -48,7 +48,7 @@ class FriendsViewModelTest {
         vm.setEnteredCode("abc")
         assertEquals("ABC", vm.enteredCode.value)
 
-        vm.setEnteredCode("abcdefg") // 7 chars -> rejected
+        vm.setEnteredCode("abcdefg") 
         assertEquals("ABC", vm.enteredCode.value)
     }
 
@@ -122,7 +122,6 @@ class FriendsViewModelTest {
         val vm = buildViewModel(friends = friends)
 
         vm.allFriendsForUser.test {
-            // initial empty value then the loaded list
             var item = awaitItem()
             while (item.isEmpty()) item = awaitItem()
             assertEquals(friends, item)

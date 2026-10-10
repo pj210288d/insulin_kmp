@@ -48,6 +48,18 @@ class ReminderRepository(
         return reminderWithUniqueId.id
     }
 
+    suspend fun setDoneForToday(userId: String, reminder: Reminder, isDone: Boolean) {
+        val updated = reminder.copy(isDoneForToday = isDone)
+        withContext(ioDispatcher) {
+            try {
+                reminderDao.update(updated.toEntity())
+                remoteDataSource.pushReminder(userId, updated)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     suspend fun delete(userId: String, reminder: Reminder) {
         withContext(ioDispatcher) {
             try {

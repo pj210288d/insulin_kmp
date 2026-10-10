@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.flowOf
 class FakeReminderDao : ReminderDao {
     val insertedReminders = mutableListOf<ReminderEntity>()
     val deletedReminders = mutableListOf<ReminderEntity>()
+    val updatedReminders = mutableListOf<ReminderEntity>()
     var insertAllCalledWith: List<ReminderEntity>? = null
     var deleteAllForUserCalledWith: String? = null
     var insertReturns: Long = 0L
@@ -26,6 +27,10 @@ class FakeReminderDao : ReminderDao {
 
     override suspend fun insertAll(reminders: List<ReminderEntity>) {
         insertAllCalledWith = reminders
+    }
+
+    override suspend fun update(reminderEntity: ReminderEntity) {
+        updatedReminders += reminderEntity
     }
 
     override suspend fun delete(reminderEntity: ReminderEntity) {

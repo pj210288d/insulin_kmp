@@ -24,9 +24,10 @@ data class MealIngredient(
     val id: Long = 0,
     val mealId: Long,
     val ingredient: Ingredient,
-    val quantity: Double, // in grams
+    val quantity: Double, 
     val firebaseId: String? = null,
-    val createdAt: Long = currentTimeMillis()
+    val createdAt: Long = currentTimeMillis(),
+    val isFromPhotoAnalysis: Boolean = false
 )
 
 data class Ingredient(
@@ -38,7 +39,7 @@ data class Ingredient(
     val fatPer100g: Double,
     val sugarPer100g: Double,
     val saltPer100g: Double,
-    val userId: String? = null, // null for system ingredients, userId for custom ingredients
+    val userId: String? = null, 
     val firebaseId: String? = null,
     val createdAt: Long = currentTimeMillis()
 )

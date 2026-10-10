@@ -77,7 +77,7 @@ class KtorFoodApiRemoteDataSource(
                 carbsPer100g = carbs,
                 fatPer100g = fat,
                 sugarPer100g = sugar,
-                saltPer100g = salt / 1000.0, // mg -> g
+                saltPer100g = salt / 1000.0, 
                 userId = null,
                 firebaseId = null,
                 createdAt = currentTimeMillis()
@@ -91,12 +91,12 @@ class KtorFoodApiRemoteDataSource(
 
             val nutrients = foodItem.foodNutrients ?: emptyList()
 
-            val calories = nutrients.find { it.nutrientId == 1008 }?.value ?: 0.0 // Energy
-            val protein = nutrients.find { it.nutrientId == 1003 }?.value ?: 0.0 // Protein
-            val carbs = nutrients.find { it.nutrientId == 1005 }?.value ?: 0.0 // Carbohydrates
-            val fat = nutrients.find { it.nutrientId == 1004 }?.value ?: 0.0 // Fat
-            val sugar = nutrients.find { it.nutrientId == 2000 }?.value ?: 0.0 // Sugars
-            val salt = nutrients.find { it.nutrientId == 1093 }?.value ?: 0.0 // Sodium
+            val calories = nutrients.find { it.nutrientId == 1008 }?.value ?: 0.0 
+            val protein = nutrients.find { it.nutrientId == 1003 }?.value ?: 0.0 
+            val carbs = nutrients.find { it.nutrientId == 1005 }?.value ?: 0.0 
+            val fat = nutrients.find { it.nutrientId == 1004 }?.value ?: 0.0 
+            val sugar = nutrients.find { it.nutrientId == 2000 }?.value ?: 0.0 
+            val salt = nutrients.find { it.nutrientId == 1093 }?.value ?: 0.0 
 
             Ingredient(
                 id = 0L,
@@ -106,7 +106,7 @@ class KtorFoodApiRemoteDataSource(
                 carbsPer100g = carbs,
                 fatPer100g = fat,
                 sugarPer100g = sugar,
-                saltPer100g = salt / 1000.0, // mg -> g
+                saltPer100g = salt / 1000.0, 
                 userId = null,
                 firebaseId = null,
                 createdAt = currentTimeMillis()

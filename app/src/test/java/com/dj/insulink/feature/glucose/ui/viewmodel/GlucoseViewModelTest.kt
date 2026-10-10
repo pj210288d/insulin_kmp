@@ -74,7 +74,7 @@ class GlucoseViewModelTest {
         assertEquals("short comment", vm.newGlucoseReadingComment.value)
 
         vm.setNewGlucoseReadingComment("this comment is definitely longer than twenty characters")
-        assertEquals("short comment", vm.newGlucoseReadingComment.value) // unchanged
+        assertEquals("short comment", vm.newGlucoseReadingComment.value) 
     }
 
     @Test
@@ -101,13 +101,13 @@ class GlucoseViewModelTest {
                 match { it.value == 120 && it.timestamp == 1234L && it.comment == "ok" && it.userId == "u1" }
             )
         }
-        assertEquals("", vm.newGlucoseReadingValue.value) // reset
+        assertEquals("", vm.newGlucoseReadingValue.value) 
     }
 
     @Test
     fun `submitNewGlucoseReading converts mmol per L to mg dL`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel(unit = GlucoseUnit.MMOL_L)
-        vm.setNewGlucoseReadingValue("6.0") // 6.0 * 18.0182 = 108
+        vm.setNewGlucoseReadingValue("6.0") 
 
         vm.submitNewGlucoseReading("u1")
         advanceUntilIdle()
@@ -227,7 +227,7 @@ class GlucoseViewModelTest {
         val vm = buildViewModel()
 
         vm.canGoToNextDay.test {
-            assertEquals(false, awaitItem()) // initial value, still today
+            assertEquals(false, awaitItem()) 
 
             vm.goToPreviousDay()
 

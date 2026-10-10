@@ -15,5 +15,5 @@ val librelinkModule = module {
     single { createHttpClient() }
     single<LibreLinkApiClient> { KtorLibreLinkApiClient(get()) }
     single { LibreLinkRepository(get(), get(), get()) }
-    single { LibreLinkViewModel(get()) }
+    single { LibreLinkViewModel(get(), get()) }
 }

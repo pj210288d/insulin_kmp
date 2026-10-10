@@ -100,8 +100,8 @@ class FitnessViewModelTest {
     fun `onAddExerciseClick converts mmol per L values to mg dL before storing`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel(unit = GlucoseUnit.MMOL_L)
         vm.setActivityName("Cycling")
-        vm.setGlucoseBefore("6.0") // 6.0 * 18.0182 = 108.1 -> 108
-        vm.setGlucoseAfter("5.0")  // 5.0 * 18.0182 = 90.1 -> 90
+        vm.setGlucoseBefore("6.0") 
+        vm.setGlucoseAfter("5.0")  
 
         vm.onAddExerciseClick("u1")
         advanceUntilIdle()
@@ -130,7 +130,6 @@ class FitnessViewModelTest {
     fun `onAddExerciseClick defaults blank numeric fields to zero`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
         vm.setActivityName("Walking")
-        // durations and glucose left blank
 
         vm.onAddExerciseClick("u1")
         advanceUntilIdle()
@@ -159,10 +158,10 @@ class FitnessViewModelTest {
     @Test
     fun `calculatedSports groups by sport averages drops and sorts by frequency`() = runTest(mainDispatcherRule.dispatcher) {
         val exercises = listOf(
-            Exercise(1, "u1", "Running", 1, 0, 150, 110),   // drop 40 / 1h = 40
-            Exercise(2, "u1", "Running", 0, 30, 120, 100),  // drop 20 / 0.5h = 40
-            Exercise(3, "u1", "Cycling", 0, 0, 100, 100),   // totalHours 0 -> 0.0
-            Exercise(4, "u1", "", 1, 0, 100, 90)            // blank -> filtered out
+            Exercise(1, "u1", "Running", 1, 0, 150, 110),   
+            Exercise(2, "u1", "Running", 0, 30, 120, 100),  
+            Exercise(3, "u1", "Cycling", 0, 0, 100, 100),   
+            Exercise(4, "u1", "", 1, 0, 100, 90)            
         )
         val vm = buildViewModel(exercises = exercises)
 

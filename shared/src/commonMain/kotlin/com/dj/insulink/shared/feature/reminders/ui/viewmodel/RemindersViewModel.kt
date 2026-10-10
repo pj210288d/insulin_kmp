@@ -9,6 +9,7 @@ import com.dj.insulink.shared.feature.reminders.data.notification.ReminderNotifi
 import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
+import com.dj.insulink.shared.feature.reminders.domain.model.notificationMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,19 +20,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// Peti deljeni Compose Multiplatform MVP ekran - vidi Glucose/Statistics/Insulin/Settings
-// ViewModel-e za obrazac. Faza 4: pravo zakazivanje OS notifikacija dodato preko
-// ReminderNotificationScheduler (stvarna implementacija na iOS-u preko UNUserNotificationCenter,
-// namerno no-op na Android-u - vidi opširan komentar u tom interfejsu za razlog). newTime je
-// sada ručno podesivo preko time picker-a u ekranu (ranije uvek currentTimeMillis() - isti
-// obrazac kao Glucose newTimestamp).
 class RemindersViewModel(
     private val reminderRepository: ReminderRepository,
     private val notificationScheduler: ReminderNotificationScheduler
 ) : ViewModel() {
 
-    // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
-    // uređaju/instalaciji ostaje prazna, iako je nalog isti kao na uređaju gde su podaci uneti.
     init {
         viewModelScope.launch {
             UserSession.currentUserId.collect { userId ->
@@ -101,7 +94,7 @@ class RemindersViewModel(
                 notificationScheduler.scheduleDaily(
                     reminderId = reminderId,
                     title = title,
-                    message = typeMessage(type),
+                    message = type.notificationMessage(),
                     hour = timeOfDay.hour,
                     minute = timeOfDay.minute
                 )
@@ -114,7 +107,7 @@ class RemindersViewModel(
     fun toggleDoneForToday(reminder: Reminder) {
         val userId = UserSession.currentUserId.value ?: return
         viewModelScope.launch {
-            reminderRepository.insert(userId, reminder.copy(isDoneForToday = !reminder.isDoneForToday))
+            reminderRepository.setDoneForToday(userId, reminder, !reminder.isDoneForToday)
         }
     }
 
@@ -126,11 +119,6 @@ class RemindersViewModel(
         }
     }
 
-    private fun typeMessage(type: ReminderType): String = when (type) {
-        ReminderType.MEAL_REMINDER -> "Vreme je za obrok"
-        ReminderType.INSULIN_REMINDER -> "Vreme je za insulin"
-        ReminderType.BLOOD_SUGAR_CHECK_REMINDER -> "Vreme je da izmeriš šećer"
-    }
 }
 
 private const val TITLE_MAX_LENGTH = 20

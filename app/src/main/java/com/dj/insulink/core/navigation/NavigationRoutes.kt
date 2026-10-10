@@ -18,7 +18,6 @@ sealed class Screen(
     object ForgotPassword : Screen("forgot_password")
     object Glucose : Screen("glucose", icon = Icons.Filled.WaterDrop, titleRes = R.string.nav_title_glucose)
     object Meals : Screen("meals", icon = Icons.Filled.Restaurant, titleRes = R.string.nav_title_meals)
-    object AddMeal : Screen("add_meal")
     object Fitness : Screen("fitness", icon = Icons.AutoMirrored.Filled.DirectionsRun, titleRes = R.string.nav_title_fitness)
     object Reminders : Screen("reminders", titleRes = R.string.nav_title_reminders)
     object Friends : Screen("friends", titleRes = R.string.nav_title_friends)
@@ -26,7 +25,8 @@ sealed class Screen(
     object Settings : Screen("settings", titleRes = R.string.nav_title_settings)
     object InsulinTypes : Screen("insulin_types", titleRes = R.string.nav_title_insulin_types)
     object Statistics : Screen("statistics", titleRes = R.string.nav_title_statistics)
-    object SharedGlucoseDemo : Screen("shared_glucose_demo", titleRes = R.string.nav_title_shared_glucose_demo)
+    object LibreLink : Screen("librelink", titleRes = R.string.nav_title_librelink)
+    object LibreLinkHelp : Screen("librelink_help")
 
     companion object {
         val allDestinations: List<Screen> = listOf(
@@ -35,7 +35,6 @@ sealed class Screen(
             ForgotPassword,
             Glucose,
             Meals,
-            AddMeal,
             Fitness,
             Reminders,
             Friends,
@@ -43,7 +42,8 @@ sealed class Screen(
             Settings,
             InsulinTypes,
             Statistics,
-            SharedGlucoseDemo
+            LibreLink,
+            LibreLinkHelp
         )
 
         val bottomBarDestinations: List<Screen> = listOf(
@@ -59,7 +59,7 @@ sealed class Screen(
             Settings,
             InsulinTypes,
             Statistics,
-            SharedGlucoseDemo
+            LibreLink
         )
 
         fun findDestinationByRoute(route: String?): Screen? {

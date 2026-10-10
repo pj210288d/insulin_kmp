@@ -30,7 +30,6 @@ class StatisticsCalculatorTest {
 
     @Test
     fun calculateGlucoseStatistics_computesStandardDeviation() {
-        // values 100, 120, 140 -> mean 120, variance ((-20)^2+0^2+20^2)/3 = 266.67 -> stdDev ~16.33
         val readings = listOf(reading(100), reading(120), reading(140))
 
         val stats = StatisticsCalculator.calculateGlucoseStatistics(readings)!!
@@ -49,12 +48,11 @@ class StatisticsCalculatorTest {
 
     @Test
     fun calculateGlucoseStatistics_bucketsTimeInRangeUsingDefaultThresholds() {
-        // default target range is 70-126 mg/dL
         val readings = listOf(
-            reading(60),  // below
-            reading(100), // in range
-            reading(126), // in range (inclusive upper bound)
-            reading(150)  // above
+            reading(60),  
+            reading(100), 
+            reading(126), 
+            reading(150)  
         )
 
         val stats = StatisticsCalculator.calculateGlucoseStatistics(readings)!!

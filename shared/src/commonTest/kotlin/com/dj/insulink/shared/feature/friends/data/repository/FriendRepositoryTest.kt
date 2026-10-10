@@ -63,6 +63,14 @@ class FriendRepositoryTest {
     }
 
     @Test
+    fun isFriendAlready_trueOnlyWhenFriendIdIsInList() = runTest {
+        dao.allFriendsOnce = listOf(FriendEntity(1, "u1", "f1", "Jane Doe", 80, 1L))
+
+        assertEquals(true, repository.isFriendAlready("u1", "f1"))
+        assertEquals(false, repository.isFriendAlready("u1", "f2"))
+    }
+
+    @Test
     fun fetchFriendDataAndUpdateDatabase_insertsNewFriendCandidates() = runTest {
         remote.fetchCandidatesResult = listOf(
             FriendCandidate("f1", "Jane", "Doe", GlucoseReading(9, "f1", 5L, 99, ""))

@@ -32,15 +32,12 @@ class FriendRepository(
         }
     }
 
-    /** true ako je friendId već u korisnikovoj listi prijatelja - vidi FriendsViewModel.addFriend(). */
     suspend fun isFriendAlready(userId: String, friendId: String): Boolean {
         return withContext(ioDispatcher) {
             friendDao.getAllFriendsForUserOnce(userId).any { it.friendId == friendId }
         }
     }
 
-    // Dodato 2026-09-07 na zahtev korisnika (uklanjanje prijatelja) - vidi FriendsViewModel za
-    // razlog zašto poziv iz UI-ja ostaje isključen za sada (namerno, do kraja beta testiranja).
     suspend fun deleteFriend(userId: String, friendId: String) {
         withContext(ioDispatcher) {
             friendDao.deleteFriend(userId, friendId)

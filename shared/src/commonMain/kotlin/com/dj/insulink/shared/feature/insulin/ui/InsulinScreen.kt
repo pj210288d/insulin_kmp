@@ -29,8 +29,6 @@ import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
 import com.dj.insulink.shared.feature.insulin.ui.viewmodel.InsulinViewModel
 
-// Treći deljeni Compose Multiplatform MVP ekran - vidi InsulinViewModel za obim/odluke. Isti
-// stil kao Glucose/Statistics ekrani u istom modulu (bez ikonica, bez string resursa/teme).
 @Composable
 fun InsulinScreen(viewModel: InsulinViewModel) {
     val insulinTypes by viewModel.insulinTypes.collectAsState()

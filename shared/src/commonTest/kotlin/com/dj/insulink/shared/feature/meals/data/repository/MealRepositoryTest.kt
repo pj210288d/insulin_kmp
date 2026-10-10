@@ -91,7 +91,6 @@ class MealRepositoryTest {
 
         val result = repository.searchIngredients("oats", "u1").first()
 
-        // local "Oats" kept, api "Oats" dropped as duplicate, api "Apple" added
         assertEquals(listOf("Oats", "Apple"), result.map { it.name })
     }
 

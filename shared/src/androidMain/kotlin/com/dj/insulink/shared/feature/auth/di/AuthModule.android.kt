@@ -6,5 +6,5 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 
 actual fun platformAuthModule(): Module = module {
-    single<AuthRepository> { FirebaseAuthRepository(get(), get()) }
+    single<AuthRepository> { FirebaseAuthRepository(get(), get(), get()) }
 }

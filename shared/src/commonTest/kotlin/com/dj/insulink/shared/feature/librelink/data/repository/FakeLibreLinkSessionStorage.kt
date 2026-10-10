@@ -8,8 +8,6 @@ class FakeLibreLinkSessionStorage : LibreLinkSessionStorage {
     val storedLastSyncedTimestamps = mutableMapOf<String, Long>()
     val storedLastSyncErrors = mutableMapOf<String, String?>()
 
-    // Single-user test convenience: most tests only ever deal with one userId ("u1"), so
-    // these mirror the old no-arg fields against that key for readability at call sites.
     var storedSession: LibreLinkSession?
         get() = storedSessions["u1"]
         set(value) {

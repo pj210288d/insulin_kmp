@@ -21,22 +21,13 @@ import platform.posix.fclose
 import platform.posix.fopen
 import platform.posix.fwrite
 
-private const val PAGE_WIDTH = 595.0 // A4 @ 72dpi
+private const val PAGE_WIDTH = 595.0 
 private const val PAGE_HEIGHT = 842.0
 private const val MARGIN = 40.0
 private const val LOW_THRESHOLD = 70
 private const val HIGH_THRESHOLD = 180
 private const val LINE_SPACING = 6.0
 
-// Faza 6 (Reports PDF) - vidi opširan komentar u commonMain PdfReportGenerator.kt. Tekst se crta
-// preko starijeg CGContextShowTextAtPoint/CGContextSelectFont C API-ja (MacRoman kodiranje) umesto
-// preko NSString.drawAtPoint(withAttributes:) - taj poziv (i NSData.writeToFile) se dosledno nije
-// razrešavao ni na metadata ni na pravom iosSimulatorArm64 target-u iz razloga koji nije utvrđen
-// (2026-09-06) - dat prioritet radnom rešenju nad daljim istraživanjem s obzirom da je ovo
-// najniži prioritet faze. POSLEDICA: MacRoman ne pokriva srpske dijakritike (č/ć/š/ž/đ), pa se
-// tekst u PDF-u transliteruje u ASCII (transliterate()) - kozmetički kompromis, ne utiče na
-// tačnost podataka. Fajl se upisuje preko POSIX fopen/fwrite (NSData.bytes/length su osnovna
-// Foundation svojstva, ne kategorije, pouzdano razrešena) umesto NSData.writeToFile.
 @OptIn(ExperimentalForeignApi::class)
 class IosPdfReportGenerator : PdfReportGenerator {
 
@@ -57,11 +48,6 @@ class IosPdfReportGenerator : PdfReportGenerator {
 
             fun newPage() {
                 pdfContext.beginPage()
-                // UIGraphicsPDFRenderer-ov CGContext ima top-left/Y-dole CTM (UIKit konvencija),
-                // ali CGContextShowTextAtPoint (stariji Quartz API) crta glifove u sopstvenoj,
-                // FIKSNOJ tekst-matrici koja pretpostavlja Y-gore orijentaciju bez obzira na CTM -
-                // otud tekst izlazio naopako/flipovano (potvrđeno na fizičkom testu 2026-09-07).
-                // Standardan fix: eksplicitno postaviti tekst-matricu da poništi tu razliku.
                 CGContextSetTextMatrix(cgContext, CGAffineTransformMakeScale(1.0, -1.0))
                 pageOpen = true
                 y = MARGIN
@@ -78,9 +64,6 @@ class IosPdfReportGenerator : PdfReportGenerator {
                 CGContextSetTextDrawingMode(cgContext, CGTextDrawingMode.kCGTextFill)
                 CGContextSetRGBFillColor(cgContext, 0.0, 0.0, 0.0, 1.0)
                 val ascii = transliterate(text)
-                // NE "PAGE_HEIGHT - y" - UIGraphicsPDFRenderer-ov kontekst je već top-down
-                // (UIKit konvencija), taj dodatni flip je pozicionirao redove u obrnutom
-                // redosledu (potvrđeno na fizičkom testu 2026-09-07 - naslov se pojavio na dnu).
                 CGContextShowTextAtPoint(cgContext, MARGIN, y + size, ascii, ascii.length.toULong())
                 y += size + LINE_SPACING
             }
@@ -137,8 +120,6 @@ class IosPdfReportGenerator : PdfReportGenerator {
         }
     }
 
-    // MacRoman (CGContextShowTextAtPoint) ne pokriva srpske Latin dijakritike - transliteruje ih
-    // u najbliži ASCII ekvivalent da tekst ostane čitljiv umesto da se prikaže kao pogrešan glif.
     private fun transliterate(text: String): String = buildString {
         text.forEach { char ->
             append(

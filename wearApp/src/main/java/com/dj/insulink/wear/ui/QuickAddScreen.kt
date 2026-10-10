@@ -23,14 +23,6 @@ import androidx.wear.compose.material.Text
 import com.dj.insulink.wear.R
 import com.dj.insulink.wear.data.WearDataLayerContract
 
-// A plain +/- stepper rather than a rotary Picker: the Picker composable's API has shifted
-// across Wear Compose versions, while Text/Button/Chip have been stable for years - a safer
-// choice for something this simple. Tap-and-hold isn't wired up; short taps are enough for a
-// "quick add" flow.
-//
-// Steps/displays in whichever unit the phone is currently using (see WearSyncManager.KEY_UNIT),
-// so a mmol/L user isn't stuck entering raw mg/dL numbers. The value passed to onConfirm is
-// always mg/dL, matching GlucoseReading.value on the phone.
 @Composable
 fun QuickAddScreen(
     initialValueMgDl: Int,
@@ -93,8 +85,6 @@ fun QuickAddScreen(
     }
 }
 
-// Tenths of mmol/L, kept as an Int to avoid float drift (same reasoning as GlucoseUnit's own
-// formatOneDecimal on the phone). MG_DL_PER_MMOL_L must match GlucoseUnit.CONVERSION_FACTOR.
 private fun mgDlToMmolTenths(mgDl: Int): Int = Math.round(mgDl / MG_DL_PER_MMOL_L * 10).toInt()
 
 private fun mmolTenthsToMgDl(tenths: Int): Int = Math.round(tenths / 10.0 * MG_DL_PER_MMOL_L).toInt()
@@ -111,6 +101,6 @@ private const val MIN_MG_DL = 40
 private const val MAX_MG_DL = 400
 private const val STEP_MG_DL = 5
 
-private const val MIN_MMOL_TENTHS = 22 // 2.2 mmol/L
-private const val MAX_MMOL_TENTHS = 222 // 22.2 mmol/L
-private const val STEP_MMOL_TENTHS = 1 // 0.1 mmol/L per tap
+private const val MIN_MMOL_TENTHS = 22 
+private const val MAX_MMOL_TENTHS = 222 
+private const val STEP_MMOL_TENTHS = 1 

@@ -37,7 +37,7 @@ class LibreLinkRepositoryTest {
         assertEquals("a@b.com", loginResult.email)
         assertEquals("tok", loginResult.auth.token)
         assertEquals(listOf("p1", "p2"), loginResult.connections.map { it.patientId })
-        assertNull(sessionStorage.storedSession) // login() alone must not persist anything yet
+        assertNull(sessionStorage.storedSession) 
     }
 
     @Test
@@ -139,8 +139,8 @@ class LibreLinkRepositoryTest {
         sessionStorage.storedLastSyncedTimestamp = 150L
         apiClient.readingsResult = Result.success(
             listOf(
-                LibreLinkGlucoseReading(timestamp = 100L, valueMgDl = 90), // already synced, skipped
-                LibreLinkGlucoseReading(timestamp = 200L, valueMgDl = 110) // new
+                LibreLinkGlucoseReading(timestamp = 100L, valueMgDl = 90), 
+                LibreLinkGlucoseReading(timestamp = 200L, valueMgDl = 110) 
             )
         )
 

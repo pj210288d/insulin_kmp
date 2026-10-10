@@ -22,12 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// Isti downscale/kompresija princip kao Android-ov postojeći
-// app/feature/meals/ui/wrapper/AddMealWrapper.kt (LogMeal odbija prevelike slike) - namerno
-// duplirano ovde umesto deljeno, jer je android.graphics.Bitmap Android-only i ne može u
-// commonMain, a shared modul ne zavisi od app modula (pogrešan smer zavisnosti).
 private const val MAX_MEAL_PHOTO_DIMENSION_PX = 1280
-private const val MAX_MEAL_PHOTO_BYTES = 3 * 1024 * 1024 // 3 MB
+private const val MAX_MEAL_PHOTO_BYTES = 3 * 1024 * 1024 
 private const val TAG = "MealPhotoPicker"
 
 @Composable
@@ -58,8 +54,6 @@ actual fun rememberMealPhotoPickerLauncher(
         }
     }
 
-    // Vidi identičan komentar/rešenje u AddMealWrapper.kt - FileProvider content:// Uri je samo
-    // za spoljnu kamera-aplikaciju da UPIŠE fajl, čita se nazad direktno preko putanje.
     var pendingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()

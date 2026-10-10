@@ -29,11 +29,8 @@ import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.shared.feature.settings.ui.viewmodel.SettingsViewModel
 
-// Četvrti deljeni Compose Multiplatform MVP ekran - vidi SettingsViewModel za obim. Namerno
-// druga vrsta UI-ja od prethodna tri (biranje iz par opcija, ne lista+CRUD), da se u snimku
-// vidi da se i lokalno perzistiran izbor (NSUserDefaults na iOS-u) menja identično na oba OS-a.
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(viewModel: SettingsViewModel, onLanguageChanged: (AppLanguage) -> Unit = {}) {
     val language by viewModel.language.collectAsState()
     val glucoseUnit by viewModel.glucoseUnit.collectAsState()
 
@@ -51,7 +48,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             SelectableRow(
                 label = option.displayName,
                 selected = option == language,
-                onClick = { viewModel.setLanguage(option) }
+                onClick = {
+                    viewModel.setLanguage(option)
+                    onLanguageChanged(option)
+                }
             )
             Spacer(Modifier.height(8.dp))
         }

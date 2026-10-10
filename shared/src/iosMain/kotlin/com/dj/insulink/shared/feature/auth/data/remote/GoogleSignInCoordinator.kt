@@ -20,16 +20,8 @@ private const val GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v
 private const val CODE_VERIFIER_CHARS =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
 
-/** Authorization code + PKCE verifier (potreban za token exchange - vidi FirebaseAuthRestClient nije, ovo ide direktno Google-u preko GoogleTokenExchangeClient). */
 data class GoogleAuthorizationResult(val code: String, val codeVerifier: String)
 
-// Nema GoogleSignIn SDK-a (namerno - vidi CLAUDE.md, izbegava CocoaPods) - "ručni" OAuth preko
-// ASWebAuthenticationSession (sistemski framework, besplatan preko Kotlin/Native ObjC interop-a).
-// Authorization Code + PKCE flow (NE implicit id_token flow) - Google vraća
-// "Error 400: unsupported_response_type" za response_type=id_token na ovom klijentu (potvrđeno
-// uživo na fizičkom testu 2026-09-06, savremeni Google OAuth klijenti generalno više ne
-// podržavaju implicit flow). PKCE (code_challenge/code_verifier) je obavezan jer je ovo "public"
-// klijent (iOS app, bez client secret-a) - bez njega bi authorization code mogao da se presretne.
 @OptIn(ExperimentalForeignApi::class)
 class GoogleSignInCoordinator {
 

@@ -83,6 +83,7 @@
     <string name="friends_screen_empty_reading_label">Last reading: -</string>
     <string name="friends_screen_reading_label">Last reading: %s</string>
     <string name="friends_screen_dash_label">-</string>
+    <string name="friends_screen_remove_friend_label">Remove friend</string>
 
     <!-- Report screen -->
     <string name="report_screen_title">Glucose report</string>
@@ -96,6 +97,8 @@
     <!-- Reminders screen -->
     <string name="reminders_screen_today_label">Today</string>
     <string name="reminders_screen_upcoming_label">Upcoming</string>
+    <string name="reminders_screen_mark_done_content_description">Mark as done</string>
+    <string name="reminders_screen_mark_not_done_content_description">Mark as not done</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Add a new reminder</string>
     <string name="reminders_screen_add_new_reminder_title_label">Set title</string>
 
@@ -111,9 +114,6 @@
     <string name="nav_title_statistics">Statistics</string>
     <string name="side_drawer_statistics_title">Statistics</string>
     <string name="side_drawer_statistics_subtitle">Averages and ranges</string>
-    <string name="nav_title_shared_glucose_demo">Shared UI (also on iOS)</string>
-    <string name="side_drawer_shared_glucose_demo_title">Shared UI (also on iOS)</string>
-    <string name="side_drawer_shared_glucose_demo_subtitle">Compose Multiplatform: Glucose + Statistics + Insulin + Settings + Reminders</string>
     <string name="statistics_range_today">Today</string>
     <string name="statistics_range_7_days">7 Days</string>
     <string name="statistics_range_15_days">15 Days</string>
@@ -122,7 +122,6 @@
     <string name="statistics_average_label">Average</string>
     <string name="statistics_min_label">Min</string>
     <string name="statistics_max_label">Max</string>
-    <string name="statistics_std_dev_label">Std. Dev.</string>
     <string name="statistics_reading_count_label">Readings</string>
     <string name="statistics_time_in_range_title">Time in Range</string>
     <string name="statistics_below_label">Below %1$s</string>
@@ -160,6 +159,8 @@
     <string name="meals_screen_add_ingredients_label">Add Ingredients</string>
     <string name="meals_screen_search_ingredients_placeholder">Search ingredients…</string>
     <string name="meals_screen_analyze_photo_content_description">Analyze meal photo</string>
+    <string name="meals_screen_take_photo">Take photo</string>
+    <string name="meals_screen_choose_from_gallery">Choose from gallery</string>
     <string name="meals_screen_analyze_photo_error">Couldn\'t analyze photo: %1$s</string>
     <string name="meals_screen_photo_analysis_title">Photo Analysis</string>
     <string name="meals_screen_photo_analysis_edit_hint">Detected items — edit any that don\'t look right:</string>
@@ -196,6 +197,10 @@
     <string name="side_drawer_settings_title">Settings</string>
     <string name="side_drawer_settings_subtitle">App preferences</string>
 
+    <!-- Side drawer - LibreLinkUp -->
+    <string name="side_drawer_librelink_title">LibreLinkUp</string>
+    <string name="side_drawer_librelink_subtitle">Connect your sensor account</string>
+
     <!-- Settings screen -->
     <string name="settings_language_title">Language</string>
     <string name="settings_language_description">Choose the app language</string>
@@ -216,6 +221,17 @@
     <string name="librelink_never_synced">Not synced yet</string>
     <string name="librelink_sync_error">Last sync failed: %1$s</string>
     <string name="librelink_connect_error">Could not connect: %1$s</string>
+    <string name="librelink_help_button">Help</string>
+    <string name="librelink_help_close">Close</string>
+    <string name="librelink_help_next">Next</string>
+    <string name="librelink_help_previous">Previous</string>
+    <string name="librelink_help_finish">Finish</string>
+    <string name="librelink_help_step1">In your LibreLink app, tap Connected Apps</string>
+    <string name="librelink_help_step2">Select the Connect option for LibreLinkUp</string>
+    <string name="librelink_help_step3">Tap Add Connection</string>
+    <string name="librelink_help_step4">Enter the email you use to log in to the LibreLinkUp app</string>
+    <string name="librelink_help_step5">Open the LibreLinkUp app and accept the invitation</string>
+    <string name="librelink_help_step6">In the Insulink app, select your name if you\'re following more than one user</string>
 
     <!-- Navigation titles -->
     <string name="nav_title_glucose">Glucose</string>
@@ -225,6 +241,7 @@
     <string name="nav_title_friends">Friends</string>
     <string name="nav_title_report">Generate report</string>
     <string name="nav_title_settings">Settings</string>
+    <string name="nav_title_librelink">LibreLinkUp</string>
 
     <!-- Glucose level tags -->
     <string name="glucose_level_low">LOW</string>

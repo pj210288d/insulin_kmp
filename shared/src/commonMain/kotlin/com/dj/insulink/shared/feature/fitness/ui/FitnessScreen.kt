@@ -32,7 +32,6 @@ import com.dj.insulink.shared.core.localization.tr
 import com.dj.insulink.shared.feature.fitness.domain.model.Exercise
 import com.dj.insulink.shared.feature.fitness.ui.viewmodel.FitnessViewModel
 
-// Šesti deljeni Compose Multiplatform MVP ekran - vidi FitnessViewModel za obim/odluke.
 @Composable
 fun FitnessScreen(viewModel: FitnessViewModel) {
     val exercises by viewModel.exercises.collectAsState()

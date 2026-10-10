@@ -36,9 +36,6 @@ import com.dj.insulink.shared.feature.statistics.domain.model.StatisticsRange
 import com.dj.insulink.shared.feature.statistics.ui.viewmodel.StatisticsViewModel
 import kotlin.math.round
 
-// Drugi deljeni Compose Multiplatform MVP ekran - vidi StatisticsViewModel za kontekst. Prati
-// isti stil kao GlucoseScreen u istom modulu (bez ikonica, bez string resursa/teme, ista brend
-// paleta) namerno, radi doslednosti između dva ekrana u istoj demo aplikaciji.
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel) {
     val selectedRange by viewModel.selectedRange.collectAsState()
@@ -139,12 +136,6 @@ private fun StatisticsSummary(statistics: GlucoseStatistics, unit: GlucoseUnit, 
                 modifier = Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(8.dp))
-        StatCard(
-            label = tr(language, "Standardna devijacija", "Standard deviation"),
-            value = oneDecimal(statistics.standardDeviation),
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 

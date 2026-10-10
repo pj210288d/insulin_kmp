@@ -13,7 +13,6 @@ class GlucoseUnitTest {
 
     @Test
     fun formatValueIntForMmolLConvertsAndFormatsWithOneDecimal() {
-        // 180 / 18.0182 = 9.9888 -> "10.0"
         assertEquals("10.0", GlucoseUnit.MMOL_L.formatValue(180))
     }
 
@@ -24,7 +23,6 @@ class GlucoseUnitTest {
 
     @Test
     fun formatValueDoubleForMmolLConvertsAndFormatsWithOneDecimal() {
-        // 90.091 / 18.0182 = 5.0 -> "5.0"
         assertEquals("5.0", GlucoseUnit.MMOL_L.formatValue(90.091))
     }
 

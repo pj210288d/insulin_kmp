@@ -9,10 +9,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-// androidx.security:security-crypto (EncryptedSharedPreferences) was deprecated by Google
-// as of its 1.1.0 stable release (July 2025) in favor of using Android Keystore directly,
-// so the LibreLinkUp auth token is encrypted here with a Keystore-backed AES key instead
-// of that library.
 internal object LibreLinkKeystoreCipher {
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "librelink_session_key"
