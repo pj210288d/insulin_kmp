@@ -1,12 +1,13 @@
 package com.dj.insulink.feature.reminders.ui.viewmodel
 
-import android.content.Context
-import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.core.notification.ReminderScheduler
+import com.dj.insulink.shared.core.session.UserSession
+import com.dj.insulink.shared.feature.reminders.data.notification.ReminderNotificationScheduler
 import com.dj.insulink.shared.feature.reminders.data.repository.ReminderRepository
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
+import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 import com.dj.insulink.util.MainDispatcherRule
+import com.dj.insulink.util.collectInBackground
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -16,9 +17,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.util.Calendar
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemindersViewModelTest {
@@ -27,110 +31,167 @@ class RemindersViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val reminderRepository: ReminderRepository = mockk(relaxed = true)
-    private val authRepository: AuthRepository = mockk()
-    private val reminderScheduler: ReminderScheduler = mockk(relaxed = true)
-    private val context: Context = mockk()
+    private val notificationScheduler: ReminderNotificationScheduler = mockk(relaxed = true)
 
-    private fun buildViewModel(
-        reminders: List<Reminder> = emptyList(),
-        userId: String? = "u1"
-    ): RemindersViewModel {
-        every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
-        every { reminderRepository.getAllRemindersForUser(any()) } returns flowOf(reminders)
-        every { context.getString(any()) } returns "Reminder message"
-        return RemindersViewModel(reminderRepository, authRepository, reminderScheduler, context)
+    private val reminder = Reminder(
+        id = 7,
+        userId = "u1",
+        title = "Lunch",
+        reminderType = ReminderType.MEAL_REMINDER,
+        isDoneForToday = false,
+        time = 1_000L
+    )
+
+    @Before
+    fun setUp() {
+        UserSession.setCurrentUserId("u1")
+        every { reminderRepository.getAllRemindersForUser(any()) } returns flowOf(emptyList())
+        coEvery { reminderRepository.insert(any(), any()) } returns 42L
     }
 
-    @Test
-    fun `setReminderTitle caps at twenty characters`() {
-        val vm = buildViewModel()
-        vm.setReminderTitle("short")
-        assertEquals("short", vm.reminderTitle.value)
-
-        vm.setReminderTitle("this title is far longer than twenty chars")
-        assertEquals("short", vm.reminderTitle.value)
+    @After
+    fun tearDown() {
+        UserSession.setCurrentUserId(null)
     }
 
-    @Test
-    fun `setters update state`() {
-        val vm = buildViewModel()
-        vm.setReminderType(ReminderType.INSULIN_REMINDER)
-        vm.setReminderTime(4242L)
-        vm.setShowAddReminderDialog(true)
+    private fun buildViewModel() = RemindersViewModel(reminderRepository, notificationScheduler)
 
-        assertEquals(ReminderType.INSULIN_REMINDER, vm.reminderType.value)
-        assertEquals(4242L, vm.reminderTime.value)
-        assertEquals(true, vm.showAddReminderDialog.value)
-    }
+    private fun timeToday(hour: Int, minute: Int): Long = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     @Test
-    fun `addReminder inserts and schedules a daily notification then resets fields`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        vm.setReminderTitle("Lunch")
-        vm.setReminderType(ReminderType.MEAL_REMINDER)
-        vm.setReminderTime(0L)
-        coEvery { reminderRepository.insert(any(), any()) } returns 123L
-
-        vm.addReminder("u1")
+    fun `init fetches reminders for the logged in user`() = runTest(mainDispatcherRule.dispatcher) {
+        buildViewModel()
         advanceUntilIdle()
 
-        coVerify {
-            reminderRepository.insert("u1", match { it.title == "Lunch" && it.userId == "u1" })
-        }
-        verify {
-            reminderScheduler.scheduleDaily(
-                reminderId = 123L,
-                title = "Lunch",
-                message = "Reminder message",
-                hour = any(),
-                minute = any()
-            )
-        }
-        assertEquals("", vm.reminderTitle.value)
-        assertEquals(ReminderType.MEAL_REMINDER, vm.reminderType.value)
-    }
-
-    @Test
-    fun `deleteReminder cancels the schedule and deletes for a logged in user`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        val reminder = Reminder(5, "u1", "Lunch", ReminderType.MEAL_REMINDER, false, 1000L)
-
-        vm.deleteReminder("u1", reminder)
-        advanceUntilIdle()
-
-        verify { reminderScheduler.cancelReminder(5) }
-        coVerify { reminderRepository.delete("u1", reminder) }
-    }
-
-    @Test
-    fun `deleteReminder with null user does nothing`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        val reminder = Reminder(5, "u1", "Lunch", ReminderType.MEAL_REMINDER, false, 1000L)
-
-        vm.deleteReminder(null, reminder)
-        advanceUntilIdle()
-
-        verify(exactly = 0) { reminderScheduler.cancelReminder(any()) }
-        coVerify(exactly = 0) { reminderRepository.delete(any(), any()) }
-    }
-
-    @Test
-    fun `fetchReminderDataAndUpdateDatabase delegates to repository`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        vm.fetchReminderDataAndUpdateDatabase("u1")
-        advanceUntilIdle()
         coVerify { reminderRepository.fetchAllRemindersForUserAndUpdateDatabase("u1") }
     }
 
     @Test
-    fun `resetAddReminderFields clears the form`() {
+    fun `reminders exposes the repository list for the user`() = runTest(mainDispatcherRule.dispatcher) {
+        every { reminderRepository.getAllRemindersForUser("u1") } returns flowOf(listOf(reminder))
+
         val vm = buildViewModel()
-        vm.setReminderTitle("Lunch")
-        vm.setReminderType(ReminderType.INSULIN_REMINDER)
+        collectInBackground(vm.reminders)
+        advanceUntilIdle()
 
-        vm.resetAddReminderFields()
+        assertEquals(listOf(reminder), vm.reminders.value)
+    }
 
-        assertEquals("", vm.reminderTitle.value)
-        assertEquals(ReminderType.MEAL_REMINDER, vm.reminderType.value)
+    @Test
+    fun `setNewTitle ignores titles longer than twenty characters`() {
+        val vm = buildViewModel()
+
+        vm.setNewTitle("Measure sugar")
+        assertEquals("Measure sugar", vm.newTitle.value)
+
+        vm.setNewTitle("a".repeat(21))
+        assertEquals("Measure sugar", vm.newTitle.value)
+    }
+
+    @Test
+    fun `addReminder inserts the reminder and schedules a daily notification`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val time = timeToday(hour = 8, minute = 30)
+            val vm = buildViewModel()
+            vm.setNewTitle(" Insulin ")
+            vm.setNewType(ReminderType.INSULIN_REMINDER)
+            vm.setNewTime(time)
+
+            vm.addReminder()
+            advanceUntilIdle()
+
+            coVerify {
+                reminderRepository.insert(
+                    "u1",
+                    Reminder(
+                        id = 0,
+                        userId = "u1",
+                        title = "Insulin",
+                        reminderType = ReminderType.INSULIN_REMINDER,
+                        isDoneForToday = false,
+                        time = time
+                    )
+                )
+            }
+            coVerify {
+                notificationScheduler.scheduleDaily(
+                    reminderId = 42L,
+                    title = "Insulin",
+                    message = "Vreme je za insulin",
+                    hour = 8,
+                    minute = 30
+                )
+            }
+            assertEquals("", vm.newTitle.value)
+        }
+
+    @Test
+    fun `addReminder with a blank title does nothing`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+        vm.setNewTitle("   ")
+
+        vm.addReminder()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { reminderRepository.insert(any(), any()) }
+        coVerify(exactly = 0) { notificationScheduler.scheduleDaily(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `addReminder still saves the reminder when scheduling fails`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery {
+            notificationScheduler.scheduleDaily(any(), any(), any(), any(), any())
+        } throws IllegalStateException("no permission")
+        val vm = buildViewModel()
+        vm.setNewTitle("Lunch")
+
+        vm.addReminder()
+        advanceUntilIdle()
+
+        coVerify { reminderRepository.insert("u1", any()) }
+    }
+
+    @Test
+    fun `toggleDoneForToday flips the done flag`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+
+        vm.toggleDoneForToday(reminder)
+        advanceUntilIdle()
+
+        coVerify { reminderRepository.setDoneForToday("u1", reminder, true) }
+    }
+
+    @Test
+    fun `deleteReminder cancels the notification and deletes the reminder`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val vm = buildViewModel()
+
+            vm.deleteReminder(reminder)
+            advanceUntilIdle()
+
+            verify { notificationScheduler.cancelReminder(7) }
+            coVerify { reminderRepository.delete("u1", reminder) }
+        }
+
+    @Test
+    fun `actions without a logged in user do nothing`() = runTest(mainDispatcherRule.dispatcher) {
+        UserSession.setCurrentUserId(null)
+        val vm = buildViewModel()
+        vm.setNewTitle("Lunch")
+
+        vm.addReminder()
+        vm.toggleDoneForToday(reminder)
+        vm.deleteReminder(reminder)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { reminderRepository.insert(any(), any()) }
+        coVerify(exactly = 0) { reminderRepository.setDoneForToday(any(), any(), any()) }
+        coVerify(exactly = 0) { reminderRepository.delete(any(), any()) }
+        verify(exactly = 0) { notificationScheduler.cancelReminder(any()) }
     }
 }

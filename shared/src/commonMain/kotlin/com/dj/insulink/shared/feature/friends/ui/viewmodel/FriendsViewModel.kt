@@ -70,8 +70,9 @@ class FriendsViewModel(
 
     fun addFriend() {
         val userId = UserSession.currentUserId.value ?: return
+        val code = _enteredCode.value
         viewModelScope.launch {
-            val candidate = friendRepository.findFriendCandidateByFriendCode(_enteredCode.value)
+            val candidate = friendRepository.findFriendCandidateByFriendCode(code)
             if (candidate != null) {
                 if (friendRepository.isFriendAlready(userId, candidate.uid)) {
                     return@launch
