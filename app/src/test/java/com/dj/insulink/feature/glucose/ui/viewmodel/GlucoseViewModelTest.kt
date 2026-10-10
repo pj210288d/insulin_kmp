@@ -1,28 +1,34 @@
 package com.dj.insulink.feature.glucose.ui.viewmodel
 
-import app.cash.turbine.test
-import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.core.wear.WearSyncManager
-import com.dj.insulink.shared.core.time.currentTimeMillis
+import com.dj.insulink.shared.core.session.SettingsSession
+import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.core.time.shiftedDayStartMillis
 import com.dj.insulink.shared.core.time.startOfDayMillis
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
+import com.dj.insulink.shared.feature.glucose.data.wear.WearSyncCoordinator
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.glucose.ui.viewmodel.GlucoseViewModel
 import com.dj.insulink.shared.feature.insulin.data.repository.InsulinTypeRepository
+import com.dj.insulink.shared.feature.insulin.domain.model.InsulinType
 import com.dj.insulink.shared.feature.meals.data.repository.MealRepository
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule
-import com.dj.insulink.util.awaitUntil
+import com.dj.insulink.util.collectInBackground
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -32,306 +38,301 @@ class GlucoseViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val repository: GlucoseReadingRepository = mockk(relaxed = true)
-    private val authRepository: AuthRepository = mockk()
-    private val settingsPreferences: SettingsPreferences = mockk()
+    private val glucoseReadingRepository: GlucoseReadingRepository = mockk(relaxed = true)
+    private val settingsPreferences: SettingsPreferences = mockk(relaxed = true)
     private val insulinTypeRepository: InsulinTypeRepository = mockk(relaxed = true)
     private val mealRepository: MealRepository = mockk(relaxed = true)
-    private val wearSyncManager: WearSyncManager = mockk(relaxed = true)
+    private val wearSyncCoordinator: WearSyncCoordinator = mockk(relaxed = true)
 
-    private fun buildViewModel(
-        unit: GlucoseUnit = GlucoseUnit.MG_DL,
-        readings: List<GlucoseReading> = emptyList(),
-        readingsForDay: List<GlucoseReading> = emptyList(),
-        userId: String? = "u1"
-    ): GlucoseViewModel {
-        every { settingsPreferences.getGlucoseUnit() } returns unit
-        every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
-        every { repository.getAllGlucoseReadingsForUser(any()) } returns flowOf(readings)
-        every { repository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns flowOf(readingsForDay)
-        return GlucoseViewModel(
-            repository,
-            authRepository,
-            settingsPreferences,
-            insulinTypeRepository,
-            mealRepository,
-            wearSyncManager
-        )
+    private val olderReading = GlucoseReading(id = 1, userId = "u1", timestamp = 1_000L, value = 110, comment = "")
+    private val newerReading = GlucoseReading(
+        id = 2,
+        userId = "u1",
+        timestamp = 2_000L,
+        value = 108,
+        comment = "after lunch",
+        insulinTypeId = 5,
+        insulinUnits = 4.5,
+        linkedMealId = 9
+    )
+
+    @Before
+    fun setUp() {
+        UserSession.setCurrentUserId("u1")
+        SettingsSession.setCurrentGlucoseUnit(GlucoseUnit.MG_DL)
+        every { glucoseReadingRepository.getAllGlucoseReadingsForUser(any()) } returns
+            flowOf(listOf(newerReading, olderReading))
+        every { glucoseReadingRepository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns
+            flowOf(emptyList())
+        every { insulinTypeRepository.getAllInsulinTypesForUser(any()) } returns flowOf(emptyList())
+        every { mealRepository.getMealsByDateForUser(any(), any()) } returns flowOf(emptyList())
     }
 
-    @Test
-    fun `setters update state and comment is capped at twenty characters`() {
-        val vm = buildViewModel()
-        vm.setNewGlucoseReadingValue("123")
-        vm.setNewGlucoseReadingTimestamp(5000L)
-        vm.setShowAddGlucoseReadingDialog(true)
-
-        assertEquals("123", vm.newGlucoseReadingValue.value)
-        assertEquals(5000L, vm.newGlucoseReadingTimestamp.value)
-        assertEquals(true, vm.showAddGlucoseReadingDialog.value)
-
-        vm.setNewGlucoseReadingComment("short comment")
-        assertEquals("short comment", vm.newGlucoseReadingComment.value)
-
-        vm.setNewGlucoseReadingComment("this comment is definitely longer than twenty characters")
-        assertEquals("short comment", vm.newGlucoseReadingComment.value) 
+    @After
+    fun tearDown() {
+        UserSession.setCurrentUserId(null)
+        SettingsSession.setCurrentGlucoseUnit(GlucoseUnit.MG_DL)
     }
 
-    @Test
-    fun `refreshGlucoseUnit re-reads from preferences`() {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        every { settingsPreferences.getGlucoseUnit() } returns GlucoseUnit.MMOL_L
-        vm.refreshGlucoseUnit()
-        assertEquals(GlucoseUnit.MMOL_L, vm.glucoseUnit.value)
-    }
+    private fun buildViewModel() = GlucoseViewModel(
+        glucoseReadingRepository,
+        settingsPreferences,
+        insulinTypeRepository,
+        mealRepository,
+        wearSyncCoordinator
+    )
 
     @Test
-    fun `submitNewGlucoseReading stores mg dL value directly`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        vm.setNewGlucoseReadingTimestamp(1234L)
-        vm.setNewGlucoseReadingValue("120")
-        vm.setNewGlucoseReadingComment("ok")
-
-        vm.submitNewGlucoseReading("u1")
+    fun `init fetches readings for the logged in user`() = runTest(mainDispatcherRule.dispatcher) {
+        buildViewModel()
         advanceUntilIdle()
 
-        coVerify {
-            repository.insert(
+        coVerify { glucoseReadingRepository.fetchAllGlucoseReadingsForUserAndUpdateDatabase("u1") }
+    }
+
+    @Test
+    fun `exposes the latest reading and the insulin types of the user`() = runTest(mainDispatcherRule.dispatcher) {
+        val insulinTypes = listOf(InsulinType(5, "u1", "NovoRapid"))
+        every { insulinTypeRepository.getAllInsulinTypesForUser("u1") } returns flowOf(insulinTypes)
+
+        val vm = buildViewModel()
+        collectInBackground(vm.latestGlucoseReading, vm.allInsulinTypesForUser)
+        advanceUntilIdle()
+
+        assertEquals(newerReading, vm.latestGlucoseReading.value)
+        assertEquals(insulinTypes, vm.allInsulinTypesForUser.value)
+    }
+
+    @Test
+    fun `readings for the selected day are queried for that whole day`() = runTest(mainDispatcherRule.dispatcher) {
+        every { glucoseReadingRepository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns
+            flowOf(listOf(olderReading))
+
+        val vm = buildViewModel()
+        collectInBackground(vm.glucoseReadingsForSelectedDay)
+        advanceUntilIdle()
+
+        val dayStart = vm.selectedDayStartMillis.value
+        verify {
+            glucoseReadingRepository.getGlucoseReadingsByDateRange(
                 "u1",
-                match { it.value == 120 && it.timestamp == 1234L && it.comment == "ok" && it.userId == "u1" }
+                dayStart,
+                shiftedDayStartMillis(dayStart, 1) - 1
             )
         }
-        assertEquals("", vm.newGlucoseReadingValue.value) 
+        assertEquals(listOf(olderReading), vm.glucoseReadingsForSelectedDay.value)
     }
 
     @Test
-    fun `submitNewGlucoseReading converts mmol per L to mg dL`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel(unit = GlucoseUnit.MMOL_L)
-        vm.setNewGlucoseReadingValue("6.0") 
-
-        vm.submitNewGlucoseReading("u1")
-        advanceUntilIdle()
-
-        coVerify { repository.insert("u1", match { it.value == 108 }) }
-    }
-
-    @Test
-    fun `submitNewGlucoseReading ignores non numeric value`() = runTest(mainDispatcherRule.dispatcher) {
+    fun `day navigation moves back and forward but never past today`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-        vm.setNewGlucoseReadingValue("")
-
-        vm.submitNewGlucoseReading("u1")
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { repository.insert(any(), any()) }
-    }
-
-    @Test
-    fun `submitNewGlucoseReading with null user does nothing`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        vm.setNewGlucoseReadingValue("120")
-
-        vm.submitNewGlucoseReading(null)
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { repository.insert(any(), any()) }
-    }
-
-    @Test
-    fun `deleteGlucoseReading delegates to repository for a logged in user`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        val reading = GlucoseReading(1, "u1", 1000L, 100, "")
-
-        vm.deleteGlucoseReading("u1", reading)
-        advanceUntilIdle()
-
-        coVerify { repository.delete("u1", reading) }
-    }
-
-    @Test
-    fun `deleteGlucoseReading with null user does nothing`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        val reading = GlucoseReading(1, "u1", 1000L, 100, "")
-
-        vm.deleteGlucoseReading(null, reading)
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { repository.delete(any(), any()) }
-    }
-
-    @Test
-    fun `fetchAll delegates only for a logged in user`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-
-        vm.fetchAllGlucoseReadingsForUserAndUpdateDatabase("u1")
-        advanceUntilIdle()
-        coVerify { repository.fetchAllGlucoseReadingsForUserAndUpdateDatabase("u1") }
-
-        vm.fetchAllGlucoseReadingsForUserAndUpdateDatabase(null)
-        advanceUntilIdle()
-        coVerify(exactly = 1) { repository.fetchAllGlucoseReadingsForUserAndUpdateDatabase(any()) }
-    }
-
-    @Test
-    fun `glucoseReadingsForSelectedDay reflects the repository's date-range query`() = runTest(mainDispatcherRule.dispatcher) {
-        val readingsForDay = listOf(GlucoseReading(1, "u1", System.currentTimeMillis(), 100, ""))
-        val vm = buildViewModel(readingsForDay = readingsForDay)
-
-        vm.glucoseReadingsForSelectedDay.test {
-            val items = awaitUntil { it.isNotEmpty() }
-            assertEquals(listOf(1L), items.map { it.id })
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `selectedDayStartMillis defaults to the start of today`() {
-        val vm = buildViewModel()
-
-        assertEquals(startOfDayMillis(currentTimeMillis()), vm.selectedDayStartMillis.value)
-    }
-
-    @Test
-    fun `goToPreviousDay moves the selected day back by one`() {
-        val vm = buildViewModel()
+        collectInBackground(vm.canGoToNextDay)
         val today = vm.selectedDayStartMillis.value
+        advanceUntilIdle()
+        assertFalse(vm.canGoToNextDay.value)
+
+        vm.goToNextDay()
+        assertEquals(today, vm.selectedDayStartMillis.value)
 
         vm.goToPreviousDay()
-
+        advanceUntilIdle()
         assertEquals(shiftedDayStartMillis(today, -1), vm.selectedDayStartMillis.value)
-    }
-
-    @Test
-    fun `goToNextDay is a no-op once the selected day is already today`() {
-        val vm = buildViewModel()
-        val today = vm.selectedDayStartMillis.value
+        assertTrue(vm.canGoToNextDay.value)
 
         vm.goToNextDay()
-
         assertEquals(today, vm.selectedDayStartMillis.value)
     }
 
     @Test
-    fun `goToNextDay moves forward after going back, but never past today`() {
-        val vm = buildViewModel()
-        val today = vm.selectedDayStartMillis.value
-        vm.goToPreviousDay()
-
-        vm.goToNextDay()
-
-        assertEquals(today, vm.selectedDayStartMillis.value)
-    }
-
-    @Test
-    fun `canGoToNextDay is false on today and true after going to an earlier day`() = runTest(mainDispatcherRule.dispatcher) {
+    fun `setNewComment ignores comments longer than twenty characters`() {
         val vm = buildViewModel()
 
-        vm.canGoToNextDay.test {
-            assertEquals(false, awaitItem()) 
+        vm.setNewComment("before breakfast")
+        vm.setNewComment("a".repeat(21))
 
-            vm.goToPreviousDay()
-
-            assertEquals(true, awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
+        assertEquals("before breakfast", vm.newComment.value)
     }
 
     @Test
-    fun `latestGlucoseReading reflects the first reading`() = runTest(mainDispatcherRule.dispatcher) {
-        val now = System.currentTimeMillis()
-        val readings = listOf(GlucoseReading(1, "u1", now, 100, ""))
-        val vm = buildViewModel(readings = readings)
-
-        vm.latestGlucoseReading.test {
-            val item = awaitUntil { it != null }
-            assertEquals(1L, item!!.id)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `startEditingGlucoseReading pre-fills fields including insulin and meal link`() {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        val reading = GlucoseReading(
-            id = 7,
-            userId = "u1",
-            timestamp = 5000L,
-            value = 130,
-            comment = "after lunch",
-            insulinTypeId = 3,
-            insulinUnits = 4.5,
-            linkedMealId = 9
-        )
-
-        vm.startEditingGlucoseReading(reading)
-
-        assertEquals(7L, vm.editingReadingId.value)
-        assertEquals(5000L, vm.newGlucoseReadingTimestamp.value)
-        assertEquals("130", vm.newGlucoseReadingValue.value)
-        assertEquals("after lunch", vm.newGlucoseReadingComment.value)
-        assertEquals(3L, vm.newGlucoseReadingInsulinTypeId.value)
-        assertEquals("4.5", vm.newGlucoseReadingInsulinUnits.value)
-        assertEquals(9L, vm.newGlucoseReadingLinkedMealId.value)
-        assertEquals(true, vm.showAddGlucoseReadingDialog.value)
-    }
-
-    @Test
-    fun `startAddGlucoseReading resets fields and clears edit mode`() {
+    fun `setNewInsulinUnits keeps digits and the decimal point`() {
         val vm = buildViewModel()
-        vm.startEditingGlucoseReading(GlucoseReading(7, "u1", 5000L, 130, "x", 3, 4.5, 9))
 
-        vm.startAddGlucoseReading()
+        vm.setNewInsulinUnits("4,5u.5")
 
-        assertNull(vm.editingReadingId.value)
-        assertEquals("", vm.newGlucoseReadingValue.value)
-        assertEquals("", vm.newGlucoseReadingComment.value)
-        assertNull(vm.newGlucoseReadingInsulinTypeId.value)
-        assertEquals("", vm.newGlucoseReadingInsulinUnits.value)
-        assertNull(vm.newGlucoseReadingLinkedMealId.value)
-        assertEquals(true, vm.showAddGlucoseReadingDialog.value)
+        assertEquals("45.5", vm.newInsulinUnits.value)
     }
 
     @Test
-    fun `submitNewGlucoseReading in edit mode updates instead of inserting`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        vm.startEditingGlucoseReading(GlucoseReading(7, "u1", 5000L, 100, ""))
-        vm.setNewGlucoseReadingValue("140")
-        vm.setNewGlucoseReadingInsulinTypeId(3)
-        vm.setNewGlucoseReadingInsulinUnits("5")
-        vm.setNewGlucoseReadingLinkedMealId(9)
+    fun `startAddReading opens an empty dialog`() {
+        val vm = buildViewModel()
+        vm.startEditReading(newerReading)
 
-        vm.submitNewGlucoseReading("u1")
+        vm.startAddReading()
+
+        assertTrue(vm.showAddDialog.value)
+        assertNull(vm.editingReading.value)
+        assertEquals("", vm.newValue.value)
+        assertEquals("", vm.newComment.value)
+        assertNull(vm.newInsulinTypeId.value)
+        assertEquals("", vm.newInsulinUnits.value)
+        assertNull(vm.newLinkedMealId.value)
+    }
+
+    @Test
+    fun `startEditReading fills the dialog from the reading`() {
+        val vm = buildViewModel()
+
+        vm.startEditReading(newerReading)
+
+        assertTrue(vm.showAddDialog.value)
+        assertEquals(newerReading, vm.editingReading.value)
+        assertEquals(2_000L, vm.newTimestamp.value)
+        assertEquals("108", vm.newValue.value)
+        assertEquals("after lunch", vm.newComment.value)
+        assertEquals(5L, vm.newInsulinTypeId.value)
+        assertEquals("4.5", vm.newInsulinUnits.value)
+        assertEquals(9L, vm.newLinkedMealId.value)
+    }
+
+    @Test
+    fun `startEditReading shows the value in the selected unit`() {
+        SettingsSession.setCurrentGlucoseUnit(GlucoseUnit.MMOL_L)
+        val vm = buildViewModel()
+
+        vm.startEditReading(newerReading)
+
+        assertEquals(GlucoseUnit.MMOL_L.formatValue(108), vm.newValue.value)
+    }
+
+    @Test
+    fun `dismissDialog hides the dialog`() {
+        val vm = buildViewModel()
+        vm.startAddReading()
+
+        vm.dismissDialog()
+
+        assertFalse(vm.showAddDialog.value)
+    }
+
+    @Test
+    fun `submitReading inserts a new reading and closes the dialog`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+        vm.startAddReading()
+        vm.setNewTimestamp(3_000L)
+        vm.setNewValue("125")
+        vm.setNewComment("fasting")
+        vm.setNewInsulinTypeId(5)
+        vm.setNewInsulinUnits("6")
+        vm.setNewLinkedMealId(9)
+
+        vm.submitReading()
         advanceUntilIdle()
 
         coVerify {
-            repository.update(
+            glucoseReadingRepository.insert(
                 "u1",
-                match {
-                    it.id == 7L && it.value == 140 && it.insulinTypeId == 3L &&
-                        it.insulinUnits == 5.0 && it.linkedMealId == 9L
-                }
+                GlucoseReading(
+                    id = 0,
+                    userId = "u1",
+                    timestamp = 3_000L,
+                    value = 125,
+                    comment = "fasting",
+                    insulinTypeId = 5,
+                    insulinUnits = 6.0,
+                    linkedMealId = 9
+                )
             )
         }
-        coVerify(exactly = 0) { repository.insert(any(), any()) }
-        assertNull(vm.editingReadingId.value)
+        assertFalse(vm.showAddDialog.value)
     }
 
     @Test
-    fun `submitNewGlucoseReading in add mode includes insulin and meal fields`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        vm.setNewGlucoseReadingValue("120")
-        vm.setNewGlucoseReadingInsulinTypeId(3)
-        vm.setNewGlucoseReadingInsulinUnits("5")
-        vm.setNewGlucoseReadingLinkedMealId(9)
+    fun `submitReading stores mmol per litre values as mg per dl`() = runTest(mainDispatcherRule.dispatcher) {
+        SettingsSession.setCurrentGlucoseUnit(GlucoseUnit.MMOL_L)
+        val vm = buildViewModel()
+        vm.startAddReading()
+        vm.setNewValue("6.0")
 
-        vm.submitNewGlucoseReading("u1")
+        vm.submitReading()
         advanceUntilIdle()
 
-        coVerify {
-            repository.insert(
-                "u1",
-                match { it.insulinTypeId == 3L && it.insulinUnits == 5.0 && it.linkedMealId == 9L }
-            )
-        }
+        val expected = GlucoseUnit.convertMmolLToMgDl(6.0).toInt()
+        assertEquals(108, expected)
+        coVerify { glucoseReadingRepository.insert("u1", match { it.value == expected }) }
+    }
+
+    @Test
+    fun `submitReading updates the reading being edited`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+        vm.startEditReading(newerReading)
+        vm.setNewValue("130")
+
+        vm.submitReading()
+        advanceUntilIdle()
+
+        coVerify { glucoseReadingRepository.update("u1", newerReading.copy(value = 130)) }
+        coVerify(exactly = 0) { glucoseReadingRepository.insert(any(), any()) }
+    }
+
+    @Test
+    fun `submitReading with an invalid value keeps the dialog open`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+        vm.startAddReading()
+        vm.setNewValue("abc")
+
+        vm.submitReading()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { glucoseReadingRepository.insert(any(), any()) }
+        assertTrue(vm.showAddDialog.value)
+    }
+
+    @Test
+    fun `submitReading sends the most recent reading to the watch`() = runTest(mainDispatcherRule.dispatcher) {
+        every { glucoseReadingRepository.getAllGlucoseReadingsForUser("u1") } returns
+            flowOf(listOf(olderReading, newerReading))
+        val vm = buildViewModel()
+        vm.startAddReading()
+        vm.setNewValue("125")
+
+        vm.submitReading()
+        advanceUntilIdle()
+
+        coVerify { wearSyncCoordinator.pushLatestReading(newerReading, GlucoseUnit.MG_DL) }
+    }
+
+    @Test
+    fun `deleteReading deletes it and refreshes the watch`() = runTest(mainDispatcherRule.dispatcher) {
+        every { glucoseReadingRepository.getAllGlucoseReadingsForUser("u1") } returns flowOf(listOf(olderReading))
+        val vm = buildViewModel()
+
+        vm.deleteReading(newerReading)
+        advanceUntilIdle()
+
+        coVerify { glucoseReadingRepository.delete("u1", newerReading) }
+        coVerify { wearSyncCoordinator.pushLatestReading(olderReading, GlucoseUnit.MG_DL) }
+    }
+
+    @Test
+    fun `actions without a logged in user do nothing`() = runTest(mainDispatcherRule.dispatcher) {
+        UserSession.setCurrentUserId(null)
+        val vm = buildViewModel()
+        vm.startAddReading()
+        vm.setNewValue("125")
+
+        vm.submitReading()
+        vm.deleteReading(newerReading)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { glucoseReadingRepository.insert(any(), any()) }
+        coVerify(exactly = 0) { glucoseReadingRepository.delete(any(), any()) }
+        coVerify(exactly = 0) { wearSyncCoordinator.pushLatestReading(any(), any()) }
+    }
+
+    @Test
+    fun `selected day starts at the beginning of today`() {
+        val vm = buildViewModel()
+
+        assertEquals(startOfDayMillis(System.currentTimeMillis()), vm.selectedDayStartMillis.value)
     }
 }

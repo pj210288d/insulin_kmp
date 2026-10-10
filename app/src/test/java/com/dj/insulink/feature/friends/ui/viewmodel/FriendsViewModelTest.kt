@@ -1,14 +1,15 @@
 package com.dj.insulink.feature.friends.ui.viewmodel
 
-import app.cash.turbine.test
-import com.dj.insulink.auth.data.AuthRepository
-import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
-import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
+import com.dj.insulink.shared.core.auth.AuthSession
+import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.friends.data.repository.FriendRepository
 import com.dj.insulink.shared.feature.friends.domain.model.Friend
 import com.dj.insulink.shared.feature.friends.domain.model.FriendCandidate
+import com.dj.insulink.shared.feature.friends.ui.viewmodel.FriendsViewModel
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.util.MainDispatcherRule
+import com.dj.insulink.util.collectInBackground
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -17,7 +18,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,80 +33,100 @@ class FriendsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val friendRepository: FriendRepository = mockk(relaxed = true)
-    private val authRepository: AuthRepository = mockk()
-    private val settingsPreferences: SettingsPreferences = mockk()
+    private val settingsPreferences: SettingsPreferences = mockk(relaxed = true)
 
-    private fun buildViewModel(
-        unit: GlucoseUnit = GlucoseUnit.MG_DL,
-        friends: List<Friend> = emptyList(),
-        userId: String? = "u1"
-    ): FriendsViewModel {
-        every { settingsPreferences.getGlucoseUnit() } returns unit
-        every { authRepository.getCurrentUserFlow() } returns flowOf(userId)
-        every { friendRepository.getAllFriendsForUser(any()) } returns flowOf(friends)
-        return FriendsViewModel(friendRepository, authRepository, settingsPreferences)
+    private val candidate = FriendCandidate(
+        uid = "u2",
+        firstName = "Jane",
+        lastName = "Doe",
+        latestReading = GlucoseReading(id = 1, userId = "u2", timestamp = 1_000L, value = 120, comment = "")
+    )
+
+    @Before
+    fun setUp() {
+        AuthSession.setCurrentUser(
+            AuthUser(uid = "u1", firstName = "John", lastName = "Smith", email = "j@s.com", friendCode = "ABC123")
+        )
+        every { friendRepository.getAllFriendsForUser(any()) } returns flowOf(emptyList())
+        coEvery { friendRepository.isFriendAlready(any(), any()) } returns false
+    }
+
+    @After
+    fun tearDown() {
+        AuthSession.setCurrentUser(null)
+    }
+
+    private fun buildViewModel() = FriendsViewModel(friendRepository, settingsPreferences)
+
+    @Test
+    fun `init fetches friend data for the logged in user`() = runTest(mainDispatcherRule.dispatcher) {
+        buildViewModel()
+        advanceUntilIdle()
+
+        coVerify { friendRepository.fetchFriendDataAndUpdateDatabase("u1") }
     }
 
     @Test
-    fun `setEnteredCode uppercases and caps at six characters`() {
+    fun `usersFriendCode and friends list come from the session and repository`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val friends = listOf(Friend(1, "u1", "u2", "Jane Doe", 120, 1_000L))
+            every { friendRepository.getAllFriendsForUser("u1") } returns flowOf(friends)
+
+            val vm = buildViewModel()
+            collectInBackground(vm.usersFriendCode, vm.allFriendsForUser)
+            advanceUntilIdle()
+
+            assertEquals("ABC123", vm.usersFriendCode.value)
+            assertEquals(friends, vm.allFriendsForUser.value)
+        }
+
+    @Test
+    fun `setEnteredCode uppercases and ignores codes longer than six characters`() {
         val vm = buildViewModel()
-        vm.setEnteredCode("abc")
-        assertEquals("ABC", vm.enteredCode.value)
 
-        vm.setEnteredCode("abcdefg") 
-        assertEquals("ABC", vm.enteredCode.value)
+        vm.setEnteredCode("abc12")
+        assertEquals("ABC12", vm.enteredCode.value)
+
+        vm.setEnteredCode("abc1234")
+        assertEquals("ABC12", vm.enteredCode.value)
     }
 
     @Test
-    fun `setShowAddNewFriendDialog updates state`() {
+    fun `addFriend stores the friend and links both users`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { friendRepository.findFriendCandidateByFriendCode("XYZ789") } returns candidate
         val vm = buildViewModel()
         vm.setShowAddNewFriendDialog(true)
-        assertEquals(true, vm.showAddNewFriendDialog.value)
-    }
+        vm.setEnteredCode("xyz789")
 
-    @Test
-    fun `refreshGlucoseUnit re-reads from preferences`() {
-        val vm = buildViewModel(unit = GlucoseUnit.MG_DL)
-        every { settingsPreferences.getGlucoseUnit() } returns GlucoseUnit.MMOL_L
-        vm.refreshGlucoseUnit()
-        assertEquals(GlucoseUnit.MMOL_L, vm.glucoseUnit.value)
-    }
-
-    @Test
-    fun `onAddFriendClick adds the found user and pushes to firestore both ways`() = runTest(mainDispatcherRule.dispatcher) {
-        val vm = buildViewModel()
-        vm.setEnteredCode("ABC123")
-        val candidate = FriendCandidate(
-            uid = "f1",
-            firstName = "Jane",
-            lastName = "Doe",
-            latestReading = GlucoseReading(id = 9, userId = "f1", timestamp = 5L, value = 99, comment = "")
-        )
-        coEvery { friendRepository.findFriendCandidateByFriendCode("ABC123") } returns candidate
-
-        vm.onAddFriendClick("u1")
+        vm.addFriend()
         advanceUntilIdle()
 
         coVerify {
             friendRepository.addFriend(
-                match {
-                    it.userId == "u1" && it.friendId == "f1" && it.friendName == "Jane Doe" &&
-                        it.friendLastGlucoseReadingValue == 99 && it.friendsLastGlucoseReadingTime == 5L
-                }
+                Friend(
+                    id = 0,
+                    userId = "u1",
+                    friendId = "u2",
+                    friendName = "Jane Doe",
+                    friendLastGlucoseReadingValue = 120,
+                    friendsLastGlucoseReadingTime = 1_000L
+                )
             )
-            friendRepository.pushFriendToFirestoreForUser("u1", "f1")
-            friendRepository.pushFriendToFirestoreForUser("f1", "u1")
+            friendRepository.pushFriendToFirestoreForUser("u1", "u2")
+            friendRepository.pushFriendToFirestoreForUser("u2", "u1")
         }
-        assertEquals(false, vm.showAddNewFriendDialog.value)
+        assertEquals("", vm.enteredCode.value)
+        assertFalse(vm.showAddNewFriendDialog.value)
     }
 
     @Test
-    fun `onAddFriendClick with no matching user does not add a friend`() = runTest(mainDispatcherRule.dispatcher) {
+    fun `addFriend does not add someone who is already a friend`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { friendRepository.findFriendCandidateByFriendCode("XYZ789") } returns candidate
+        coEvery { friendRepository.isFriendAlready("u1", "u2") } returns true
         val vm = buildViewModel()
-        vm.setEnteredCode("NOPE")
-        coEvery { friendRepository.findFriendCandidateByFriendCode("NOPE") } returns null
+        vm.setEnteredCode("XYZ789")
 
-        vm.onAddFriendClick("u1")
+        vm.addFriend()
         advanceUntilIdle()
 
         coVerify(exactly = 0) { friendRepository.addFriend(any()) }
@@ -109,23 +134,33 @@ class FriendsViewModelTest {
     }
 
     @Test
-    fun `fetchFriendDataAndUpdateDatabase delegates to repository`() = runTest(mainDispatcherRule.dispatcher) {
+    fun `addFriend with an unknown code adds nothing`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { friendRepository.findFriendCandidateByFriendCode(any()) } returns null
         val vm = buildViewModel()
-        vm.fetchFriendDataAndUpdateDatabase("u1")
+        vm.setEnteredCode("NOPE00")
+
+        vm.addFriend()
         advanceUntilIdle()
-        coVerify { friendRepository.fetchFriendDataAndUpdateDatabase("u1") }
+
+        coVerify(exactly = 0) { friendRepository.addFriend(any()) }
     }
 
     @Test
-    fun `allFriendsForUser surfaces the repository data`() = runTest(mainDispatcherRule.dispatcher) {
-        val friends = listOf(Friend(1, "u1", "f1", "Jane Doe", 100, 5L))
-        val vm = buildViewModel(friends = friends)
+    fun `setShowAddNewFriendDialog updates state`() {
+        val vm = buildViewModel()
 
-        vm.allFriendsForUser.test {
-            var item = awaitItem()
-            while (item.isEmpty()) item = awaitItem()
-            assertEquals(friends, item)
-            cancelAndIgnoreRemainingEvents()
-        }
+        vm.setShowAddNewFriendDialog(true)
+
+        assertTrue(vm.showAddNewFriendDialog.value)
+    }
+
+    @Test
+    fun `removeFriend deletes the friend for the logged in user`() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = buildViewModel()
+
+        vm.removeFriend(Friend(1, "u1", "u2", "Jane Doe", 120, 1_000L))
+        advanceUntilIdle()
+
+        coVerify { friendRepository.deleteFriend("u1", "u2") }
     }
 }

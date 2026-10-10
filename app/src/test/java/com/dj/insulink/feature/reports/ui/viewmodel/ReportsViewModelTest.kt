@@ -1,29 +1,31 @@
 package com.dj.insulink.feature.reports.ui.viewmodel
 
-import android.content.Context
-import com.dj.insulink.feature.dataREMOVE.pdf.GlucoseReportPdfGenerator
+import com.dj.insulink.shared.core.session.UserSession
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
+import com.dj.insulink.shared.feature.reports.data.PdfReportGenerator
+import com.dj.insulink.shared.feature.reports.data.PdfShareCoordinator
+import com.dj.insulink.shared.feature.reports.ui.viewmodel.PdfGenerationState
+import com.dj.insulink.shared.feature.reports.ui.viewmodel.ReportsViewModel
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 import com.dj.insulink.util.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkConstructor
-import io.mockk.unmockkConstructor
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReportsViewModelTest {
@@ -31,169 +33,123 @@ class ReportsViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val repository: GlucoseReadingRepository = mockk(relaxed = true)
-    private val settingsPreferences: SettingsPreferences = mockk()
-    private val context: Context = mockk()
+    private val glucoseRepository: GlucoseReadingRepository = mockk(relaxed = true)
+    private val settingsPreferences: SettingsPreferences = mockk(relaxed = true)
+    private val pdfReportGenerator: PdfReportGenerator = mockk()
+    private val pdfShareCoordinator: PdfShareCoordinator = mockk(relaxed = true)
+
+    private val readings = listOf(
+        GlucoseReading(id = 1, userId = "u1", timestamp = 150L, value = 120, comment = "")
+    )
 
     @Before
     fun setUp() {
-        every { context.getString(any()) } returns "message"
-        every { context.cacheDir } returns File("build/test-cache")
-        every { settingsPreferences.getGlucoseUnit() } returns GlucoseUnit.MG_DL
+        UserSession.setCurrentUserId("u1")
+        coEvery { glucoseRepository.getDateRange("u1") } returns (100L to 200L)
+        every { glucoseRepository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns flowOf(readings)
+        every { settingsPreferences.getGlucoseUnit() } returns GlucoseUnit.MMOL_L
+        coEvery { pdfReportGenerator.generate(any(), any(), any(), any()) } returns "/tmp/report.pdf"
     }
 
     @After
     fun tearDown() {
-        unmockkConstructor(GlucoseReportPdfGenerator::class)
+        UserSession.setCurrentUserId(null)
     }
 
-    private fun buildViewModel(): ReportsViewModel =
-        ReportsViewModel(repository, settingsPreferences, context)
+    private fun TestScope.buildViewModel(): ReportsViewModel {
+        val vm = ReportsViewModel(glucoseRepository, settingsPreferences, pdfReportGenerator, pdfShareCoordinator)
+        advanceUntilIdle()
+        return vm
+    }
 
     @Test
-    fun `initializeDateRange loads the range and filtered readings`() = runTest(mainDispatcherRule.dispatcher) {
-        val readings = listOf(
-            GlucoseReading(2, "u1", 200L, 110, ""),
-            GlucoseReading(1, "u1", 100L, 90, "")
-        )
-        coEvery { repository.getDateRange("u1") } returns Pair(100L, 200L)
-        every { repository.getGlucoseReadingsByDateRange("u1", 100L, 200L) } returns flowOf(readings)
+    fun `init loads the available date range and selects all of it`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-
-        vm.initializeDateRange("u1")
-        advanceUntilIdle()
 
         assertEquals(100L, vm.minDate.value)
         assertEquals(200L, vm.maxDate.value)
         assertEquals(100L, vm.selectedMinDate.value)
         assertEquals(200L, vm.selectedMaxDate.value)
-        assertEquals(listOf(1L, 2L), vm.filteredReadings.value.map { it.id }) 
+        assertEquals(PdfGenerationState.Idle, vm.generationState.value)
     }
 
     @Test
-    fun `initializeDateRange with null range does not filter`() = runTest(mainDispatcherRule.dispatcher) {
-        coEvery { repository.getDateRange("u1") } returns Pair(null, null)
-        val vm = buildViewModel()
+    fun `init without a logged in user leaves the range empty`() = runTest(mainDispatcherRule.dispatcher) {
+        UserSession.setCurrentUserId(null)
 
-        vm.initializeDateRange("u1")
-        advanceUntilIdle()
+        val vm = buildViewModel()
 
         assertNull(vm.minDate.value)
-        assertTrue(vm.filteredReadings.value.isEmpty())
+        assertNull(vm.selectedMaxDate.value)
+        coVerify(exactly = 0) { glucoseRepository.getDateRange(any()) }
     }
 
     @Test
-    fun `updateDateRange updates only the selected range`() {
+    fun `updateSelectedRange changes only the selected dates`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-        vm.updateDateRange(10L, 20L)
-        assertEquals(10L, vm.selectedMinDate.value)
-        assertEquals(20L, vm.selectedMaxDate.value)
+
+        vm.updateSelectedRange(120L, 180L)
+
+        assertEquals(120L, vm.selectedMinDate.value)
+        assertEquals(180L, vm.selectedMaxDate.value)
+        assertEquals(100L, vm.minDate.value)
+        assertEquals(200L, vm.maxDate.value)
     }
 
     @Test
-    fun `filterReadingsByCurrentDateRange filters when a range is known`() = runTest(mainDispatcherRule.dispatcher) {
-        val readings = listOf(GlucoseReading(1, "u1", 100L, 90, ""))
-        coEvery { repository.getDateRange("u1") } returns Pair(100L, 200L)
-        every { repository.getGlucoseReadingsByDateRange("u1", 100L, 200L) } returns flowOf(readings)
+    fun `generateReport passes the selected range and unit to the generator`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val vm = buildViewModel()
+            vm.updateSelectedRange(120L, 180L)
+
+            vm.generateReport()
+            advanceUntilIdle()
+
+            verify { glucoseRepository.getGlucoseReadingsByDateRange("u1", 120L, 180L) }
+            coVerify { pdfReportGenerator.generate(readings, 120L, 180L, GlucoseUnit.MMOL_L) }
+            assertEquals(PdfGenerationState.Success("/tmp/report.pdf"), vm.generationState.value)
+        }
+
+    @Test
+    fun `generateReport without any readings reports an error`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { glucoseRepository.getDateRange("u1") } returns (null to null)
         val vm = buildViewModel()
-        vm.initializeDateRange("u1")
+
+        vm.generateReport()
         advanceUntilIdle()
 
-        vm.filterReadingsByCurrentDateRange("u1")
-        advanceUntilIdle()
-
-        assertEquals(listOf(1L), vm.filteredReadings.value.map { it.id })
+        assertEquals(PdfGenerationState.Error("Nema očitavanja za izveštaj."), vm.generationState.value)
+        coVerify(exactly = 0) { pdfReportGenerator.generate(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `filterReadingsByCurrentDateRange uses the selected sub-range, not the full available range`() = runTest(mainDispatcherRule.dispatcher) {
-        coEvery { repository.getDateRange("u1") } returns Pair(100L, 200L)
-        every { repository.getGlucoseReadingsByDateRange("u1", 100L, 200L) } returns
-            flowOf(listOf(GlucoseReading(1, "u1", 100L, 90, ""), GlucoseReading(2, "u1", 150L, 95, "")))
-        every { repository.getGlucoseReadingsByDateRange("u1", 120L, 150L) } returns
-            flowOf(listOf(GlucoseReading(2, "u1", 150L, 95, "")))
+    fun `generateReport surfaces the generator failure message`() = runTest(mainDispatcherRule.dispatcher) {
+        coEvery { pdfReportGenerator.generate(any(), any(), any(), any()) } throws IllegalStateException("disk full")
         val vm = buildViewModel()
-        vm.initializeDateRange("u1")
+
+        vm.generateReport()
         advanceUntilIdle()
 
-        vm.updateDateRange(120L, 150L)
-        vm.filterReadingsByCurrentDateRange("u1")
-        advanceUntilIdle()
-
-        assertEquals(listOf(2L), vm.filteredReadings.value.map { it.id })
+        assertEquals(PdfGenerationState.Error("disk full"), vm.generationState.value)
     }
 
     @Test
-    fun `resetDateRange reloads the range from the repository`() = runTest(mainDispatcherRule.dispatcher) {
-        coEvery { repository.getDateRange("u1") } returns Pair(50L, 80L)
-        every { repository.getGlucoseReadingsByDateRange("u1", 50L, 80L) } returns flowOf(emptyList())
+    fun `shareReport shares the generated file`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-
-        vm.resetDateRange("u1")
+        vm.generateReport()
         advanceUntilIdle()
 
-        assertEquals(50L, vm.minDate.value)
-        assertEquals(80L, vm.maxDate.value)
+        vm.shareReport()
+
+        verify { pdfShareCoordinator.share("/tmp/report.pdf") }
     }
 
     @Test
-    fun `generatePdfReport reports an error when there is no data`() {
+    fun `shareReport before a report exists does nothing`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-        vm.generatePdfReport("u1")
 
-        assertTrue(vm.pdfGenerationState.value is PdfGenerationState.Error)
-    }
+        vm.shareReport()
 
-    @Test
-    fun `generatePdfReport produces a success state when generation succeeds`() = runTest(mainDispatcherRule.dispatcher) {
-        mockkConstructor(GlucoseReportPdfGenerator::class)
-        val outputFile = File("build/test-cache/report.pdf")
-        coEvery {
-            anyConstructed<GlucoseReportPdfGenerator>().generatePdf(any(), any(), any(), any(), any())
-        } returns Result.success(outputFile)
-
-        val vm = buildViewModel()
-        vm.updateDateRange(100L, 200L)
-        coEvery { repository.getDateRange("u1") } returns Pair(100L, 200L)
-        every { repository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns
-            flowOf(listOf(GlucoseReading(1, "u1", 150L, 100, "")))
-        vm.filterReadingsByDateRange("u1", 100L, 200L)
-        advanceUntilIdle()
-
-        vm.generatePdfReport("u1")
-        advanceUntilIdle()
-
-        assertEquals(PdfGenerationState.Success(outputFile), vm.pdfGenerationState.value)
-        assertEquals(outputFile, vm.getCurrentPdfFile())
-    }
-
-    @Test
-    fun `generatePdfReport produces an error state when generation fails`() = runTest(mainDispatcherRule.dispatcher) {
-        mockkConstructor(GlucoseReportPdfGenerator::class)
-        coEvery {
-            anyConstructed<GlucoseReportPdfGenerator>().generatePdf(any(), any(), any(), any(), any())
-        } returns Result.failure(RuntimeException("disk full"))
-
-        val vm = buildViewModel()
-        vm.updateDateRange(100L, 200L)
-        every { repository.getGlucoseReadingsByDateRange(any(), any(), any()) } returns
-            flowOf(listOf(GlucoseReading(1, "u1", 150L, 100, "")))
-        vm.filterReadingsByDateRange("u1", 100L, 200L)
-        advanceUntilIdle()
-
-        vm.generatePdfReport("u1")
-        advanceUntilIdle()
-
-        assertTrue(vm.pdfGenerationState.value is PdfGenerationState.Error)
-    }
-
-    @Test
-    fun `resetPdfGenerationState returns to idle`() {
-        val vm = buildViewModel()
-        vm.generatePdfReport("u1") 
-        vm.resetPdfGenerationState()
-
-        assertEquals(PdfGenerationState.Idle, vm.pdfGenerationState.value)
-        assertNull(vm.getCurrentPdfFile())
+        verify(exactly = 0) { pdfShareCoordinator.share(any()) }
     }
 }
