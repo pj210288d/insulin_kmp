@@ -123,6 +123,7 @@
     <string name="friends_screen_empty_reading_label">Poslednje merenje: -</string>
     <string name="friends_screen_reading_label">Poslednje merenje: %s</string>
     <string name="friends_screen_dash_label">-</string>
+    <string name="friends_screen_remove_friend_label">Ukloni prijatelja</string>
 
     <!-- Report screen -->
     <string name="report_screen_title">Izveštaj o glukozi</string>
@@ -161,7 +162,6 @@
     <string name="statistics_average_label">Prosek</string>
     <string name="statistics_min_label">Min</string>
     <string name="statistics_max_label">Max</string>
-    <string name="statistics_std_dev_label">Std. dev.</string>
     <string name="statistics_reading_count_label">Očitavanja</string>
     <string name="statistics_time_in_range_title">Vreme u opsegu</string>
     <string name="statistics_below_label">Ispod %1$s</string>

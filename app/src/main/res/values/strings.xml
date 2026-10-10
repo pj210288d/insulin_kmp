@@ -83,6 +83,7 @@
     <string name="friends_screen_empty_reading_label">Last reading: -</string>
     <string name="friends_screen_reading_label">Last reading: %s</string>
     <string name="friends_screen_dash_label">-</string>
+    <string name="friends_screen_remove_friend_label">Remove friend</string>
 
     <!-- Report screen -->
     <string name="report_screen_title">Glucose report</string>
@@ -121,7 +122,6 @@
     <string name="statistics_average_label">Average</string>
     <string name="statistics_min_label">Min</string>
     <string name="statistics_max_label">Max</string>
-    <string name="statistics_std_dev_label">Std. Dev.</string>
     <string name="statistics_reading_count_label">Readings</string>
     <string name="statistics_time_in_range_title">Time in Range</string>
     <string name="statistics_below_label">Below %1$s</string>
