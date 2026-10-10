@@ -23,11 +23,6 @@ class LibreLinkRepository(
 
     fun getLastSyncError(userId: String): String? = sessionStorage.getLastSyncError(userId)
 
-    // Step 1 of connecting: authenticates and returns every connection (patient) this
-    // LibreLinkUp account can see. Does NOT persist a session yet - a LibreLinkUp account isn't
-    // guaranteed to follow only the signed-in user's own sensor (it may also/instead follow a
-    // family member's, for example), so the caller must let the user pick before we commit to a
-    // patientId. See connect() below for step 2.
     suspend fun login(email: String, password: String): Result<LibreLinkLoginResult> {
         return withContext(ioDispatcher) {
             runCatching {
@@ -41,7 +36,6 @@ class LibreLinkRepository(
         }
     }
 
-    // Step 2: persists a session for the chosen connection, using the auth obtained in login().
     suspend fun connect(userId: String, email: String, auth: LibreLinkAuth, connection: LibreLinkConnection): Result<LibreLinkSession> {
         return withContext(ioDispatcher) {
             runCatching {

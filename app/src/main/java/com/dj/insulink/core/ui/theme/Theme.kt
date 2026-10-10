@@ -17,8 +17,7 @@ import androidx.core.view.WindowCompat
 @Composable
 fun InsulinkTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, // Set to false to prioritize your brand colors
+    dynamicColor: Boolean = false, 
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

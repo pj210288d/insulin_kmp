@@ -25,7 +25,6 @@ fun currentLocalTimeOfDay(): LocalTime {
         .time
 }
 
-// Midnight (device local timezone) of the calendar day containing [epochMillis].
 @OptIn(ExperimentalTime::class)
 fun startOfDayMillis(epochMillis: Long): Long {
     val zone = TimeZone.currentSystemDefault()
@@ -33,9 +32,6 @@ fun startOfDayMillis(epochMillis: Long): Long {
     return LocalDateTime(date, LocalTime(0, 0)).toInstant(zone).toEpochMilliseconds()
 }
 
-// Midnight of the calendar day [days] days away from the one containing [epochMillis] (negative
-// for earlier days). Goes through LocalDate arithmetic rather than raw millis math so it stays
-// correct across DST transitions, where a "day" isn't always exactly 24h.
 @OptIn(ExperimentalTime::class)
 fun shiftedDayStartMillis(epochMillis: Long, days: Int): Long {
     val zone = TimeZone.currentSystemDefault()
@@ -44,14 +40,10 @@ fun shiftedDayStartMillis(epochMillis: Long, days: Int): Long {
     return LocalDateTime(shiftedDate, LocalTime(0, 0)).toInstant(zone).toEpochMilliseconds()
 }
 
-// [days] days before now, as epoch millis - a rolling window ending "now" (not day-aligned),
-// used for "last N days" range queries.
 fun daysAgoMillis(days: Int): Long {
     return currentTimeMillis() - days * MILLIS_PER_DAY
 }
 
-// KMP-safe ekvivalenti Android-ovog core/utils/DateUtils.kt (taj koristi java.util.Calendar,
-// JVM-only) - koristi ih shared GlucoseScreen-ov datum/vreme picker (Faza "glucose do kraja").
 @OptIn(ExperimentalTime::class)
 fun combineDateAndTime(dateEpochMillis: Long, existingTimestamp: Long): Long {
     val zone = TimeZone.currentSystemDefault()
@@ -67,15 +59,12 @@ fun combineTimeWithDate(hour: Int, minute: Int, existingTimestamp: Long): Long {
     return LocalDateTime(date, LocalTime(hour, minute)).toInstant(zone).toEpochMilliseconds()
 }
 
-// "HH:mm" - locale-independent replacement for SimpleDateFormat, which isn't available outside
-// the JVM (needed by the shared Compose Multiplatform Glucose screen, which also runs on iOS).
 @OptIn(ExperimentalTime::class)
 fun timeOfDayLabel(epochMillis: Long): String {
     val time = localTimeOfDay(epochMillis)
     return "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
 }
 
-// "dd/MM/yyyy" - bez vremena, koristi ga datum dugme u AddEditReadingDialog (glucose).
 @OptIn(ExperimentalTime::class)
 fun dateOnlyLabel(epochMillis: Long): String {
     val zone = TimeZone.currentSystemDefault()
@@ -87,7 +76,6 @@ fun dateOnlyLabel(epochMillis: Long): String {
     return "$day/$month/${date.year}"
 }
 
-// "dd/MM/yyyy HH:mm".
 @OptIn(ExperimentalTime::class)
 fun dateTimeLabel(epochMillis: Long): String {
     val zone = TimeZone.currentSystemDefault()
@@ -99,7 +87,6 @@ fun dateTimeLabel(epochMillis: Long): String {
     return "$day/$month/${date.year} ${timeOfDayLabel(epochMillis)}"
 }
 
-// "Mon, 4 Sep 2026" - used for any day that isn't today/yesterday (those get their own labels).
 @OptIn(ExperimentalTime::class)
 fun shortWeekdayDateLabel(epochMillis: Long): String {
     val zone = TimeZone.currentSystemDefault()

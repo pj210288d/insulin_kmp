@@ -36,10 +36,6 @@ import com.dj.insulink.shared.feature.friends.ui.viewmodel.FriendsViewModel
 import com.dj.insulink.shared.feature.settings.domain.model.AppLanguage
 import com.dj.insulink.shared.feature.settings.domain.model.GlucoseUnit
 
-// Deveti deljeni Compose Multiplatform MVP ekran - vidi FriendsViewModel u istom paketu za
-// obim/odluke. Isti obim kao Android-ov ekran (traži se prijatelj po friendCode, lista +
-// poslednje očitavanje), samo bez ikonica/InsulinkTheme (app-module-specifično) - isti princip
-// kao ostatak deljenog UI-ja.
 @Composable
 fun FriendsScreen(viewModel: FriendsViewModel) {
     val friends by viewModel.allFriendsForUser.collectAsState()

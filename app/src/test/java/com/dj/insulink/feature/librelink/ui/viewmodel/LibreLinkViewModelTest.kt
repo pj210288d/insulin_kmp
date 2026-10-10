@@ -59,7 +59,7 @@ class LibreLinkViewModelTest {
     @Test
     fun `connect with blank credentials does not call repository`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
-        vm.setPassword("secret") // email left blank
+        vm.setPassword("secret") 
 
         vm.connect()
         advanceUntilIdle()
@@ -194,7 +194,6 @@ class LibreLinkViewModelTest {
             coEvery { libreLinkRepository.connect("u2", "second@b.com", auth, connection) } returns Result.success(sessionForUser2)
             coEvery { libreLinkRepository.syncLatestReadings("u2") } returns Result.success(0)
             every { libreLinkRepository.getSession("u2") } returns sessionForUser2
-            // A different (first) user's session must never leak into this one's state.
             every { libreLinkRepository.getSession("u1") } returns
                 LibreLinkSession("first@b.com", "tok1", "https://api.libreview.io", "hash1", "p1")
 

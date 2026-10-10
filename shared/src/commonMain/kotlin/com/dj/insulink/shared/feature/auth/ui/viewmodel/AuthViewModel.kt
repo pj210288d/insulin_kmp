@@ -10,9 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// Koin single, isti obrazac kao ostalih 8 deljenih ekrana. Pokriva Login/Registration/
-// ForgotPassword ekrane (App.kt bira koji se prikazuje preko lokalnog nav state-a - vidi
-// AuthScreen enum tamo). restoreSession() se zove jednom iz App()-a pri prvoj kompoziciji.
 class AuthViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
@@ -43,7 +40,26 @@ class AuthViewModel(
         runAuthAction { authRepository.login(email.trim(), password) }
     }
 
-    fun register(firstName: String, lastName: String, email: String, password: String) {
+    fun register(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        confirmPassword: String,
+        termsAccepted: Boolean
+    ) {
+        if (password.length < 8) {
+            _errorMessage.value = "Lozinka mora imati najmanje 8 karaktera."
+            return
+        }
+        if (password != confirmPassword) {
+            _errorMessage.value = "Lozinke se ne poklapaju."
+            return
+        }
+        if (!termsAccepted) {
+            _errorMessage.value = "Morate prihvatiti Uslove korišćenja i Politiku privatnosti"
+            return
+        }
         runAuthAction {
             authRepository.register(firstName.trim(), lastName.trim(), email.trim(), password)
         }

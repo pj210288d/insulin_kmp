@@ -12,5 +12,5 @@ import org.koin.dsl.module
 actual fun platformRemindersModule(): Module = module {
     single { DatabaseFactory(androidContext()) }
     single<ReminderRemoteDataSource> { FirebaseReminderRemoteDataSource(get()) }
-    single<ReminderNotificationScheduler> { AndroidReminderNotificationScheduler() }
+    single<ReminderNotificationScheduler> { AndroidReminderNotificationScheduler(androidContext()) }
 }

@@ -107,9 +107,6 @@ dependencies {
     // Navigation
     implementation(libs.navigation.compose)
 
-    // WorkManager
-    implementation(libs.androidx.work.runtime.ktx)
-
     // Google sign in
     implementation(libs.google.play.services.auth)
 
@@ -120,8 +117,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.hilt.work)
-    ksp(libs.hilt.ext.compiler)
 
     // Icons
     implementation(libs.androidx.compose.material.icons.extended)
@@ -130,12 +125,6 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
-
-    // Vico
-    implementation(libs.bundles.vico.compose.m3.bundle)
-
-    // Pdf
-    implementation("com.itextpdf:itext7-core:9.3.0")
 
     // Shared KMP module
     implementation(project(":shared"))

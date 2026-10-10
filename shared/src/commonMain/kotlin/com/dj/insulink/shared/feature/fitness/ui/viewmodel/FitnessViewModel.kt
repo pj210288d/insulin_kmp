@@ -15,17 +15,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// Šesti deljeni Compose Multiplatform MVP ekran - vidi Glucose/Statistics/Insulin/Settings/
-// Reminders ViewModel-e za obrazac. Namerno samo dodavanje + lista (bez brisanja) - Android-ov
-// pravi Fitness ekran (feature/fitness/ui/viewmodel/FitnessViewModel u :app) takođe nema
-// brisanje (ExerciseDao nema per-item delete metodu, samo deleteAllForUser za remote-refresh),
-// pa je ovo stvarna 1:1 paritetna funkcionalnost, ne svesno umanjena.
 class FitnessViewModel(
     private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
 
-    // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
-    // uređaju/instalaciji ostaje prazna, iako je nalog isti kao na uređaju gde su podaci uneti.
     init {
         viewModelScope.launch {
             UserSession.currentUserId.collect { userId ->

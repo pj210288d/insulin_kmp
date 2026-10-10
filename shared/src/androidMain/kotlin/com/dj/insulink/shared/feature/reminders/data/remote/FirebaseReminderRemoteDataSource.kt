@@ -4,7 +4,6 @@ import com.dj.insulink.shared.core.time.currentLocalTimeOfDay
 import com.dj.insulink.shared.core.time.localTimeOfDay
 import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -13,10 +12,16 @@ class FirebaseReminderRemoteDataSource(
 ) : ReminderRemoteDataSource {
 
     override suspend fun pushReminder(userId: String, reminder: Reminder) {
-        firestore.collection(COLLECTION_NAME_USERS)
-            .document(userId)
-            .update(DOCUMENT_FIELD_REMINDERS, FieldValue.arrayUnion(reminder))
-            .await()
+        val userDocumentRef = firestore.collection(COLLECTION_NAME_USERS).document(userId)
+        val snapshot = userDocumentRef.get().await()
+        val reminders =
+            snapshot.get(DOCUMENT_FIELD_REMINDERS) as? List<Map<String, Any>> ?: emptyList()
+
+        val withoutExisting = reminders.filter { reminderMap ->
+            (reminderMap["id"] as? Number)?.toLong() != reminder.id
+        }
+        val updated = withoutExisting + reminder.toFirestoreMap()
+        userDocumentRef.update(DOCUMENT_FIELD_REMINDERS, updated).await()
     }
 
     override suspend fun deleteReminder(userId: String, reminder: Reminder) {
@@ -52,6 +57,8 @@ class FirebaseReminderRemoteDataSource(
 
         return remindersData.map { reminderMap ->
             val reminderTime = (reminderMap["time"] as? Number)?.toLong() ?: 0
+            val isDoneForToday = reminderMap["isDoneForToday"] as? Boolean
+                ?: (localTimeOfDay(reminderTime) < currentLocalTimeOfDay())
 
             Reminder(
                 id = (reminderMap["id"] as? Number)?.toLong() ?: 0,
@@ -59,12 +66,21 @@ class FirebaseReminderRemoteDataSource(
                 title = reminderMap["title"] as? String ?: "",
                 reminderType = ReminderType.fromName(reminderMap["reminderType"] as? String)
                     ?: ReminderType.MEAL_REMINDER,
-                isDoneForToday = localTimeOfDay(reminderTime) < currentLocalTimeOfDay(),
+                isDoneForToday = isDoneForToday,
                 time = reminderTime,
             )
         }
     }
 }
+
+private fun Reminder.toFirestoreMap(): Map<String, Any> = mapOf(
+    "id" to id,
+    "userId" to userId,
+    "title" to title,
+    "reminderType" to reminderType.name,
+    "time" to time,
+    "isDoneForToday" to isDoneForToday
+)
 
 private const val COLLECTION_NAME_USERS = "users"
 private const val DOCUMENT_FIELD_REMINDERS = "reminders"

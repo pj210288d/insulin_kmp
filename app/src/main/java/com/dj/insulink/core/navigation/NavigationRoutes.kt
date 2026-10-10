@@ -18,7 +18,6 @@ sealed class Screen(
     object ForgotPassword : Screen("forgot_password")
     object Glucose : Screen("glucose", icon = Icons.Filled.WaterDrop, titleRes = R.string.nav_title_glucose)
     object Meals : Screen("meals", icon = Icons.Filled.Restaurant, titleRes = R.string.nav_title_meals)
-    object AddMeal : Screen("add_meal")
     object Fitness : Screen("fitness", icon = Icons.AutoMirrored.Filled.DirectionsRun, titleRes = R.string.nav_title_fitness)
     object Reminders : Screen("reminders", titleRes = R.string.nav_title_reminders)
     object Friends : Screen("friends", titleRes = R.string.nav_title_friends)
@@ -27,8 +26,6 @@ sealed class Screen(
     object InsulinTypes : Screen("insulin_types", titleRes = R.string.nav_title_insulin_types)
     object Statistics : Screen("statistics", titleRes = R.string.nav_title_statistics)
     object LibreLink : Screen("librelink", titleRes = R.string.nav_title_librelink)
-    // Van topBarAndSideDrawerDestinations namerno - tutorial ekran ima sopstveni back/finish tok
-    // (LibreLinkHelpScreen), ne standardni hamburger top bar/bottom bar.
     object LibreLinkHelp : Screen("librelink_help")
 
     companion object {
@@ -38,7 +35,6 @@ sealed class Screen(
             ForgotPassword,
             Glucose,
             Meals,
-            AddMeal,
             Fitness,
             Reminders,
             Friends,

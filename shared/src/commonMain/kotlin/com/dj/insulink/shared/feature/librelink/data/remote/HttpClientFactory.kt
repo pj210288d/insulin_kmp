@@ -14,10 +14,6 @@ fun createHttpClient(engine: HttpClientEngine = createHttpClientEngine()): HttpC
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
-        // LibreLinkUp's backend appears to require an explicit "accept-encoding: gzip" header
-        // (see KtorLibreLinkApiClient.baseHeaders). Setting that header manually disables
-        // OkHttp's own transparent gzip decompression (it only auto-decompresses when it adds
-        // the header itself), so Ktor's own decompression plugin handles it instead.
         install(ContentEncoding) {
             gzip()
         }

@@ -9,11 +9,6 @@ import kotlinx.serialization.json.JsonElement
 private const val USERS_COLLECTION = "users"
 private const val FIELD_READINGS = "readings"
 
-// Faza 2 (cloud sync) - iOS ekvivalent Android-ovog FirebaseGlucoseRemoteDataSource.kt. Android
-// koristi arrayUnion za push, get+map/filter+set za update/delete (neatomski) - ovde je SVE
-// get+modifikuj+set (nema REST field-transform ekvivalent za arrayUnion bez dodatnog :commit
-// poziva), ali krajnji rezultat je isti jer se u ovoj MVP iteraciji ne piše konkurentno sa više
-// uređaja istovremeno.
 class FirestoreRestGlucoseRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider

@@ -23,13 +23,8 @@ import platform.UIKit.UIImagePickerControllerSourceType
 import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.darwin.NSObject
 
-// Isti presentation obrazac kao IosPdfShareCoordinator.kt (UIApplication.sharedApplication.
-// keyWindow?.rootViewController) - jedini način da se native UIKit view controller prikaže iz
-// Compose Multiplatform ekrana bez sopstvenog UIViewController-a. Vidi MealPhotoPickerLauncher.kt
-// (commonMain) za kontekst zašto ovo postoji - galerija radi na simulatoru, kamera se testira
-// sutra na fizičkom uređaju.
 private const val MAX_MEAL_PHOTO_DIMENSION_PX = 1280.0
-private const val MAX_MEAL_PHOTO_BYTES = 3 * 1024 * 1024 // 3 MB
+private const val MAX_MEAL_PHOTO_BYTES = 3 * 1024 * 1024 
 
 @Composable
 actual fun rememberMealPhotoPickerLauncher(
@@ -44,16 +39,12 @@ private class MealPhotoPickerCoordinator(
     private val onError: (String) -> Unit
 ) : MealPhotoPickerLauncher {
 
-    // UIImagePickerController.delegate je slab (weak) ObjC pokazivač - bez ove jake reference
-    // delegat bi bio dealociran čim se present() vrati, pre nego što korisnik uopšte izabere
-    // sliku, i callback nikad ne bi stigao.
     private var activeDelegate: ImagePickerDelegate? = null
 
     override val isCameraAvailable: Boolean
         get() = UIImagePickerController.isSourceTypeAvailable(
             UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera
         )
-
     override fun pickFromGallery() {
         present(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary)
     }
@@ -115,10 +106,6 @@ private class ImagePickerDelegate(
     }
 }
 
-// Isti downscale-cilj kao Android-ova varijanta (LogMeal odbija prevelike slike) - stara
-// UIGraphicsBeginImageContextWithOptions/UIGraphicsGetImageFromCurrentImageContext C-API umesto
-// modernijeg UIGraphicsImageRenderer, iz istog opreznog razloga kao CGContextShowTextAtPoint u
-// IosPdfReportGenerator.kt (nesigurna cinterop rezolucija novijih API-ja u ovom projektu).
 @OptIn(ExperimentalForeignApi::class)
 private fun resizeAndCompressImage(image: UIImage): ByteArray? {
     val (width, height) = image.size.useContents { this.width to this.height }

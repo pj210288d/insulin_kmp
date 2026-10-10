@@ -5,7 +5,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 data class Dimensions(
-    // padding
     val commonPadding80: Dp = 80.dp,
     val commonPadding48: Dp = 48.dp,
     val commonPadding40: Dp = 40.dp,
@@ -17,7 +16,6 @@ data class Dimensions(
     val commonPadding8: Dp = 8.dp,
     val commonPadding4: Dp = 4.dp,
 
-    // spacing
     val commonSpacing80: Dp = 80.dp,
     val commonSpacing64: Dp = 64.dp,
     val commonSpacing32: Dp = 32.dp,
@@ -28,7 +26,6 @@ data class Dimensions(
     val commonSpacing8: Dp = 8.dp,
     val commonSpacing4: Dp = 4.dp,
 
-    // icon sizes
     val registrationMainIconSize: Dp = 100.dp,
     val reminderIconSize: Dp = 80.dp,
     val commonIconSize64: Dp = 64.dp,
@@ -38,28 +35,23 @@ data class Dimensions(
     val textFieldIconSize: Dp = 24.dp,
     val commonIconSize16: Dp = 16.dp,
 
-    // buttons - dimensions
     val commonButtonHeight50: Dp = 50.dp,
     val commonProgressIndicatorSize25: Dp = 25.dp,
     val commonProgressIndicatorSize20: Dp = 20.dp,
 
-    // buttons - radius
     val commonButtonRadius12: Dp = 12.dp,
     val commonButtonRadius8: Dp = 8.dp,
     val commonButtonRadius4: Dp = 4.dp,
 
-    // buttons - border
     val commonButtonBorder2: Dp = 2.dp,
     val commonButtonBorder1: Dp = 1.dp,
 
-    // component sizes
     val searchResultsListHeight: Dp = 120.dp,
     val ingredientsListHeight: Dp = 200.dp,
     val nutritionCardWidth: Dp = 70.dp,
     val nutritionCardHeight: Dp = 60.dp,
     val quantityFieldWidth: Dp = 80.dp,
 
-    // other
     val commonElevation2: Dp = 2.dp,
     val commonElevation0: Dp = 0.dp
 )

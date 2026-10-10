@@ -17,8 +17,6 @@ actual fun platformAuthModule(): Module = module {
     single { AuthTokenStorage() }
     single { GoogleSignInCoordinator() }
     single { GoogleTokenExchangeClient() }
-    // IosAuthTokenProvider je javan (ne private single unutar auth modula) - koriste ga i
-    // Faza 2 FirestoreRestXRemoteDataSource actual-i van feature/auth paketa.
     single { IosAuthTokenProvider(get(), get()) }
     single<AuthRepository> { RestAuthRepository(get(), get(), get(), get(), get(), get()) }
 }

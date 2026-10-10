@@ -24,20 +24,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// Osmi deljeni Compose Multiplatform MVP ekran - sada u punom paritetu sa Android-ovim
-// app/feature/meals (vidi feature/meals/ui/viewmodel/MealsViewModel.kt tamo za obrazac po kom je
-// ovo pisano - ista logika, samo UserSession.currentUserId umesto Hilt-ovog AuthRepository).
-// Pretraga sastojaka (Spoonacular/USDA, vidi MealRepository.searchIngredients) i LogMeal
-// foto-prepoznavanje (vidi MealRepository.analyzeFoodImage) su već platform-agnostični u
-// MealRepository - jedino što je nedostajalo je ovaj ViewModel da ih zapravo pozove, i
-// MealPhotoPickerLauncher (photo/ paket) za samo fotografisanje/biranje slike, što JESTE
-// platform-specifično (dodato 2026-09-07).
 class MealsViewModel(
     private val mealRepository: MealRepository
 ) : ViewModel() {
 
-    // Vidi identičan komentar u GlucoseViewModel.kt - bez ovoga lokalna baza na novom
-    // uređaju/instalaciji ostaje prazna, iako je nalog isti kao na uređaju gde su podaci uneti.
     init {
         viewModelScope.launch {
             UserSession.currentUserId.collect { userId ->

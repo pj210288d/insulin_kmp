@@ -4,9 +4,6 @@ import android.content.Context
 import com.google.android.gms.wearable.Wearable
 import java.nio.ByteBuffer
 
-// Sends the quick-add glucose value to the phone over the MessageClient. The phone's
-// GlucoseWearListenerService (app/.../core/wear/GlucoseWearListenerService.kt) does the actual
-// insert - the watch never touches Room/Firestore directly.
 class WearMessageSender(private val context: Context) {
 
     suspend fun sendQuickAddGlucose(value: Int, timestampMillis: Long = System.currentTimeMillis()) {

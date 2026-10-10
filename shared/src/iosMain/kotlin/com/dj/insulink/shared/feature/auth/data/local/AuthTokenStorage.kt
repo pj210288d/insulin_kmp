@@ -4,10 +4,6 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.timeIntervalSince1970
 
-// Samo iOS (isti NSUserDefaults obrazac kao SettingsPreferences.ios.kt) - Android nema
-// ekvivalent jer ne treba: pravi Firebase Auth GMS SDK sam čuva/obnavlja sesiju. Čuva ceo
-// profil (ne samo tokene) da restoreSession() ne mora dodatni Firestore poziv na svaki cold
-// start dok je token još validan.
 class AuthTokenStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
 

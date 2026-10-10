@@ -53,6 +53,26 @@ kotlin {
             // Meals foto-picker (galerija/kamera) - Activity Result API, isti obrazac kao
             // app-ov postojeći AddMealWrapper.kt.
             implementation(libs.androidx.activity.compose)
+            // Pravi Google Sign-In za FirebaseAuthRepository.android.kt - Credential Manager
+            // (suspend getCredential(), radi direktno iz repository klase bez Compose Activity
+            // Result launcher-a, za razliku od starijeg google-play-services-auth koji app modul
+            // i dalje koristi u (uskoro obrisanom) native Login toku).
+            implementation(libs.androidx.credentials)
+            implementation(libs.androidx.credentials.play.services.auth)
+            implementation(libs.googleid)
+            // Reports PDF izvoz - ista biblioteka/verzija koju je ranije koristio :app-ov
+            // (sada obrisan) GlucoseReportPdfGenerator.
+            implementation("com.itextpdf:itext7-core:9.3.0")
+            // Glucose chart (Android actual GlucoseChart.kt) - isti bundle koji je ranije
+            // koristio :app-ov (sada obrisan) DynamicLineChart.kt.
+            implementation(libs.bundles.vico.compose.m3.bundle)
+            // Wear OS push (Android actual AndroidWearSyncCoordinator.kt) - isto što je ranije
+            // koristio :app-ov (sada obrisan) core/wear/WearSyncManager.kt.
+            implementation(libs.play.services.wearable)
+            // LibreLinkUp pozadinska sinhronizacija (Android actual AndroidLibreLinkSyncCoordinator.kt/
+            // LibreLinkSyncWorker.kt) - isto što je ranije koristio :app-ov (sada obrisan)
+            // core/sync/LibreLinkSyncScheduler.kt/LibreLinkSyncWorker.kt.
+            implementation(libs.androidx.work.runtime.ktx)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

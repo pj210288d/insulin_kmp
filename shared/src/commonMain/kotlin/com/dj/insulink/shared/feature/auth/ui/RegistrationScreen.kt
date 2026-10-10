@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,6 +43,8 @@ fun RegistrationScreen(
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var termsAccepted by remember { mutableStateOf(false) }
     val language by LocalizationSession.currentLanguage.collectAsState()
 
     Column(
@@ -92,6 +97,31 @@ fun RegistrationScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
         )
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = { Text(tr(language, "Potvrdi lozinku", "Confirm password")) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Checkbox(checked = termsAccepted, onCheckedChange = { termsAccepted = it })
+            Text(
+                text = tr(
+                    language,
+                    "Slažem se sa Uslovima korišćenja i Politikom privatnosti",
+                    "I agree to the Terms of Service and Privacy Policy"
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
 
         if (errorMessage != null) {
             Text(
@@ -104,10 +134,10 @@ fun RegistrationScreen(
 
         val canSubmit = !isLoading &&
             firstName.isNotBlank() && lastName.isNotBlank() &&
-            email.isNotBlank() && password.length >= 6
+            email.isNotBlank() && password.length >= 6 && confirmPassword.isNotBlank()
 
         Button(
-            onClick = { viewModel.register(firstName, lastName, email, password) },
+            onClick = { viewModel.register(firstName, lastName, email, password, confirmPassword, termsAccepted) },
             enabled = canSubmit,
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp)
         ) {

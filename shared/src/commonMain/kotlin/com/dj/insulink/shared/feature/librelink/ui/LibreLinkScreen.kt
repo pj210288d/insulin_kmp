@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,9 +39,8 @@ import com.dj.insulink.shared.feature.librelink.domain.model.LibreLinkConnection
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkConnectState
 import com.dj.insulink.shared.feature.librelink.ui.viewmodel.LibreLinkViewModel
 
-// Sedmi deljeni Compose Multiplatform MVP ekran - vidi LibreLinkViewModel za obim/odluke.
 @Composable
-fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
+fun LibreLinkScreen(viewModel: LibreLinkViewModel, onHelpClick: (() -> Unit)? = null) {
     val state by viewModel.connectState.collectAsState()
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
@@ -53,6 +53,12 @@ fun LibreLinkScreen(viewModel: LibreLinkViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
+        if (onHelpClick != null) {
+            OutlinedButton(onClick = onHelpClick, modifier = Modifier.fillMaxWidth()) {
+                Text(tr(language, "Pomoć oko povezivanja", "Connection help"))
+            }
+            Spacer(Modifier.height(16.dp))
+        }
         when (val current = state) {
             is LibreLinkConnectState.Disconnected -> {
                 LoginForm(

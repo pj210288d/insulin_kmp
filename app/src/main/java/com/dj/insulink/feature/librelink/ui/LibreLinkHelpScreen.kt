@@ -39,10 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import com.dj.insulink.R
 import com.dj.insulink.core.ui.theme.InsulinkTheme
 
-// Korak-po-korak uputstvo za povezivanje LibreLinkUp naloga - otvara se preko dugmeta "Pomoć" na
-// LibreLinkScreen.kt. Bez ViewModel-a (nema mrežnog/perzistentnog stanja - samo trenutni korak u
-// UI-ju), isto kao ostali čisto-navigacioni ekrani. Slike step1-step6 (drawable) i tekst uputstva
-// po koraku (librelink_help_step1..6, trenutno prazni stringovi) korisnik dodaje/popunjava posebno.
 @Composable
 fun LibreLinkHelpScreen(onClose: () -> Unit) {
     var currentStep by rememberSaveable { mutableIntStateOf(0) }

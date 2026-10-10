@@ -96,6 +96,8 @@
     <!-- Reminders screen -->
     <string name="reminders_screen_today_label">Today</string>
     <string name="reminders_screen_upcoming_label">Upcoming</string>
+    <string name="reminders_screen_mark_done_content_description">Mark as done</string>
+    <string name="reminders_screen_mark_not_done_content_description">Mark as not done</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Add a new reminder</string>
     <string name="reminders_screen_add_new_reminder_title_label">Set title</string>
 

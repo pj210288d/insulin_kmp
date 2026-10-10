@@ -11,14 +11,6 @@ private const val USERS_COLLECTION = "users"
 private const val FIELD_FRIENDS = "friends"
 private const val FIELD_READINGS = "readings"
 
-// Faza 3 (Friends) - iOS ekvivalent Android-ovog FirebaseFriendRemoteDataSource.kt.
-// findFriendCandidateByFriendCode koristi PRAVI Firestore query (:runQuery, FirestoreRestClient.
-// queryEqual) - jedino mesto u celom projektu gde iOS strana mora da pretraži celu kolekciju po
-// proizvoljnom polju, ne po poznatom document id-u. fetchFriendCandidates namerno radi N
-// pojedinačnih getDocumentFields poziva (po jedan po prijatelju) umesto Android-ovog
-// whereIn(FieldPath.documentId(), ...) grupnog upita - liste prijatelja su tipično male, a
-// izbegava se implementacija IN operatora za structured query (dodatna složenost bez stvarne
-// potrebe u ovom obimu).
 class FirestoreRestFriendRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider
@@ -40,7 +32,6 @@ class FirestoreRestFriendRemoteDataSource(
         firestoreClient.setArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, updated, idToken)
     }
 
-    // Dodato 2026-09-07 na zahtev korisnika (uklanjanje prijatelja) - vidi FriendsViewModel.
     override suspend fun removeFriendFromFirestoreForUser(userId: String, friendId: String) {
         val idToken = tokenProvider.currentIdToken()
         val current = firestoreClient.getArrayField(USERS_COLLECTION, userId, FIELD_FRIENDS, idToken)

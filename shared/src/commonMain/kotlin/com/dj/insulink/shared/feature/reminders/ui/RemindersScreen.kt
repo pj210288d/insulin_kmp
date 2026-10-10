@@ -52,9 +52,6 @@ import com.dj.insulink.shared.feature.reminders.domain.model.Reminder
 import com.dj.insulink.shared.feature.reminders.domain.model.ReminderType
 import com.dj.insulink.shared.feature.reminders.ui.viewmodel.RemindersViewModel
 
-// Peti deljeni Compose Multiplatform MVP ekran - vidi RemindersViewModel za obim/odluke. Faza 4:
-// dodato vreme (time picker dugme) - potrebno da bi ReminderNotificationScheduler znao kada
-// stvarno da zvoni, ne samo da čuva vreme kao podatak.
 @Composable
 fun RemindersScreen(viewModel: RemindersViewModel) {
     val reminders by viewModel.reminders.collectAsState()

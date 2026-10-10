@@ -18,7 +18,7 @@ data class MealEntity(
     val salt: Double?,
     val comment: String?,
     val userId: String,
-    val firebaseId: String? = null, // For Firebase sync
+    val firebaseId: String? = null, 
     val createdAt: Long = currentTimeMillis(),
     val updatedAt: Long = currentTimeMillis()
 )

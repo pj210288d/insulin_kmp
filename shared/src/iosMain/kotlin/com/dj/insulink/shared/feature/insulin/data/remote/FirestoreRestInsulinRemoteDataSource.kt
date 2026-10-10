@@ -9,12 +9,6 @@ import kotlinx.serialization.json.JsonElement
 private const val USERS_COLLECTION = "users"
 private const val FIELD_INSULIN_TYPES = "insulinTypes"
 
-// Faza 2 (cloud sync) - iOS ekvivalent Android-ovog FirebaseInsulinRemoteDataSource.kt, preko
-// Firestore REST-a umesto GMS SDK-a (arhitektonska odluka iz plana). Insulin je prvi feature u
-// redosledu (najprostiji model - samo id/userId/name). Isti neatomski get-modifikuj-upiši
-// obrazac kao Android-ov update/delete (push tamo koristi arrayUnion, ovde nema REST
-// field-transform ekvivalenta bez dodatnog :commit poziva - za ovaj obim dovoljno je i ovako,
-// pošto nema konkurentnih pisanja sa više uređaja u ovoj MVP iteraciji).
 class FirestoreRestInsulinRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider

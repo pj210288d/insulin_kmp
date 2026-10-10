@@ -1,3 +1,3 @@
 package com.dj.insulink.shared.feature.reports.data
 
-actual val isPdfReportSupported: Boolean = false
+actual val isPdfReportSupported: Boolean = true

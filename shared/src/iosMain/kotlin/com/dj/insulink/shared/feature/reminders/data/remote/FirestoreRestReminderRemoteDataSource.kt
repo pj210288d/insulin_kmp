@@ -12,9 +12,6 @@ import kotlinx.serialization.json.JsonElement
 private const val USERS_COLLECTION = "users"
 private const val FIELD_REMINDERS = "reminders"
 
-// Faza 2 (cloud sync) - iOS ekvivalent Android-ovog FirebaseReminderRemoteDataSource.kt.
-// isDoneForToday se NE čuva u Firestore-u - računa se pri čitanju (isti core/time helper kao
-// Android, već platform-agnostičan) iz "time" polja.
 class FirestoreRestReminderRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider
@@ -23,7 +20,8 @@ class FirestoreRestReminderRemoteDataSource(
     override suspend fun pushReminder(userId: String, reminder: Reminder) {
         val idToken = tokenProvider.currentIdToken()
         val current = firestoreClient.getArrayField(USERS_COLLECTION, userId, FIELD_REMINDERS, idToken)
-        val updated = current + reminder.toFirestoreValue().toJson()
+        val withoutExisting = current.filterNot { FirestoreValue.longOf(it, "id") == reminder.id }
+        val updated = withoutExisting + reminder.toFirestoreValue().toJson()
         firestoreClient.setArrayField(USERS_COLLECTION, userId, FIELD_REMINDERS, updated, idToken)
     }
 
@@ -49,20 +47,23 @@ private fun Reminder.toFirestoreValue() = FirestoreValue.MapVal(
         "userId" to FirestoreValue.Str(userId),
         "title" to FirestoreValue.Str(title),
         "reminderType" to FirestoreValue.Str(reminderType.name),
-        "time" to FirestoreValue.IntNum(time)
+        "time" to FirestoreValue.IntNum(time),
+        "isDoneForToday" to FirestoreValue.Bool(isDoneForToday)
     )
 )
 
 private fun JsonElement.toReminderOrNull(): Reminder? {
     val id = FirestoreValue.longOf(this, "id") ?: return null
     val reminderTime = FirestoreValue.longOf(this, "time") ?: 0L
+    val isDoneForToday = FirestoreValue.boolOf(this, "isDoneForToday")
+        ?: (localTimeOfDay(reminderTime) < currentLocalTimeOfDay())
     return Reminder(
         id = id,
         userId = FirestoreValue.stringOf(this, "userId").orEmpty(),
         title = FirestoreValue.stringOf(this, "title").orEmpty(),
         reminderType = ReminderType.fromName(FirestoreValue.stringOf(this, "reminderType"))
             ?: ReminderType.MEAL_REMINDER,
-        isDoneForToday = localTimeOfDay(reminderTime) < currentLocalTimeOfDay(),
+        isDoneForToday = isDoneForToday,
         time = reminderTime
     )
 }

@@ -67,7 +67,7 @@ class ReportsViewModelTest {
         assertEquals(200L, vm.maxDate.value)
         assertEquals(100L, vm.selectedMinDate.value)
         assertEquals(200L, vm.selectedMaxDate.value)
-        assertEquals(listOf(1L, 2L), vm.filteredReadings.value.map { it.id }) // sorted by timestamp
+        assertEquals(listOf(1L, 2L), vm.filteredReadings.value.map { it.id }) 
     }
 
     @Test
@@ -139,7 +139,6 @@ class ReportsViewModelTest {
     @Test
     fun `generatePdfReport reports an error when there is no data`() {
         val vm = buildViewModel()
-        // no selected dates and no readings
         vm.generatePdfReport("u1")
 
         assertTrue(vm.pdfGenerationState.value is PdfGenerationState.Error)
@@ -191,7 +190,7 @@ class ReportsViewModelTest {
     @Test
     fun `resetPdfGenerationState returns to idle`() {
         val vm = buildViewModel()
-        vm.generatePdfReport("u1") // -> Error (no data)
+        vm.generatePdfReport("u1") 
         vm.resetPdfGenerationState()
 
         assertEquals(PdfGenerationState.Idle, vm.pdfGenerationState.value)

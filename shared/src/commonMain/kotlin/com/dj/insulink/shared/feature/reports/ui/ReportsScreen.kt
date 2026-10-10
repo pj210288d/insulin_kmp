@@ -40,8 +40,6 @@ import com.dj.insulink.shared.core.time.dateOnlyLabel
 import com.dj.insulink.shared.feature.reports.ui.viewmodel.PdfGenerationState
 import com.dj.insulink.shared.feature.reports.ui.viewmodel.ReportsViewModel
 
-// Deseti (i poslednji planirani) deljeni Compose Multiplatform MVP ekran - vidi ReportsViewModel
-// za obim/odluke. Ne prikazuje se uopšte kad viewModel.isSupported == false (Android demo).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(viewModel: ReportsViewModel) {

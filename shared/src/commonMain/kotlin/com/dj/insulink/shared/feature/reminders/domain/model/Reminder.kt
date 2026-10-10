@@ -9,9 +9,6 @@ data class Reminder(
     val time: Long
 )
 
-// Pure identity enum, no Android resource references (@StringRes/@DrawableRes) - those
-// live in the app module's UI layer, mapped from this type there. commonMain can't
-// reference app-module generated resource IDs.
 enum class ReminderType {
     MEAL_REMINDER,
     INSULIN_REMINDER,
@@ -22,4 +19,10 @@ enum class ReminderType {
             return entries.find { it.name == name }
         }
     }
+}
+
+fun ReminderType.notificationMessage(): String = when (this) {
+    ReminderType.MEAL_REMINDER -> "Vreme je za obrok"
+    ReminderType.INSULIN_REMINDER -> "Vreme je za insulin"
+    ReminderType.BLOOD_SUGAR_CHECK_REMINDER -> "Vreme je da izmeriš šećer"
 }

@@ -15,7 +15,7 @@ data class IngredientEntity(
     val fatPer100g: Double,
     val sugarPer100g: Double,
     val saltPer100g: Double,
-    val userId: String? = null, // null for system ingredients, userId for custom ingredients
-    val firebaseId: String? = null, // For Firebase sync
+    val userId: String? = null, 
+    val firebaseId: String? = null, 
     val createdAt: Long = currentTimeMillis()
 )

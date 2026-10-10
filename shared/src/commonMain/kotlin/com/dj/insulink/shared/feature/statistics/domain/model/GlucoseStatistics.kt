@@ -9,9 +9,6 @@ data class GlucoseStatistics(
     val timeInRange: TimeInRangeBreakdown
 )
 
-// Percent of readings below / within / above the target range (70-126 mg/dL, matching the
-// thresholds already used by GlucoseLevelTag/DynamicLineChart on the app side). Adds up to 100
-// (within floating point rounding) unless there are zero readings.
 data class TimeInRangeBreakdown(
     val belowPercent: Double,
     val inRangePercent: Double,

@@ -5,9 +5,6 @@ import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 
-// Live updates while the watch app is in the foreground. LatestReadingStore.getCached() covers
-// the cold-start case (app just opened, phone hasn't pushed anything since) - the two together
-// give the "latest reading" screen a value immediately and keep it fresh afterwards.
 class WearDataListener(
     private val onLatestReadingChanged: (LatestReading?) -> Unit = {}
 ) : DataClient.OnDataChangedListener {

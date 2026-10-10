@@ -1,6 +1,7 @@
 package com.dj.insulink.core.wear
 
 import com.dj.insulink.shared.feature.glucose.data.repository.GlucoseReadingRepository
+import com.dj.insulink.shared.feature.glucose.data.wear.WearSyncCoordinator
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 import com.dj.insulink.shared.feature.settings.data.SettingsPreferences
 import com.google.android.gms.wearable.MessageEvent
@@ -13,9 +14,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
-// Handles a quick-add glucose reading sent from the watch (wearApp's WearMessageSender).
-// Not Hilt-managed - reads its dependencies straight from Koin, same as LibreLinkSyncWorker.kt,
-// since WearableListenerService's own lifecycle leaves no clean place to wire Hilt injection.
 class GlucoseWearListenerService : WearableListenerService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO)
@@ -28,7 +26,7 @@ class GlucoseWearListenerService : WearableListenerService() {
 
         val glucoseReadingRepository: GlucoseReadingRepository = GlobalContext.get().get()
         val settingsPreferences: SettingsPreferences = GlobalContext.get().get()
-        val wearSyncManager = WearSyncManager(applicationContext)
+        val wearSyncCoordinator: WearSyncCoordinator = GlobalContext.get().get()
 
         serviceScope.launch {
             val reading = GlucoseReading(
@@ -40,12 +38,10 @@ class GlucoseWearListenerService : WearableListenerService() {
             )
             glucoseReadingRepository.insert(userId = userId, reading = reading)
 
-            // Echo the true latest reading back to the watch, so its "latest reading" screen
-            // and tile reflect the confirmed, saved value (not just what the watch guessed).
             val latest = glucoseReadingRepository.getAllGlucoseReadingsForUser(userId)
                 .first()
                 .maxByOrNull { it.timestamp }
-            wearSyncManager.pushLatestReading(latest, settingsPreferences.getGlucoseUnit())
+            wearSyncCoordinator.pushLatestReading(latest, settingsPreferences.getGlucoseUnit())
         }
     }
 
@@ -58,7 +54,6 @@ class GlucoseWearListenerService : WearableListenerService() {
     }
 
     companion object {
-        // Must match wearApp's WearDataLayerContract.QUICK_ADD_GLUCOSE_PATH.
         private const val QUICK_ADD_GLUCOSE_PATH = "/insulink/quick_add_glucose"
     }
 }

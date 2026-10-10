@@ -75,12 +75,6 @@ import com.dj.insulink.shared.feature.meals.domain.model.MealIngredient
 import com.dj.insulink.shared.feature.meals.photo.rememberMealPhotoPickerLauncher
 import com.dj.insulink.shared.feature.meals.ui.viewmodel.MealsViewModel
 
-// Osmi deljeni Compose Multiplatform MVP ekran - sada u punom paritetu sa Android-ovim
-// app/feature/meals (MealsScreen.kt + AddMealScreen.kt + CreateIngredientDialog.kt +
-// MyIngredientsDialog.kt tamo), namerno bez ikonica (Icons.Filled.*, isti razlog kao ostatak
-// deljenog UI-ja) i bez InsulinkTheme (app-module-specifično) - dugmad su tekstualna, dodavanje
-// obroka je Dialog umesto poseban navigacioni ekran (App() tab-sistem nema push navigaciju,
-// isti obrazac kao Glucose/Friends dijalozi).
 @Composable
 fun MealsScreen(viewModel: MealsViewModel) {
     val meals by viewModel.mealsForSelectedDate.collectAsState()
@@ -229,9 +223,6 @@ private fun MealRow(meal: Meal, language: AppLanguage, onDelete: () -> Unit) {
     }
 }
 
-// Isti obrazac kao Glucose-ov AddEditReadingDialog (dva OutlinedButton-a koja otvaraju
-// Material3 DatePicker/TimePicker) - vidi GlucoseScreen.kt. Za razliku od Glucose-a, obroci nemaju
-// ograničenje na prošlost/sadašnjost (Android-ova DateTimeInput.kt takođe nema).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MealDateTimeSelector(timestamp: Long, language: AppLanguage, onTimestampChange: (Long) -> Unit) {
@@ -562,11 +553,6 @@ private fun AddedIngredientItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // Sastojci dobijeni analizom fotografije (kamera/galerija) nemaju editabilno polje za
-            // količinu - quantity=100 je tehnički trik da LogMeal-ove ukupne vrednosti za CELU
-            // sliku prođu nepromenjene kroz caloriesPer100g*quantity/100 računicu (vidi
-            // FoodImageAnalysis.kt/MealIngredient.isFromPhotoAnalysis), ne stvarna izmerena
-            // gramaža - isti razlog kao Android-ov AddMealScreen.kt.
             if (!mealIngredient.isFromPhotoAnalysis) {
                 BasicTextField(
                     value = quantityText,

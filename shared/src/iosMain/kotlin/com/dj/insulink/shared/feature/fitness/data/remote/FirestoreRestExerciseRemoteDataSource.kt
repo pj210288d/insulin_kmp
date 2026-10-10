@@ -9,9 +9,6 @@ import kotlinx.serialization.json.JsonElement
 private const val USERS_COLLECTION = "users"
 private const val FIELD_EXERCISES = "exercises"
 
-// Faza 2 (cloud sync) - iOS ekvivalent Android-ovog FirebaseExerciseRemoteDataSource.kt. Nema
-// delete/update na Android strani (ExerciseDao nema per-item delete - vidi dnevnik 2026-09-05),
-// pa ni ovde - samo push/fetch, isti stvarni paritet kao Android.
 class FirestoreRestExerciseRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider

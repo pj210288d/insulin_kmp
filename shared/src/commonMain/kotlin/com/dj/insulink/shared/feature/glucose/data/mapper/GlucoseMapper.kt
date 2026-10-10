@@ -3,7 +3,6 @@ package com.dj.insulink.shared.feature.glucose.data.mapper
 import com.dj.insulink.shared.feature.glucose.data.local.entity.GlucoseReadingEntity
 import com.dj.insulink.shared.feature.glucose.domain.model.GlucoseReading
 
-// Entity -> Domain
 fun GlucoseReadingEntity.toDomain(): GlucoseReading {
     return GlucoseReading(
         id = id,
@@ -17,7 +16,6 @@ fun GlucoseReadingEntity.toDomain(): GlucoseReading {
     )
 }
 
-// Domain -> Entity
 fun GlucoseReading.toEntity(): GlucoseReadingEntity {
     return GlucoseReadingEntity(
         id = id,

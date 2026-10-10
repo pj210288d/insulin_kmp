@@ -62,7 +62,7 @@ class LogMealFoodImageAnalysisRemoteDataSourceTest {
         assertEquals(28.0, ingredient.carbsPer100g, 0.0001)
         assertEquals(14.0, ingredient.fatPer100g, 0.0001)
         assertEquals(5.0, ingredient.sugarPer100g, 0.0001)
-        assertEquals(0.9, ingredient.saltPer100g, 0.0001) // 900 mg -> 0.9 g
+        assertEquals(0.9, ingredient.saltPer100g, 0.0001) 
     }
 
     @Test

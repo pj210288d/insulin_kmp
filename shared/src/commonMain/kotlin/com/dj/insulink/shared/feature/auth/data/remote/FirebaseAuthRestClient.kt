@@ -25,7 +25,6 @@ import kotlinx.serialization.json.jsonPrimitive
 private const val IDENTITY_TOOLKIT_BASE = "https://identitytoolkit.googleapis.com/v1"
 private const val SECURE_TOKEN_BASE = "https://securetoken.googleapis.com/v1"
 
-/** Dovoljno da TokenStorage (iOS actual) sačuva sesiju i kasnije je obnovi. */
 data class FirebaseAuthTokens(
     val idToken: String,
     val refreshToken: String,
@@ -33,7 +32,6 @@ data class FirebaseAuthTokens(
     val uid: String
 )
 
-/** Rezultat accounts:signInWithIdp - tokeni + Google profil polja za popunjavanje AuthUser-a. */
 data class GoogleSignInResult(
     val tokens: FirebaseAuthTokens,
     val email: String,
@@ -42,20 +40,6 @@ data class GoogleSignInResult(
     val isNewUser: Boolean
 )
 
-// Ručno pisan Ktor klijent za Firebase Identity Toolkit REST API (login/registracija/reset
-// lozinke/verifikacija emaila/refresh tokena) - koristi ga SAMO iOS Auth actual (Faza 1 plan,
-// arhitektonska odluka: REST umesto GitLive Firebase KMP, da se izbegne CocoaPods i Kotlin/
-// Native ABI rizik - vidi CLAUDE.md gotcha #5). Android i dalje ide preko pravog Firebase GMS
-// SDK-a, nepromenjeno.
-//
-// Odgovori se parsiraju RUČNO (JsonObject + traženo polje po polje), NE preko strogog
-// @Serializable data class-a - otkriveno na fizičkom testu (2026-09-06) da signInWithPassword
-// odgovor na iOS simulatoru ume da stigne bez refreshToken/expiresIn polja iako je HTTP status
-// 200 i iako identičan curl poziv (signUp→update→sendOobCode→signIn sekvenca) protiv istog
-// Identity Toolkit endpoint-a UVEK vraća sva polja - uzrok nije do kraja utvrđen (moguć Ktor
-// Darwin-engine edge slučaj sa čitanjem tela odgovora), ali strogo dekodiranje je tu bacalo
-// kriptičnu kotlinx.serialization grešku umesto da otkaže glatko. Ako se ponovi, poruka će
-// navesti TAČNO koji ključevi jesu prisutni (bez vrednosti - ništa osetljivo se ne loguje).
 class FirebaseAuthRestClient(
     private val httpClient: HttpClient = createCoreHttpClient()
 ) {
@@ -104,14 +88,6 @@ class FirebaseAuthRestClient(
         requireSuccess(response)
     }
 
-    /**
-     * Razmenjuje Google OAuth id_token (dobijen preko ASWebAuthenticationSession - vidi
-     * GoogleSignInCoordinator, iOS-only) za Firebase sesiju. Isti krajnji rezultat kao
-     * Android-ov firebaseAuth.signInWithCredential(GoogleAuthProvider.getCredential(...)), samo
-     * preko REST-a: accounts:signInWithIdp prihvata bilo koji spoljni id_token i ili poveže
-     * postojeći Firebase nalog (isti email) ili napravi nov, i vraća Google profil polja
-     * (firstName/lastName/email) pored uobičajenih idToken/refreshToken/localId.
-     */
     suspend fun signInWithGoogleIdToken(googleIdToken: String): GoogleSignInResult {
         val response = httpClient.post("$IDENTITY_TOOLKIT_BASE/accounts:signInWithIdp") {
             parameter("key", FIREBASE_WEB_API_KEY)
@@ -167,7 +143,6 @@ class FirebaseAuthRestClient(
         )
     }
 
-    /** Parsira telo odgovora kao JsonObject; ako status nije uspešan, baca AuthException sa Google-ovom porukom. */
     private suspend fun parseJsonObject(response: HttpResponse): JsonObject {
         val rawBody = response.bodyAsText()
         val json = runCatching { Json.parseToJsonElement(rawBody).jsonObject }.getOrNull()
@@ -186,7 +161,7 @@ class FirebaseAuthRestClient(
 
     private suspend fun requireSuccess(response: HttpResponse) {
         if (response.status.isSuccess()) return
-        parseJsonObject(response) // baca AuthException sa porukom iz tela odgovora
+        parseJsonObject(response) 
     }
 }
 

@@ -17,7 +17,6 @@ abstract class ExerciseDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
 }
 
-// Room's KSP compiler generates the platform `actual` for this object.
 @Suppress("NO_ACTUAL_FOR_EXPECT")
 expect object ExerciseDatabaseConstructor : RoomDatabaseConstructor<ExerciseDatabase> {
     override fun initialize(): ExerciseDatabase

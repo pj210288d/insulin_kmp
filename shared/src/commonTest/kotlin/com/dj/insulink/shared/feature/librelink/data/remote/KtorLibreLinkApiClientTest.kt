@@ -126,7 +126,7 @@ class KtorLibreLinkApiClientTest {
 
         val readings = client.fetchGlucoseReadings(auth, "p1").getOrThrow()
 
-        assertEquals(2, readings.size) // the latest measurement duplicates a graphData entry and isn't added twice
+        assertEquals(2, readings.size) 
         assertEquals(listOf(105, 110), readings.map { it.valueMgDl })
     }
 

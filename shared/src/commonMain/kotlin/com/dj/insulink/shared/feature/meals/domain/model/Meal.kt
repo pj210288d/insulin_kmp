@@ -24,15 +24,9 @@ data class MealIngredient(
     val id: Long = 0,
     val mealId: Long,
     val ingredient: Ingredient,
-    val quantity: Double, // in grams
+    val quantity: Double, 
     val firebaseId: String? = null,
     val createdAt: Long = currentTimeMillis(),
-    // UI-only, not persisted (MealMappers/MealIngredientEntity don't carry it - always false
-    // after a save/reload). Set true only for the duration of the add-meal screen when this row
-    // came from LogMeal photo analysis (camera/gallery) - quantity there is a pass-through trick
-    // (100g = "whole photographed plate unscaled", see FoodImageAnalysis.kt), not a real measured
-    // weight, so the UI hides the editable quantity field for these rows instead of implying a
-    // precision that isn't there.
     val isFromPhotoAnalysis: Boolean = false
 )
 
@@ -45,7 +39,7 @@ data class Ingredient(
     val fatPer100g: Double,
     val sugarPer100g: Double,
     val saltPer100g: Double,
-    val userId: String? = null, // null for system ingredients, userId for custom ingredients
+    val userId: String? = null, 
     val firebaseId: String? = null,
     val createdAt: Long = currentTimeMillis()
 )

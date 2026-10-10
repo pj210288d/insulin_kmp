@@ -17,7 +17,6 @@ abstract class ReminderDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
 }
 
-// Room's KSP compiler generates the platform `actual` for this object.
 @Suppress("NO_ACTUAL_FOR_EXPECT")
 expect object ReminderDatabaseConstructor : RoomDatabaseConstructor<ReminderDatabase> {
     override fun initialize(): ReminderDatabase

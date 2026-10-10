@@ -5,7 +5,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Your existing colors (for light mode)
 val insulinkBlue = Color(0xFF4A7BF6)
 val insulinkPurple = Color(0xFF8A5CF5)
 val outlineGray = Color(0xFFB2B2B2)
@@ -23,7 +22,6 @@ val glucoseHighYellow = Color(0xFFFFEE58)
 val glucoseNormalGreen = Color(0xFF66BB6A)
 val glucoseLowRed = Color(0xFFEF5350)
 
-// Dark mode variants
 val insulinkBlueDark = Color(0xFF6B9BFF)
 val insulinkPurpleDark = Color(0xFFA47CFF)
 val outlineGrayDark = Color(0xFF6B6B6B)

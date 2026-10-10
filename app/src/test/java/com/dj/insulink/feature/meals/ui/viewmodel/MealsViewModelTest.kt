@@ -130,7 +130,7 @@ class MealsViewModelTest {
     fun `submitNewMeal computes totals inserts and calls onSuccess`() = runTest(mainDispatcherRule.dispatcher) {
         val vm = buildViewModel()
         vm.setNewMealName("Breakfast")
-        vm.addIngredient(ingredient, 200.0) // quantity 200g of a 100 kcal/100g ingredient
+        vm.addIngredient(ingredient, 200.0) 
         var success = false
 
         vm.submitNewMeal("u1") { success = true }
@@ -147,7 +147,7 @@ class MealsViewModelTest {
             )
         }
         assertTrue(success)
-        assertTrue(vm.selectedIngredients.value.isEmpty()) // reset
+        assertTrue(vm.selectedIngredients.value.isEmpty()) 
         assertFalse(vm.isLoading.value)
     }
 
@@ -264,7 +264,7 @@ class MealsViewModelTest {
         val vm = buildViewModel(ingredients = listOf(ingredient))
 
         vm.searchResults.test {
-            assertEquals(emptyList<Ingredient>(), awaitItem()) // initial
+            assertEquals(emptyList<Ingredient>(), awaitItem()) 
             vm.setSearchQuery("oats")
             advanceTimeBy(301)
             runCurrent()

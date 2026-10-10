@@ -1,12 +1,20 @@
 package com.dj.insulink.shared.feature.auth.data
 
+import android.content.Context
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
 import com.dj.insulink.shared.core.auth.AuthSession
 import com.dj.insulink.shared.core.crypto.generateFriendCodeFromEmail
 import com.dj.insulink.shared.feature.auth.domain.model.AuthException
 import com.dj.insulink.shared.feature.auth.domain.model.AuthUser
 import com.dj.insulink.shared.feature.auth.domain.repository.AuthRepository
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,19 +23,12 @@ import kotlinx.coroutines.tasks.await
 
 private const val USERS_COLLECTION = "users"
 
-// Nova, samostalna klasa - NE app/auth/data/AuthRepository.kt (taj ostaje netaknut, i dalje ga
-// koristi pravi Android Login/Registration ekran preko Hilt-a, guardrail #4 iz plana). Ova
-// wrapuje ISTI, već dokazani Firebase GMS SDK (FirebaseAuth+FirebaseFirestore - vidi
-// core/di/FirebaseModule.kt) samo da bi shared App() površina (iOS root + Android "Shared UI"
-// demo) imala svoj commonMain AuthRepository interfejs zadovoljen i na Android-u. U praksi
-// restoreSession() na Android-u skoro uvek odmah uspe - do ove rute se stiže tek posle pravog
-// login-a u glavnoj app (AppNavigation.kt startDestination logika), pa je firebaseAuth.currentUser
-// već postavljen - shared Login/Registration ekran se praktično nikad ne prikazuje na Android-u,
-// što je očekivano (postoji radi dokazivanja da isti kod radi na oba OS-a, ne kao stvarni
-// dvostruki login tok).
+private const val WEB_CLIENT_ID = "846271429991-s1fudad0obbn2am6a9virtqrfbmhcn7o.apps.googleusercontent.com"
+
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val context: Context
 ) : AuthRepository {
 
     private val _currentUserFlow = MutableStateFlow<AuthUser?>(null)
@@ -93,14 +94,73 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun signInWithGoogle(): AuthUser {
-        // Deljeni demo ekran u praksi se ne prikazuje na Android-u (do njega se stiže tek posle
-        // pravog login-a u glavnoj app - vidi restoreSession() gore), a Android-ov PRAVI Google
-        // Sign-In ekran (app/auth/ui/LoginScreen.kt) već postoji, sa potpuno drugačijim OS
-        // mehanizmom (Activity Result Contract, ne ASWebAuthenticationSession) - namerno se ne
-        // duplira ovde. Vidi isGoogleSignInSupported.
-        throw UnsupportedOperationException(
-            "Google Sign-In u deljenom demo ekranu nije podržan na Android-u - koristi glavni Login ekran"
-        )
+        val credentialManager = CredentialManager.create(context)
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(WEB_CLIENT_ID)
+            .build()
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        val credential = runCatching { credentialManager.getCredential(context, request) }
+            .getOrElse { throw AuthException(it.message ?: "Google prijava nije uspela") }
+            .credential
+
+        if (credential !is CustomCredential ||
+            credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+        ) {
+            throw AuthException("Google prijava nije uspela - neočekivan tip kredencijala")
+        }
+        val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+        val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+
+        val result = runCatching { firebaseAuth.signInWithCredential(firebaseCredential).await() }
+            .getOrElse { throw AuthException(it.message ?: "Google prijava nije uspela") }
+        val firebaseUser = result.user ?: throw AuthException("Google prijava nije uspela")
+
+        val userDocRef = firestore.collection(USERS_COLLECTION).document(firebaseUser.uid)
+        val existingDoc = userDocRef.get().await()
+
+        val user = if (existingDoc.exists()) {
+            AuthUser(
+                uid = firebaseUser.uid,
+                firstName = existingDoc.getString("firstName").orEmpty(),
+                lastName = existingDoc.getString("lastName").orEmpty(),
+                email = firebaseUser.email.orEmpty(),
+                friendCode = existingDoc.getString("friendCode").orEmpty(),
+                isEmailVerified = firebaseUser.isEmailVerified
+            )
+        } else {
+            val displayName = firebaseUser.displayName.orEmpty()
+            val nameParts = displayName.split(" ")
+            val firstName = nameParts.getOrNull(0).orEmpty()
+            val lastName = nameParts.drop(1).joinToString(" ")
+            val friendCode = generateFriendCodeFromEmail(firebaseUser.email.orEmpty())
+            val newUserData = hashMapOf(
+                "firstName" to firstName,
+                "lastName" to lastName,
+                "email" to firebaseUser.email.orEmpty(),
+                "createdAt" to Timestamp.now(),
+                "userId" to firebaseUser.uid,
+                "readings" to emptyList<Any>(),
+                "friendCode" to friendCode,
+                "friends" to emptyList<Any>(),
+                "reminders" to emptyList<Any>(),
+                "exercises" to emptyList<Any>()
+            )
+            userDocRef.set(newUserData).await()
+            AuthUser(
+                uid = firebaseUser.uid,
+                firstName = firstName,
+                lastName = lastName,
+                email = firebaseUser.email.orEmpty(),
+                friendCode = friendCode,
+                isEmailVerified = firebaseUser.isEmailVerified
+            )
+        }
+        publish(user)
+        return user
     }
 
     override suspend fun sendPasswordResetEmail(email: String) {
@@ -110,6 +170,9 @@ class FirebaseAuthRepository(
 
     override suspend fun signOut() {
         firebaseAuth.signOut()
+        runCatching {
+            CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
+        }
         publish(null)
     }
 

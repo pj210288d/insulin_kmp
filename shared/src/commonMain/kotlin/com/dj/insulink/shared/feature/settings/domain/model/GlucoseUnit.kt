@@ -29,8 +29,6 @@ enum class GlucoseUnit(
 
         private const val CONVERSION_FACTOR = 18.0182
 
-        // Locale-independent replacement for String.format(Locale.US, "%.1f", value),
-        // which isn't available in commonMain.
         private fun formatOneDecimal(value: Double): String {
             val scaled = round(value * 10).toLong()
             val whole = scaled / 10

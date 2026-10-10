@@ -27,10 +27,6 @@ import kotlinx.serialization.json.put
 
 private const val FIRESTORE_BASE_URL = "https://firestore.googleapis.com/v1"
 
-// Zajednički Firestore REST klijent - koristi ga iOS Auth actual (Faza 1, samo
-// get/createDocument za users/{uid}) i iOS-ovi FirestoreRestXRemoteDataSource actual-i (Faza 2,
-// dodaje patch/query metode kad na njih dođe red). Android NE koristi ovo - i dalje ide preko
-// pravog Firebase GMS SDK-a (FirebaseFirestore), nepromenjeno.
 class FirestoreRestClient(
     private val httpClient: HttpClient = createCoreHttpClient()
 ) {
@@ -40,7 +36,6 @@ class FirestoreRestClient(
     private fun collectionUrl(collection: String) =
         "$FIRESTORE_BASE_URL/projects/$FIREBASE_PROJECT_ID/databases/(default)/documents/$collection"
 
-    /** Vraća "fields" mapu dokumenta (sirov Firestore REST JSON), ili null ako ne postoji (404). */
     suspend fun getDocumentFields(collection: String, documentId: String, idToken: String): JsonObject? {
         val response = httpClient.get(documentUrl(collection, documentId)) {
             header("Authorization", "Bearer $idToken")
@@ -67,14 +62,6 @@ class FirestoreRestClient(
         requireSuccess(response) { "Firestore create failed: ${response.status}" }
     }
 
-    /**
-     * Zamenjuje SAMO jedno polje (`updateMask.fieldPaths=fieldName`) dokumenta poljem tipa niz -
-     * kreira ga ako ne postoji, ne dira ostala polja. Koriste ga svi Faza 2
-     * FirestoreRestXRemoteDataSource actual-i za push/update/delete pojedinačne stavke: pozivalac
-     * pročita trenutni niz preko getArrayField, izmeni ga u memoriji (dodaj/ukloni/zameni
-     * element po id-u - isti neatomski obrazac kao postojeći Android FirebaseXRemoteDataSource
-     * update/delete metode), pa upiše ceo niz nazad.
-     */
     suspend fun setArrayField(
         collection: String,
         documentId: String,
@@ -91,7 +78,6 @@ class FirestoreRestClient(
         requireSuccess(response) { "Firestore update failed: ${response.status}" }
     }
 
-    /** Sirovi elementi niza pod `fieldName`-om (svaki je mapValue) - prazna lista ako polje/dokument ne postoje. */
     suspend fun getArrayField(
         collection: String,
         documentId: String,
@@ -102,15 +88,6 @@ class FirestoreRestClient(
         return FirestoreValue.arrayElements(fields, fieldName)
     }
 
-    /**
-     * Firestore `:runQuery` - jednostavan `fieldFilter EQUAL` upit (Faza 3, Friends - pretraga
-     * po friendCode preko cele "users" kolekcije, Android ekvivalent je
-     * `whereEqualTo(...)`). Vraća (documentId, fields) parove - documentId se izvlači iz
-     * dokumentovog punog resursnog imena ("projects/.../documents/users/UID" -> "UID"), pošto
-     * runQuery odgovor ne vraća goli id odvojeno. Potvrđeno curl testom protiv pravog
-     * Firestore-a (2026-09-06) da odgovor ima oblik [{"document": {"name":..., "fields":...},
-     * "readTime":...}, ...] - prazan niz ako nema poklapanja.
-     */
     suspend fun queryEqual(
         collection: String,
         field: String,

@@ -23,11 +23,6 @@ import kotlin.time.ExperimentalTime
 
 private const val USERS_COLLECTION = "users"
 
-// Isto ponašanje kao Android-ov app/auth/data/AuthRepository.kt, ali preko Ktor REST klijenata
-// (FirebaseAuthRestClient + FirestoreRestClient) umesto pravog Firebase GMS SDK-a - arhitektonska
-// odluka iz Faze 1 plana (izbegava CocoaPods/ABI rizik).
-// Token refresh logika (ensureValidTokens) živi u IosAuthTokenProvider - deljena sa Faza 2
-// FirestoreRestXRemoteDataSource actual-ima, ne duplirana ovde.
 class RestAuthRepository(
     private val authClient: FirebaseAuthRestClient,
     private val firestoreClient: FirestoreRestClient,
@@ -68,8 +63,6 @@ class RestAuthRepository(
             lastName = FirestoreValue.stringOrNull(fields, "lastName").orEmpty(),
             email = email,
             friendCode = FirestoreValue.stringOrNull(fields, "friendCode").orEmpty(),
-            // Identity Toolkit signInWithPassword ne vraća emailVerified direktno (trebao bi
-            // dodatan accounts:lookup poziv) - v1 pojednostavljenje, dovoljno za MVP.
             isEmailVerified = false
         )
         persistSession(tokens, user)
@@ -135,8 +128,6 @@ class RestAuthRepository(
             USERS_COLLECTION, result.tokens.uid, result.tokens.idToken
         )
         val user = if (existingFields != null) {
-            // Postojeći nalog (npr. isti Google nalog kojim je korisnik već registrovan na
-            // Android-u) - samo pročitaj postojeći profil, ne diraj ga.
             AuthUser(
                 uid = result.tokens.uid,
                 firstName = FirestoreValue.stringOrNull(existingFields, "firstName").orEmpty(),
@@ -146,7 +137,6 @@ class RestAuthRepository(
                 isEmailVerified = true
             )
         } else {
-            // Nov nalog - isti obrazac kao register(), friendCode iz email-a.
             val friendCode = generateFriendCodeFromEmail(result.email)
             firestoreClient.createDocument(
                 collection = USERS_COLLECTION,

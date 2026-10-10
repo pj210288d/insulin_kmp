@@ -14,13 +14,6 @@ import kotlinx.serialization.json.jsonPrimitive
 
 private const val GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 
-/**
- * Razmenjuje Google OAuth authorization code (+ PKCE code_verifier - vidi GoogleSignInCoordinator,
- * iOS-only) za Google-ov id_token preko Google-ovog SOPSTVENOG token endpoint-a (ne
- * Firebase-ovog - taj id_token se tek ODATLE prosleđuje Firebase-u preko
- * FirebaseAuthRestClient.signInWithGoogleIdToken). "Public" klijent (iOS app, bez client
- * secret-a) - PKCE je dovoljan dokaz vlasništva nad authorization code-om umesto secret-a.
- */
 class GoogleTokenExchangeClient(
     private val httpClient: HttpClient = createCoreHttpClient()
 ) {

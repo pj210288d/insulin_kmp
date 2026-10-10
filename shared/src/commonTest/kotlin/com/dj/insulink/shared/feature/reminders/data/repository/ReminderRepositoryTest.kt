@@ -27,7 +27,7 @@ class ReminderRepositoryTest {
 
         assertEquals(2, result.size)
         val times = result.map { localTimeOfDay(it.time) }
-        assertEquals(times.sorted(), times) // ascending by time of day
+        assertEquals(times.sorted(), times) 
     }
 
     @Test

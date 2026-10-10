@@ -10,7 +10,7 @@ data class MealIngredientEntity(
     val id: Long = 0,
     val mealId: Long,
     val ingredientId: Long,
-    val quantity: Double, // in grams
-    val firebaseId: String? = null, // For Firebase sync
+    val quantity: Double, 
+    val firebaseId: String? = null, 
     val createdAt: Long = currentTimeMillis()
 )

@@ -27,7 +27,6 @@ abstract class MealsDatabase : RoomDatabase() {
     abstract fun mealIngredientDao(): MealIngredientDao
 }
 
-// Room's KSP compiler generates the platform `actual` for this object.
 @Suppress("NO_ACTUAL_FOR_EXPECT")
 expect object MealsDatabaseConstructor : RoomDatabaseConstructor<MealsDatabase> {
     override fun initialize(): MealsDatabase

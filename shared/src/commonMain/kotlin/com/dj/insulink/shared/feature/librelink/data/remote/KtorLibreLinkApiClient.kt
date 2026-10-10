@@ -96,10 +96,6 @@ class KtorLibreLinkApiClient(
         }
     }
 
-    // Sent on every request (login included). LibreLinkUp's backend appears to fingerprint
-    // requests against the official app's header set and reject anything narrower with a 403
-    // rather than a 401 — omitting these (while still sending valid credentials) reproduced
-    // that exact symptom.
     private fun HttpRequestBuilder.baseHeaders() {
         header("product", PRODUCT)
         header("version", CLIENT_VERSION)

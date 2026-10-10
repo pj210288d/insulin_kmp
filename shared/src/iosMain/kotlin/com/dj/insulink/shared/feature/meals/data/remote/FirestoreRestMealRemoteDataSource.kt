@@ -12,12 +12,6 @@ import kotlinx.serialization.json.JsonObject
 private const val USERS_COLLECTION = "users"
 private const val FIELD_MEALS = "meals"
 
-// Faza 2 (cloud sync), poslednji od pet - iOS ekvivalent Android-ovog
-// FirebaseMealRemoteDataSource.kt. Isti ugnježdeni oblik (meal -> ingredients[] ->
-// ingredient mapValue), namerno BEZ LogMeal foto prepoznavanja (Faza 5, van obima ovog dela) -
-// samo ručni unos/lista/brisanje kao i postojeći shared Meals ekran. Firestore REST PATCH je
-// upsert (kreira dokument ako ne postoji) - nema potrebe za Android-ovim eksplicitnim
-// snapshot.exists() granjanjem set/update.
 class FirestoreRestMealRemoteDataSource(
     private val firestoreClient: FirestoreRestClient,
     private val tokenProvider: IosAuthTokenProvider

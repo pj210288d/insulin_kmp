@@ -136,6 +136,8 @@
     <!-- Reminders screen -->
     <string name="reminders_screen_today_label">Danas</string>
     <string name="reminders_screen_upcoming_label">Predstojeci</string>
+    <string name="reminders_screen_mark_done_content_description">Označi kao odrađeno</string>
+    <string name="reminders_screen_mark_not_done_content_description">Poništi odrađeno</string>
     <string name="reminders_screen_add_new_reminder_dialog_title">Dodaj novi podsetnik</string>
     <string name="reminders_screen_add_new_reminder_title_label">Postavite naslov</string>
 
